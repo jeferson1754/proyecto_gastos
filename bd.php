@@ -15,7 +15,7 @@ mysqli_query($conexion, "SET SESSION collation_connection ='utf8_unicode_ci'");
 $db = mysqli_select_db($conexion, $basededatos) or die("Upps! Error en conectar a la Base de Datos");
 
 //Linea para los caracteres �
-
+/*
 if (!mysqli_set_charset($conexion, "utf8mb4")) {
     printf("Error loading character set utf8mb4: %s\n", mysqli_error($conn));
     exit();
@@ -56,6 +56,7 @@ $result = mysqli_query($conexion, $query);
 if (!$result) {
     die("La consulta falló: " . mysqli_error($conexion));
 }
+*/
 
 
 $host = $servidor;
