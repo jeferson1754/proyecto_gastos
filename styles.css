@@ -94,6 +94,11 @@ body {
 }
 
 
+@media only screen and (max-width: 600px) {
+    .responsivo {
+        margin-bottom: 20px;
+    }
+}
 
 .red {
     color: red;

@@ -124,9 +124,9 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
         </div>
 
         <div class="row mb-4">
-            <div class="col-md-4">
-                <div class="card h-100">
-                    <div class="card-body text-center budget-item">
+            <div class="col-md-4 responsivo">
+                <div class="card h-100 ">
+                    <div class="card-body text-center budget-item ">
                         <h3 class="text-warning">50%</h3>
                         <h5>$
                             <?php $gastos = $total_ingresos * 0.5;
@@ -136,7 +136,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-4 responsivo">
                 <div class="card h-100">
                     <div class="card-body text-center budget-item">
                         <h3 class="text-success">30%</h3>
@@ -398,7 +398,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
 
         ?>
         <div class="row mb-4">
-            <div class="col-md-4 mx-auto">
+            <div class="col-md-4 mx-auto responsivo">
                 <div class="card">
                     <div class="card-body text-center">
                         <h3 class="text">Gastos Restantes</h3>
@@ -413,7 +413,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                     </div>
                 </div>
             </div>
-            <div class="col-md-4 mx-auto">
+            <div class="col-md-4 mx-auto responsivo">
                 <div class="card">
                     <div class="card-body text-center">
                         <h3 class="text">Ocio Restante</h3>
