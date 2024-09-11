@@ -18,8 +18,12 @@ body {
     height: 300px;
 }
 
-#chart-restante {
+.restante {
     height: 300px;
+}
+
+#grafico-ingresos-egresos {
+    height: 350px;
 }
 
 .budget-item {

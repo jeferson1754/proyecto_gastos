@@ -8,6 +8,7 @@ try {
     // Obtener datos del formulario
     $descripcion_nombre = $_POST['descripcionIngreso'] ?? '';
     $categoria_nombre = $_POST['categoriaIngreso'] ?? '';
+    $categoria_padre = 3; // ID predeterminado de la categoría padre
     $valor = $_POST['monto'] ?? '';
     $fecha = $_POST['fecha'] ?? date('Y-m-d');
 
@@ -17,17 +18,19 @@ try {
     }
 
     // Obtener o crear categoría
-    $stmt = $pdo->prepare("SELECT ID FROM categorias_gastos WHERE Nombre = :nombre");
-    $stmt->execute([':nombre' => $categoria_nombre]);
+    $stmt = $pdo->prepare("SELECT ID FROM categorias_gastos WHERE Nombre = :nombre AND Categoria_Padre = :categoria_padre");
+    $stmt->execute([':nombre' => $categoria_nombre, ':categoria_padre' => $categoria_padre]);
     $categoria = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($categoria) {
         $categoria_id = $categoria['ID'];
     } else {
-        $stmt = $pdo->prepare("INSERT INTO categorias_gastos (Nombre) VALUES (:nombre)");
-        $stmt->execute([':nombre' => $categoria_nombre]);
+        // Si la categoría no existe, insertarla y recuperar el ID
+        $stmt = $pdo->prepare("INSERT INTO categorias_gastos (Nombre, Categoria_Padre) VALUES (:nombre, :categoria_padre)");
+        $stmt->execute([':nombre' => $categoria_nombre, ':categoria_padre' => $categoria_padre]);
         $categoria_id = $pdo->lastInsertId();
     }
+
 
     // Obtener o crear detalle
     $stmt = $pdo->prepare("SELECT ID FROM detalle WHERE Detalle = :nombre");

@@ -23,7 +23,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="montoIngreso" class="form-label">Fecha</label>
-                        <input type="datetime" class="form-control" id="fecha" name="fecha" value="<?php echo $fecha_actual_hora_actual; ?>" required>
+                        <input type="datetime-local" class="form-control" id="fecha" name="fecha" value="<?php echo $fecha_actual_hora_actual; ?>" required>
                     </div>
                     <input type="hidden" id="categoria" name="categoria" value="Ingresos">
                 </div>

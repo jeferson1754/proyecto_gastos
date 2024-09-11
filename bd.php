@@ -45,7 +45,7 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     // Consulta para obtener las categorías
-    $stmt = $pdo->query("SELECT Nombre FROM categorias_gastos");
+    $stmt = $pdo->query("SELECT DISTINCT Nombre FROM categorias_gastos");
     $categorias = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     echo "Error de conexión: " . $e->getMessage();
@@ -56,7 +56,7 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     // Consulta para obtener las categorías
-    $stmt = $pdo->query("SELECT Detalle FROM detalle");
+    $stmt = $pdo->query("SELECT DISTINCT Detalle FROM detalle");
     $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     echo "Error de conexión: " . $e->getMessage();
