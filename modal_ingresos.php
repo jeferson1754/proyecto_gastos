@@ -22,10 +22,19 @@
                         <input type="number" class="form-control" id="montoIngreso" name="monto" min="0" step="1" required>
                     </div>
                     <div class="mb-3">
+                        <label for="categoriaIngreso" class="form-label">Categoria del Ingreso</label>
+                        <select name="categoriaIngreso" class="form-control" id="categoriaIngreso" required>
+                            <option value="">Seleccione Categoria</option>
+                            <option value="Ingresos">Ingresos Base</option>
+                            <option value="Gastos">Gastos</option>
+                            <option value="Ocio">Ocio</option>
+                            <option value="Ahorro">Ahorro</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label for="montoIngreso" class="form-label">Fecha</label>
                         <input type="datetime-local" class="form-control" id="fecha" name="fecha" value="<?php echo $fecha_actual_hora_actual; ?>" required>
                     </div>
-                    <input type="hidden" id="categoria" name="categoria" value="Ingresos">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>

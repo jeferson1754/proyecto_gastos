@@ -7,7 +7,7 @@ try {
 
     // Obtener datos del formulario
     $descripcion_nombre = $_POST['descripcionIngreso'] ?? '';
-    $categoria_nombre = $_POST['categoria'] ?? '';
+    $categoria_nombre = $_POST['categoriaIngreso'] ?? '';
     $valor = $_POST['monto'] ?? '';
     $fecha = $_POST['fecha'] ?? date('Y-m-d');
 
@@ -42,14 +42,22 @@ try {
         $detalle_id = $pdo->lastInsertId();
     }
 
-    // Insertar ingreso
-    $stmt = $pdo->prepare("INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha) VALUES (:detalle_id, :categoria_id, :valor, :fecha)");
+    // Determinar el valor correcto basado en la categoría
+    $nuevo_valor = ($categoria_nombre != "Ingresos") ? "-$valor" : $valor;
+
+    // Insertar ingreso en la base de datos
+    $stmt = $pdo->prepare("
+    INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha)
+    VALUES (:detalle_id, :categoria_id, :valor, :fecha)
+    ");
+    
     $stmt->execute([
         ':detalle_id' => $detalle_id,
         ':categoria_id' => $categoria_id,
-        ':valor' => $valor,
+        ':valor' => $nuevo_valor,
         ':fecha' => $fecha
     ]);
+
 
     // Redireccionar
     header("Location: index.php");
