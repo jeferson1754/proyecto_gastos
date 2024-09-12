@@ -35,6 +35,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
             <div class="col-md-8 mx-auto">
                 <div class="card">
                     <div class="card-body">
+                        <h4 class="text-center">Ingresos vs Egresos de los Últimos 6 Meses</h4>
                         <div id="grafico-ingresos-egresos"></div>
 
                         <?php
@@ -469,18 +470,8 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
         var egresos = datos.map(item => item.egresos);
 
         var option = {
-            title: {
-                text: 'Ingresos vs Egresos de los Últimos 6 Meses',
-                left: 'center',
-                top: -3,
-                textStyle: {
-                    fontSize: 18,
-                    fontWeight: 'bold',
-
-                },
-            },
             legend: {
-                top: '8%',
+                top: '5%',
                 left: 'center'
             },
             tooltip: {
