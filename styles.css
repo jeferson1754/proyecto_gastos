@@ -19,7 +19,8 @@ body {
 }
 
 .restante {
-    height: 300px;
+    height: 400px;
+    margin-top: 25px;
 }
 
 #grafico-ingresos-egresos {

@@ -409,7 +409,6 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                             echo number_format($gastos_restante, 0, '', '.');
                             ?>
                         </h5>
-                        <p class="text-muted">Presupuesto Restante</p>
                         <div id="gastos-restante" class="restante"></div>
                     </div>
                 </div>
@@ -424,7 +423,6 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                             echo number_format($ocio_restante, 0, '', '.');
                             ?>
                         </h5>
-                        <p class="text-muted">Presupuesto Restante</p>
                         <div id="ocio-restante" class="restante"></div>
                     </div>
                 </div>
@@ -439,7 +437,6 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                             echo number_format($ahorros_restante, 0, '', '.');
                             ?>
                         </h5>
-                        <p class="text-muted">Presupuesto Restante</p>
                         <div id="ahorro-restante" class="restante"></div>
                     </div>
                 </div>
@@ -456,6 +453,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
     ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!--Grafico de Ingresos y Egresos-->
     <script>
         /*Grafico de Barras*/
         var dom = document.getElementById('grafico-ingresos-egresos');
@@ -535,6 +533,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
     }
     ?>
 
+    <!--Grafico de Gastos Restantes-->
     <script>
         /*Grafico de Pie Gastos*/
         var dom = document.getElementById('gastos-restante');
@@ -562,7 +561,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                 trigger: 'item'
             },
             legend: {
-                top: '5%',
+                top: '-1%',
                 left: 'center'
             },
             color: colors, // Asignar los colores personalizados
@@ -616,6 +615,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
     }
     ?>
 
+    <!--Grafico de Ocio Restantes-->
     <script>
         /*Grafico de Pie Gastos*/
         var dom = document.getElementById('ocio-restante');
@@ -641,7 +641,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                 trigger: 'item'
             },
             legend: {
-                top: '5%',
+                top: '-1%',
                 left: 'center'
             },
             color: colors, // Asignar los colores personalizados
@@ -695,6 +695,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
     }
     ?>
 
+    <!--Grafico de Ahorro Restantes-->
     <script>
         /*Grafico de Pie Gastos*/
         var dom = document.getElementById('ahorro-restante');
@@ -721,6 +722,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                 trigger: 'item'
             },
             legend: {
+                top: '-1%',
                 left: 'center'
             },
             color: colors, // Asignar los colores personalizados
