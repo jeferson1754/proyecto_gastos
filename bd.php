@@ -86,7 +86,7 @@ $meses = array(
 $mes = $meses[date('n')];
 $anio = date('Y');
 $fecha_actual = date('Y-m-d');
-$fecha_actual_hora_actual = date('Y-m-d H:i:s');
+$fecha_actual_hora_actual = date('Y-m-d H:i');
 
 // Get current month and year
 $current_month = date('m');
