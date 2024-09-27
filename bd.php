@@ -104,8 +104,33 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     // Consulta para obtener las categorías
-    $stmt = $pdo->query("SELECT DISTINCT Nombre FROM categorias_gastos");
-    $categorias = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt = $pdo->query("SELECT DISTINCT Nombre FROM `categorias_gastos` as c WHERE c.Nombre = 'Gastos' OR c.Categoria_Padre = '2' ORDER BY `ID` DESC;");
+    $categorias_gastos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    echo "Error de conexión: " . $e->getMessage();
+}
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$database", $user, $password);
+
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // Consulta para obtener las categorías
+    $stmt = $pdo->query("SELECT DISTINCT Nombre FROM `categorias_gastos` as c WHERE c.Nombre = 'Ocio' OR c.Categoria_Padre = '3' ORDER BY `ID` DESC;");
+    $categorias_ocio = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    echo "Error de conexión: " . $e->getMessage();
+}
+
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$database", $user, $password);
+
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // Consulta para obtener las categorías
+    $stmt = $pdo->query("SELECT DISTINCT Nombre FROM `categorias_gastos` as c WHERE c.Nombre = 'Ahorro' OR c.Categoria_Padre = '4' ORDER BY `ID` DESC;");
+    $categorias_ahorro = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     echo "Error de conexión: " . $e->getMessage();
 }

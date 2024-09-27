@@ -23,10 +23,10 @@
                     </div>
                     <div class="mb-3">
                         <label for="categoriaIngreso" class="form-label">Categoria del Gasto</label>
-                        <input list="list_categorias" class="form-control" id="categoriaIngreso" name="categoriaIngreso" required>
-                        <datalist id="list_categorias">
-                            <?php foreach ($categorias as $categoria): ?>
-                                <option value="<?php echo htmlspecialchars($categoria['Nombre']); ?>">
+                        <input list="list_categorias_gastos" class="form-control" id="categoriaIngreso" name="categoriaIngreso" required>
+                        <datalist id="list_categorias_gastos">
+                            <?php foreach ($categorias_gastos as $categoria1): ?>
+                                <option value="<?php echo htmlspecialchars($categoria1['Nombre']); ?>">
                                 <?php endforeach; ?>
                         </datalist>
                     </div>
