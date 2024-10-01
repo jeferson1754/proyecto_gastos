@@ -911,7 +911,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
 
                 var option = {
                     tooltip: { trigger: 'axis' },
-                    legend: { top: 'top' },
+                    legend: { top: '-1%' },
                     grid: {
                         left: '3%', right: '8%', bottom: '1%',
                         containLabel: true
