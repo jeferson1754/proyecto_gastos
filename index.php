@@ -192,6 +192,13 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                         AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?
                         ORDER BY g.Fecha DESC";
 
+                        // Consulta del total de gastos del mes anterior
+                        $sql_anterior = "SELECT SUM(g.Valor) AS total_gastos
+                        FROM gastos g
+                        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
+                        " . $where . "
+                        AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?";
+
                         // Prepare and execute queries
                         $stmt_total = mysqli_prepare($conexion, $sql_total);
                         mysqli_stmt_bind_param($stmt_total, "ss", $current_month, $current_year);
@@ -203,6 +210,12 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                         mysqli_stmt_bind_param($stmt_detalles, "ss", $current_month, $current_year);
                         mysqli_stmt_execute($stmt_detalles);
                         $result_detalles = mysqli_stmt_get_result($stmt_detalles);
+
+                        $stmt_anterior = mysqli_prepare($conexion, $sql_anterior);
+                        mysqli_stmt_bind_param($stmt_anterior, "ss", $previous_month, $previous_year);
+                        mysqli_stmt_execute($stmt_anterior);
+                        $result_anterior = mysqli_stmt_get_result($stmt_anterior);
+                        $anterior_total_gastos = mysqli_fetch_assoc($result_anterior)['total_gastos'] ?? 0;
                         ?>
                         <div class="alert alert-warning">
                             Valor Actual:
@@ -267,6 +280,13 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                         AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?
                         ORDER BY g.Fecha DESC";
 
+                        // Consulta del total de gastos del mes anterior
+                        $sql_anterior = "SELECT SUM(g.Valor) AS total_ocio
+                        FROM gastos g
+                        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
+                        " . $where . "
+                        AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?";
+
                         // Prepare and execute queries
                         $stmt_total = mysqli_prepare($conexion, $sql_total);
                         mysqli_stmt_bind_param($stmt_total, "ss", $current_month, $current_year);
@@ -278,6 +298,12 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                         mysqli_stmt_bind_param($stmt_detalles, "ss", $current_month, $current_year);
                         mysqli_stmt_execute($stmt_detalles);
                         $result_detalles = mysqli_stmt_get_result($stmt_detalles);
+
+                        $stmt_anterior = mysqli_prepare($conexion, $sql_anterior);
+                        mysqli_stmt_bind_param($stmt_anterior, "ss", $previous_month, $previous_year);
+                        mysqli_stmt_execute($stmt_anterior);
+                        $result_anterior = mysqli_stmt_get_result($stmt_anterior);
+                        $anterior_total_ocio = mysqli_fetch_assoc($result_anterior)['total_ocio'] ?? 0;
                         ?>
 
                         <div class="alert alert-success">
@@ -340,6 +366,13 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                         AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?
                         ORDER BY g.Fecha DESC";
 
+                        // Consulta del total de gastos del mes anterior
+                        $sql_anterior = "SELECT SUM(g.Valor) AS total_ahorros
+                        FROM gastos g
+                        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
+                        " . $where . "
+                        AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?";
+
                         // Prepare and execute queries
                         $stmt_total = mysqli_prepare($conexion, $sql_total);
                         mysqli_stmt_bind_param($stmt_total, "ss", $current_month, $current_year);
@@ -351,6 +384,12 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                         mysqli_stmt_bind_param($stmt_detalles, "ss", $current_month, $current_year);
                         mysqli_stmt_execute($stmt_detalles);
                         $result_detalles = mysqli_stmt_get_result($stmt_detalles);
+
+                        $stmt_anterior = mysqli_prepare($conexion, $sql_anterior);
+                        mysqli_stmt_bind_param($stmt_anterior, "ss", $previous_month, $previous_year);
+                        mysqli_stmt_execute($stmt_anterior);
+                        $result_anterior = mysqli_stmt_get_result($stmt_anterior);
+                        $anterior_total_ahorros = mysqli_fetch_assoc($result_anterior)['total_ahorros'] ?? 0;
                         ?>
 
                         <div class="alert alert-info">
@@ -397,6 +436,34 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
         $ocio_restante = $ocio - $total_ocio;
         $ahorros_restante = $ahorro - $total_ahorros;
 
+        // Función para determinar el color basado en la comparación de valores
+        function obtenerColor($anterior_valor, $valor_actual, $tipo)
+        {
+            if ($anterior_valor < $valor_actual) {
+                #echo "El valor actual de $tipo es mayor al anterior, el color es rojo.<br>";
+                return "red"; // El valor actual es mayor, por lo tanto, el color es rojo
+            } else {
+                #echo "El valor actual de $tipo es menor o igual al anterior, el color es verde.<br>";
+                return "green"; // El valor actual es menor o igual, por lo tanto, el color es verde
+            }
+        }
+
+
+
+        // Calcular diferencias
+        $anterior_gastos = $anterior_total_gastos - $total_gastos;
+        $anterior_ocio = $anterior_total_ocio - $total_ocio;
+        $anterior_ahorros = $anterior_total_ahorros - $total_ahorros;
+
+        // Obtener colores
+        $color_gastos = obtenerColor($anterior_total_gastos, $total_gastos, 'gastos');
+        $color_ocio = obtenerColor($anterior_total_ocio, $total_ocio, 'ocio');
+        $color_ahorro = obtenerColor($anterior_total_ahorros, $total_ahorros, 'ahorros');
+
+
+
+
+
         $pdo = new PDO("mysql:host=$host;dbname=$database", $user, $password);
 
         function ejecutar_consulta2($pdo, $sql)
@@ -434,6 +501,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
         $total_categorias_ahorro = $resultado3['categorias'];
         $suma_total_ahorro = $resultado3['suma_total'];
 
+        $total_gastos;
 
 
         ?>
@@ -486,6 +554,59 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
             <div class="col-md-4 mx-auto responsivo">
                 <div class="card">
                     <div class="card-body text-center">
+                        <h3 class="text">Gastos Historicos</h3>
+                        <?php
+                        echo "
+                        <h5 class=" . $color_gastos . ">$" .
+
+                            number_format($anterior_gastos, 0, '', '.');
+
+                        "</h5>";
+                        ?>
+                        <div id="gastos-historico" class="restante"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mx-auto responsivo">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="text">Ocios Historico</h3>
+
+                        <?php
+                        echo "
+                        <h5 class=" . $color_ocio . ">$" .
+
+                            number_format($anterior_ocio, 0, '', '.');
+
+                        "</h5>";
+                        ?>
+                        <div id="ocio-historico" class="restante"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mx-auto">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="text">Ahorros Historicos</h3>
+
+                        <?php
+                        echo "
+                        <h5 class=" . $color_ahorro . ">$" .
+
+                            number_format($anterior_ahorros, 0, '', '.');
+
+                        "</h5>";
+                        ?>
+                        <div id="ahorro-historico" class="restante"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-4 mx-auto responsivo">
+                <div class="card">
+                    <div class="card-body text-center">
                         <h3 class="text">Total Gastos</h3>
 
                         <h5>$
@@ -527,50 +648,6 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
             </div>
         </div>
 
-        <div class="row mb-4">
-            <div class="col-md-4 mx-auto responsivo">
-                <div class="card">
-                    <div class="card-body text-center">
-                        <h3 class="text">Gastos Historicos</h3>
-
-                        <h5>$
-                            <?php
-                            echo number_format($suma_total_gastos, 0, '', '.');
-                            ?>
-                        </h5>
-                        <div id="gastos-historico" class="restante"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 mx-auto responsivo">
-                <div class="card">
-                    <div class="card-body text-center">
-                        <h3 class="text">Ocios Historico</h3>
-
-                        <h5>$
-                            <?php
-                            echo number_format($suma_total_ocio, 0, '', '.');
-                            ?>
-                        </h5>
-                        <div id="ocio-historico" class="restante"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 mx-auto">
-                <div class="card">
-                    <div class="card-body text-center">
-                        <h3 class="text">Ahorros Historicos</h3>
-
-                        <h5>$
-                            <?php
-                            echo number_format($suma_total_ahorro, 0, '', '.');
-                            ?>
-                        </h5>
-                        <div id="ahorro-historico" class="restante"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <?php
@@ -618,6 +695,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                     type: 'shadow'
                 }
             },
+
             xAxis: {
                 type: 'category',
                 data: meses,
@@ -628,6 +706,13 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
             },
             yAxis: {
                 type: 'value'
+
+            },
+            grid: {
+                left: '2%',
+                right: '5%',
+                bottom: '1%',
+                containLabel: true
             },
             series: [{
                     name: 'Ingresos',

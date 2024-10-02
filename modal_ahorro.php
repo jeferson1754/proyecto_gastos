@@ -25,9 +25,11 @@
                         <label for="categoriaIngreso" class="form-label">Categoria del Ahorro</label>
                         <input list="list_categorias_ahorro" class="form-control" id="categoriaIngreso" name="categoriaIngreso" required>
                         <datalist id="list_categorias_ahorro">
-                            <?php foreach ($categorias_ahorro as $categoria2): ?>
+                            <?php foreach ($categorias['ahorro'] as $categoria2): ?>
                                 <option value="<?php echo htmlspecialchars($categoria2['Nombre']); ?>">
-                                <?php endforeach; ?>
+                                    <?php echo htmlspecialchars($categoria2['Nombre']); ?>
+                                </option>
+                            <?php endforeach; ?>
                         </datalist>
                     </div>
                     <div class="mb-3">
