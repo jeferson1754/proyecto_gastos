@@ -1,5 +1,7 @@
 <?php
 
+require_once('funciones.php');
+
 /*
 $usuario  = "epiz_32740026";
 $password = "eJWcVk2au5gqD";
@@ -64,26 +66,6 @@ $user = $usuario;
 $database = $basededatos;
 
 date_default_timezone_set('America/Santiago');
-
-
-function obtener_nombre_mes_espanol($numero_mes)
-{
-    $meses_array = array(
-        1 => 'Enero',
-        2 => 'Febrero',
-        3 => 'Marzo',
-        4 => 'Abril',
-        5 => 'Mayo',
-        6 => 'Junio',
-        7 => 'Julio',
-        8 => 'Agosto',
-        9 => 'Septiembre',
-        10 => 'Octubre',
-        11 => 'Noviembre',
-        12 => 'Diciembre'
-    );
-    return $meses_array[$numero_mes];
-}
 
 // Obtener el mes y el año actual
 $mes = obtener_nombre_mes_espanol(date('n'));
