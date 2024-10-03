@@ -2,7 +2,7 @@
 
 include('bd.php');
 
-$cantidad_meses_balance = 6;
+$cantidad_meses_balance = 8;
 
 ?>
 <!DOCTYPE html>
@@ -30,7 +30,7 @@ $cantidad_meses_balance = 6;
             <div class="col-md-8 mx-auto">
                 <div class="card">
                     <div class="card-body">
-                        <h4 class="text-center">Ingresos vs Egresos de los Últimos 6 Meses</h4>
+                        <h4 class="text-center">Ingresos vs Egresos de los Últimos <?php echo "$cantidad_meses_balance"; ?> Meses</h4>
                         <div id="grafico-ingresos-egresos"></div>
 
                         <?php
