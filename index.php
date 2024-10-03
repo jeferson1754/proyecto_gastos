@@ -2,7 +2,7 @@
 
 include('bd.php');
 
-$cantidad_meses_balance = 8;
+$cantidad_meses_balance = 6;
 
 ?>
 <!DOCTYPE html>
@@ -366,15 +366,18 @@ $cantidad_meses_balance = 8;
             </div>
         </div>
 
-
-
         <?php
         $gastos_restante = $gastos - $total_gastos;
         $ocio_restante = $ocio - $total_ocio;
         $ahorros_restante = $ahorro - $total_ahorros;
 
+        // Calcular diferencias
+        $anterior_gastos = $anterior_total_gastos - $total_gastos;
+        $anterior_ocio = $anterior_total_ocio - $total_ocio;
+        $anterior_ahorros = $anterior_total_ahorros - $total_ahorros;
+
         // Función para determinar el color basado en la comparación de valores
-        function obtenerColor($anterior_valor, $valor_actual, $tipo)
+        function obtenerColor($anterior_valor, $valor_actual)
         {
             if ($anterior_valor < $valor_actual) {
                 #echo "El valor actual de $tipo es mayor al anterior, el color es rojo.<br>";
@@ -386,62 +389,76 @@ $cantidad_meses_balance = 8;
         }
 
 
-
-        // Calcular diferencias
-        $anterior_gastos = $anterior_total_gastos - $total_gastos;
-        $anterior_ocio = $anterior_total_ocio - $total_ocio;
-        $anterior_ahorros = $anterior_total_ahorros - $total_ahorros;
-
         // Obtener colores
-        $color_gastos = obtenerColor($anterior_total_gastos, $total_gastos, 'gastos');
-        $color_ocio = obtenerColor($anterior_total_ocio, $total_ocio, 'ocio');
-        $color_ahorro = obtenerColor($anterior_total_ahorros, $total_ahorros, 'ahorros');
+        $color_gastos = obtenerColor($anterior_total_gastos, $total_gastos);
+        $color_ocio = obtenerColor($anterior_total_ocio, $total_ocio);
+        $color_ahorro = obtenerColor($anterior_total_ahorros, $total_ahorros);
 
+        $where_gastos = "WHERE categorias_gastos.Nombre='Gastos' OR categorias_gastos.Categoria_Padre = 2";
+        $where_ocio = "WHERE categorias_gastos.Nombre='Ocio' OR categorias_gastos.Categoria_Padre = 3";
+        $where_ahorros = "WHERE categorias_gastos.Nombre='Ahorro' OR categorias_gastos.Categoria_Padre = 4";
 
-
-
-
-        $pdo = new PDO("mysql:host=$host;dbname=$database", $user, $password);
-
-        function ejecutar_consulta2($pdo, $sql)
+        function ejecutar_consulta($pdo, $where)
         {
+            // Consulta SQL para obtener el total por categoría
+            $sql = "SELECT categorias_gastos.Nombre AS categoria, SUM(gastos.Valor) AS total_categoria
+                    FROM gastos
+                    INNER JOIN categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID
+                    $where
+                    GROUP BY categorias_gastos.Nombre
+                    ORDER BY total_categoria DESC";
+
             try {
-                // Configuración de la conexión
-                $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
                 // Preparar y ejecutar la consulta
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute();
 
+                // Obtener las categorías y sus totales
                 $categorias = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                $suma_total = 0;
 
-                // Sumar los totales por categoría
-                foreach ($categorias as $categoria) {
-                    $suma_total += $categoria['total_categoria'];
-                }
+                // Calcular la suma total directamente en PHP
+                $suma_total = array_sum(array_column($categorias, 'total_categoria'));
 
-                return ['categorias' => $categorias, 'suma_total' => $suma_total];
+                return [
+                    'categorias' => $categorias,
+                    'suma_total' => $suma_total
+                ];
             } catch (PDOException $e) {
-                echo "Error de conexión: " . $e->getMessage();
+                // Manejo de errores
+                throw new Exception("Error en la consulta: " . $e->getMessage());
             }
         }
 
-        $resultado1 = ejecutar_consulta2($pdo, "SELECT categorias_gastos.Nombre AS categoria, SUM(gastos.Valor) AS total_categoria FROM gastos INNER JOIN categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID WHERE categorias_gastos.Nombre='Gastos' OR categorias_gastos.Categoria_Padre = 2 GROUP BY categorias_gastos.Nombre  ORDER BY `total_categoria` DESC;");
+
+        $pdo = new PDO("mysql:host=$host;dbname=$database", $user, $password);
+
+        $resultado1 = ejecutar_consulta($pdo, $where_gastos);
         $total_categorias_gastos = $resultado1['categorias'];
         $suma_total_gastos = $resultado1['suma_total'];
 
-        $resultado2 = ejecutar_consulta2($pdo, "SELECT categorias_gastos.Nombre AS categoria, SUM(gastos.Valor) AS total_categoria FROM gastos INNER JOIN categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID WHERE categorias_gastos.Nombre='Ocio' OR categorias_gastos.Categoria_Padre = 3 GROUP BY categorias_gastos.Nombre  ORDER BY `total_categoria` DESC;");
+        $resultado2 = ejecutar_consulta($pdo, $where_ocio);
         $total_categorias_ocio = $resultado2['categorias'];
         $suma_total_ocio = $resultado2['suma_total'];
 
-        $resultado3 = ejecutar_consulta2($pdo, "SELECT categorias_gastos.Nombre AS categoria, SUM(gastos.Valor) AS total_categoria FROM gastos INNER JOIN categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID WHERE categorias_gastos.Nombre='Ahorro' OR categorias_gastos.Categoria_Padre = 4 GROUP BY categorias_gastos.Nombre  ORDER BY `total_categoria` DESC;");
+        $resultado3 = ejecutar_consulta($pdo, $where_ahorros);
+
         $total_categorias_ahorro = $resultado3['categorias'];
         $suma_total_ahorro = $resultado3['suma_total'];
 
-        $total_gastos;
+        $fecha = "AND MONTH(gastos.Fecha) = $current_month AND YEAR(gastos.Fecha) = $current_year";
 
+        $resultado4 = ejecutar_consulta($pdo, "$where_gastos $fecha");
+        $categorias_gastos = $resultado4['categorias'];
+
+        $resultado5 = ejecutar_consulta($pdo, "$where_ocio $fecha");
+        $categorias_ocio = $resultado5['categorias'];
+
+        $resultado6 = ejecutar_consulta($pdo, "$where_ahorros $fecha");
+        $categorias_ahorro = $resultado6['categorias'];
 
         ?>
+
+        <!--GRAFICO RESTANTE 50%, 30% , 20% -->
         <div class="row mb-4">
             <div class="col-md-4 mx-auto responsivo">
                 <div class="card">
@@ -487,6 +504,7 @@ $cantidad_meses_balance = 8;
             </div>
         </div>
 
+        <!--GRAFICO HISTORICO 50%, 30% , 20% -->
         <div class="row mb-4">
             <div class="col-md-4 mx-auto responsivo">
                 <div class="card">
@@ -540,6 +558,7 @@ $cantidad_meses_balance = 8;
             </div>
         </div>
 
+        <!--GRAFICO TOTAL 50%, 30% , 20% -->
         <div class="row mb-4">
             <div class="col-md-4 mx-auto responsivo">
                 <div class="card">
@@ -593,12 +612,13 @@ $cantidad_meses_balance = 8;
     include('modal_ocio.php');
     include('modal_ahorro.php');
 
-    $fecha = "AND MONTH(gastos.Fecha) = $current_month AND YEAR(gastos.Fecha) = $current_year";
+
 
     ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!--Grafico de Ingresos y Egresos    -->
+
+    <!--Grafico de Ingresos y Egresos-->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const btnToggle = document.querySelector('.btn-toggle');
@@ -609,7 +629,6 @@ $cantidad_meses_balance = 8;
                 btnToggle.textContent = isExpanded ? 'Ver menos' : 'Ver más';
             });
         });
-        /*Grafico de Barras*/
         var dom = document.getElementById('grafico-ingresos-egresos');
         var myChart = echarts.init(dom, null, {
             renderer: 'canvas',
@@ -679,21 +698,12 @@ $cantidad_meses_balance = 8;
 
     <?php
 
+    //Colores para graficos
     $colores_gastos = ['#FF9800', '#FB8C00', '#F57C00', '#EF6C00', '#E65100', '#FFB74D', '#FFCC80'];
     $colores_ocios = ['#66BB6A', '#4CAF50', '#43A047', '#388E3C', '#2E7D32', '#1B5E20', '#A5D6A7'];
     $colores_ahorros = ['#2196F3', '#1E88E5', '#1976D2', '#1565C0', '#0D47A1', '#64B5F6', '#BBDEFB'];
 
-
-    $resultado4 = ejecutar_consulta2($pdo, "SELECT categorias_gastos.Nombre AS categoria, SUM(gastos.Valor) AS total_categoria FROM gastos INNER JOIN categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID WHERE categorias_gastos.Nombre='Gastos' OR categorias_gastos.Categoria_Padre = 2 $fecha  GROUP BY categorias_gastos.Nombre");
-    $categorias_gastos = $resultado4['categorias'];
-
-    $resultado5 = ejecutar_consulta2($pdo, "SELECT categorias_gastos.Nombre AS categoria, SUM(gastos.Valor) AS total_categoria FROM gastos INNER JOIN categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID WHERE categorias_gastos.Nombre='Ocio' OR categorias_gastos.Categoria_Padre = 3 $fecha GROUP BY categorias_gastos.Nombre;");
-    $categorias_ocio = $resultado5['categorias'];
-
-    $resultado6 = ejecutar_consulta2($pdo, "SELECT categorias_gastos.Nombre AS categoria, SUM(gastos.Valor) AS total_categoria FROM gastos INNER JOIN categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID WHERE categorias_gastos.Nombre='Ahorro' OR categorias_gastos.Categoria_Padre = 4 $fecha GROUP BY categorias_gastos.Nombre;");
-    $categorias_ahorro = $resultado6['categorias'];
-
-
+    //Graficos Pie Restantes
     function piechart($id, $categoria_nombre, $colores, $title = 'Gastos por Categoría')
     {
         // Encode the data and colors for JavaScript
@@ -760,83 +770,12 @@ $cantidad_meses_balance = 8;
     <?php
     }
 
-    // Example usage
     piechart('gastos-restante', $categorias_gastos, $colores_gastos);
-
     piechart('ocio-restante', $categorias_ocio, $colores_ocios);
-
     piechart('ahorro-restante', $categorias_ahorro, $colores_ahorros);
 
-    function bigchart($id, $categoria_nombre, $colores)
-    {
-        // Encode the data and colors for JavaScript
-        $js_data = json_encode(array_map(function ($categoria) {
-            return [
-                'value' => $categoria['total_categoria'],
-                'name' => $categoria['categoria']
-            ];
-        }, $categoria_nombre));
 
-        $js_colors = json_encode($colores);
-
-        // Output the JavaScript code
-    ?>
-        <script>
-            (function() {
-                var dom = document.getElementById('<?php echo $id; ?>');
-                var myChart = echarts.init(dom, null, {
-                    renderer: 'canvas',
-                    useDirtyRect: false
-                });
-
-                option = {
-                    tooltip: {
-                        trigger: 'item',
-                        formatter: '{b} : {c} - ({d}%)'
-                    },
-                    legend: {
-                        top: 'top',
-                    },
-                    toolbox: {
-                        show: true,
-                    },
-                    color: <?php echo $js_colors; ?>,
-                    series: [{
-                        type: 'pie',
-                        radius: [50, 150],
-                        top: '15%',
-                        center: ['50%', '50%'],
-                        roseType: 'radius',
-                        itemStyle: {
-                            borderRadius: 5
-                        },
-                        label: {
-                            show: false
-                        },
-                        emphasis: {
-                            label: {
-                                show: true
-                            }
-                        },
-                        data: <?php echo $js_data; ?>
-                    }]
-                };
-
-                myChart.setOption(option);
-                window.addEventListener('resize', myChart.resize);
-            })();
-        </script>
-    <?php
-    }
-
-    bigchart('total-gastos', $total_categorias_gastos, $colores_gastos);
-
-    bigchart('total-ocio', $total_categorias_ocio, $colores_ocios);
-
-    bigchart('total-ahorro', $total_categorias_ahorro, $colores_ahorros);
-
-
-
+    //Graficos Lineal Historico
     function DatosHistoricos($where, $conexion, $nombre_grafico, $colores)
     {
         // Construir la consulta SQL
@@ -851,8 +790,7 @@ $cantidad_meses_balance = 8;
             categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID 
         $where 
         GROUP BY 
-            categorias_gastos.Nombre, mes;
-    ";
+            categorias_gastos.Nombre, mes;";
 
         // Ejecutar la consulta
         $result = $conexion->query($sql);
@@ -955,10 +893,80 @@ $cantidad_meses_balance = 8;
     ";
     }
 
-    // Llamadas a la función con diferentes categorías
-    DatosHistoricos("WHERE categorias_gastos.Nombre='Gastos' OR categorias_gastos.Categoria_Padre = 2", $conexion, "gastos-historico", $colores_gastos);
-    DatosHistoricos("WHERE categorias_gastos.Nombre='Ocio' OR categorias_gastos.Categoria_Padre = 3", $conexion, "ocio-historico", $colores_ocios);
-    DatosHistoricos("WHERE categorias_gastos.Nombre='Ahorro' OR categorias_gastos.Categoria_Padre = 4", $conexion, "ahorro-historico", $colores_ahorros);
+    DatosHistoricos($where_gastos, $conexion, "gastos-historico", $colores_gastos);
+    DatosHistoricos($where_ocio, $conexion, "ocio-historico", $colores_ocios);
+    DatosHistoricos($where_ahorros, $conexion, "ahorro-historico", $colores_ahorros);
+
+    //Graficos Pie Total
+    function bigchart($id, $categoria_nombre, $colores)
+    {
+        // Encode the data and colors for JavaScript
+        $js_data = json_encode(array_map(function ($categoria) {
+            return [
+                'value' => $categoria['total_categoria'],
+                'name' => $categoria['categoria']
+            ];
+        }, $categoria_nombre));
+
+        $js_colors = json_encode($colores);
+
+        // Output the JavaScript code
+    ?>
+        <script>
+            (function() {
+                var dom = document.getElementById('<?php echo $id; ?>');
+                var myChart = echarts.init(dom, null, {
+                    renderer: 'canvas',
+                    useDirtyRect: false
+                });
+
+                option = {
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{b} : {c} - ({d}%)'
+                    },
+                    legend: {
+                        top: 'top',
+                    },
+                    toolbox: {
+                        show: true,
+                    },
+                    color: <?php echo $js_colors; ?>,
+                    series: [{
+                        type: 'pie',
+                        radius: [50, 150],
+                        top: '15%',
+                        center: ['50%', '50%'],
+                        roseType: 'radius',
+                        itemStyle: {
+                            borderRadius: 5
+                        },
+                        label: {
+                            show: false
+                        },
+                        emphasis: {
+                            label: {
+                                show: true
+                            }
+                        },
+                        data: <?php echo $js_data; ?>
+                    }]
+                };
+
+                myChart.setOption(option);
+                window.addEventListener('resize', myChart.resize);
+            })();
+        </script>
+    <?php
+    }
+
+    bigchart('total-gastos', $total_categorias_gastos, $colores_gastos);
+    bigchart('total-ocio', $total_categorias_ocio, $colores_ocios);
+    bigchart('total-ahorro', $total_categorias_ahorro, $colores_ahorros);
+
+
+
+
 
     ?>
 </body>
