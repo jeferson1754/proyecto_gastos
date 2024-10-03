@@ -26,6 +26,7 @@ $cantidad_meses_balance = 8;
             </div>
         </div>
 
+        <!--GRAFICO DE INGRESOS VS EGRESOS -->
         <div class="row mb-4">
             <div class="col-md-8 mx-auto">
                 <div class="card">
@@ -101,6 +102,7 @@ $cantidad_meses_balance = 8;
             </div>
         </div>
 
+        <!--CARTAS 50%, 30% , 20% -->
         <div class="row mb-4">
             <div class="col-md-4 responsivo">
                 <div class="card h-100 ">
@@ -140,6 +142,7 @@ $cantidad_meses_balance = 8;
             </div>
         </div>
 
+        <!--DETALLES 50%, 30% , 20% -->
         <div class="row">
             <div class="col-md-4 mb-4">
                 <div class="card h-100">
@@ -151,47 +154,69 @@ $cantidad_meses_balance = 8;
 
                         <?php
 
+                        function obtener_datos($conexion, $where, $current_month, $current_year, $previous_month, $previous_year)
+                        {
+                            // SQL queries
+                            $sql_total = "SELECT SUM(g.Valor) AS total
+                            FROM gastos g
+                            INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
+                            " . $where . "
+                            AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?";
+
+                            $sql_detalles = "SELECT d.Detalle AS Descripcion, g.Valor, c.Nombre
+                            FROM gastos g
+                            INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
+                            INNER JOIN detalle d ON g.ID_Detalle = d.ID
+                            " . $where . "
+                            AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?
+                            ORDER BY g.Fecha DESC";
+
+                            $sql_anterior = "SELECT SUM(g.Valor) AS total
+                            FROM gastos g
+                            INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
+                            " . $where . "
+                            AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?";
+
+                            // Consulta del total de gastos del mes actual
+                            $stmt_total = mysqli_prepare($conexion, $sql_total);
+                            mysqli_stmt_bind_param($stmt_total, "ss", $current_month, $current_year);
+                            mysqli_stmt_execute($stmt_total);
+                            $result_total = mysqli_stmt_get_result($stmt_total);
+                            $total = mysqli_fetch_assoc($result_total)['total'] ?? 0;
+
+                            // Consulta de los detalles de los gastos del mes actual
+                            $stmt_detalles = mysqli_prepare($conexion, $sql_detalles);
+                            mysqli_stmt_bind_param($stmt_detalles, "ss", $current_month, $current_year);
+                            mysqli_stmt_execute($stmt_detalles);
+                            $result_detalles = mysqli_stmt_get_result($stmt_detalles);
+
+                            // Consulta del total de gastos del mes anterior
+                            $stmt_anterior = mysqli_prepare($conexion, $sql_anterior);
+                            mysqli_stmt_bind_param($stmt_anterior, "ss", $previous_month, $previous_year);
+                            mysqli_stmt_execute($stmt_anterior);
+                            $result_anterior = mysqli_stmt_get_result($stmt_anterior);
+                            $anterior_total = mysqli_fetch_assoc($result_anterior)['total'] ?? 0;
+
+                            // Retornar los resultados en un array
+                            return [
+                                'total' => $total,
+                                'detalles' => $result_detalles,
+                                'anterior_total' => $anterior_total
+                            ];
+                        }
+
+
                         $where = "WHERE c.Nombre = 'Gastos' OR c.Categoria_Padre = '2'";
 
-                        // SQL queries
-                        $sql_total = "SELECT SUM(g.Valor) AS total_gastos
-                        FROM gastos g
-                        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
-                        " . $where . "
-                        AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?";
+                        // Llamar a la función pasando los parámetros
+                        $datos_gastos = obtener_datos($conexion, $where, $current_month, $current_year, $previous_month, $previous_year);
 
-                        $sql_detalles = "SELECT d.Detalle AS Descripcion, g.Valor, c.Nombre
-                        FROM gastos g
-                        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
-                        INNER JOIN detalle d ON g.ID_Detalle = d.ID
-                        " . $where . "
-                        AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?
-                        ORDER BY g.Fecha DESC";
+                        // Acceder a los resultados
+                        $total_gastos = $datos_gastos['total'];
+                        $result_detalles = $datos_gastos['detalles'];
+                        $anterior_total_gastos = $datos_gastos['anterior_total'];
 
-                        // Consulta del total de gastos del mes anterior
-                        $sql_anterior = "SELECT SUM(g.Valor) AS total_gastos
-                        FROM gastos g
-                        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
-                        " . $where . "
-                        AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?";
 
-                        // Prepare and execute queries
-                        $stmt_total = mysqli_prepare($conexion, $sql_total);
-                        mysqli_stmt_bind_param($stmt_total, "ss", $current_month, $current_year);
-                        mysqli_stmt_execute($stmt_total);
-                        $result_total = mysqli_stmt_get_result($stmt_total);
-                        $total_gastos = mysqli_fetch_assoc($result_total)['total_gastos'] ?? 0;
-
-                        $stmt_detalles = mysqli_prepare($conexion, $sql_detalles);
-                        mysqli_stmt_bind_param($stmt_detalles, "ss", $current_month, $current_year);
-                        mysqli_stmt_execute($stmt_detalles);
-                        $result_detalles = mysqli_stmt_get_result($stmt_detalles);
-
-                        $stmt_anterior = mysqli_prepare($conexion, $sql_anterior);
-                        mysqli_stmt_bind_param($stmt_anterior, "ss", $previous_month, $previous_year);
-                        mysqli_stmt_execute($stmt_anterior);
-                        $result_anterior = mysqli_stmt_get_result($stmt_anterior);
-                        $anterior_total_gastos = mysqli_fetch_assoc($result_anterior)['total_gastos'] ?? 0;
                         ?>
                         <div class="alert alert-warning">
                             Valor Actual:
@@ -241,45 +266,13 @@ $cantidad_meses_balance = 8;
 
                         $where = "WHERE c.Nombre = 'Ocio' OR c.Categoria_Padre = '3'";
 
-                        // SQL queries
-                        $sql_total = "SELECT SUM(g.Valor) AS total_ocio
-                        FROM gastos g
-                        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
-                        " . $where . "
-                        AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?";
+                        // Llamar a la función pasando los parámetros
+                        $datos_ocio = obtener_datos($conexion, $where, $current_month, $current_year, $previous_month, $previous_year);
 
-                        $sql_detalles = "SELECT d.Detalle AS Descripcion, g.Valor, c.Nombre
-                        FROM gastos g
-                        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
-                        INNER JOIN detalle d ON g.ID_Detalle = d.ID
-                        " . $where . "
-                        AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?
-                        ORDER BY g.Fecha DESC";
-
-                        // Consulta del total de gastos del mes anterior
-                        $sql_anterior = "SELECT SUM(g.Valor) AS total_ocio
-                        FROM gastos g
-                        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
-                        " . $where . "
-                        AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?";
-
-                        // Prepare and execute queries
-                        $stmt_total = mysqli_prepare($conexion, $sql_total);
-                        mysqli_stmt_bind_param($stmt_total, "ss", $current_month, $current_year);
-                        mysqli_stmt_execute($stmt_total);
-                        $result_total = mysqli_stmt_get_result($stmt_total);
-                        $total_ocio = mysqli_fetch_assoc($result_total)['total_ocio'] ?? 0;
-
-                        $stmt_detalles = mysqli_prepare($conexion, $sql_detalles);
-                        mysqli_stmt_bind_param($stmt_detalles, "ss", $current_month, $current_year);
-                        mysqli_stmt_execute($stmt_detalles);
-                        $result_detalles = mysqli_stmt_get_result($stmt_detalles);
-
-                        $stmt_anterior = mysqli_prepare($conexion, $sql_anterior);
-                        mysqli_stmt_bind_param($stmt_anterior, "ss", $previous_month, $previous_year);
-                        mysqli_stmt_execute($stmt_anterior);
-                        $result_anterior = mysqli_stmt_get_result($stmt_anterior);
-                        $anterior_total_ocio = mysqli_fetch_assoc($result_anterior)['total_ocio'] ?? 0;
+                        // Acceder a los resultados
+                        $total_ocio = $datos_ocio['total'];
+                        $result_detalles = $datos_ocio['detalles'];
+                        $anterior_total_ocio = $datos_ocio['anterior_total'];
                         ?>
 
                         <div class="alert alert-success">
@@ -327,45 +320,13 @@ $cantidad_meses_balance = 8;
 
                         $where = "WHERE c.Nombre = 'Ahorro' OR c.Categoria_Padre = '4'";
 
-                        // SQL queries
-                        $sql_total = "SELECT SUM(g.Valor) AS total_ahorros
-                        FROM gastos g
-                        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
-                        " . $where . "
-                        AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?";
+                        // Llamar a la función pasando los parámetros
+                        $datos_ahorro = obtener_datos($conexion, $where, $current_month, $current_year, $previous_month, $previous_year);
 
-                        $sql_detalles = "SELECT d.Detalle AS Descripcion, g.Valor, c.Nombre
-                        FROM gastos g
-                        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
-                        INNER JOIN detalle d ON g.ID_Detalle = d.ID
-                        " . $where . "
-                        AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?
-                        ORDER BY g.Fecha DESC";
-
-                        // Consulta del total de gastos del mes anterior
-                        $sql_anterior = "SELECT SUM(g.Valor) AS total_ahorros
-                        FROM gastos g
-                        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
-                        " . $where . "
-                        AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?";
-
-                        // Prepare and execute queries
-                        $stmt_total = mysqli_prepare($conexion, $sql_total);
-                        mysqli_stmt_bind_param($stmt_total, "ss", $current_month, $current_year);
-                        mysqli_stmt_execute($stmt_total);
-                        $result_total = mysqli_stmt_get_result($stmt_total);
-                        $total_ahorros = mysqli_fetch_assoc($result_total)['total_ahorros'] ?? 0;
-
-                        $stmt_detalles = mysqli_prepare($conexion, $sql_detalles);
-                        mysqli_stmt_bind_param($stmt_detalles, "ss", $current_month, $current_year);
-                        mysqli_stmt_execute($stmt_detalles);
-                        $result_detalles = mysqli_stmt_get_result($stmt_detalles);
-
-                        $stmt_anterior = mysqli_prepare($conexion, $sql_anterior);
-                        mysqli_stmt_bind_param($stmt_anterior, "ss", $previous_month, $previous_year);
-                        mysqli_stmt_execute($stmt_anterior);
-                        $result_anterior = mysqli_stmt_get_result($stmt_anterior);
-                        $anterior_total_ahorros = mysqli_fetch_assoc($result_anterior)['total_ahorros'] ?? 0;
+                        // Acceder a los resultados
+                        $total_ahorros = $datos_ahorro['total'];
+                        $result_detalles = $datos_ahorro['detalles'];
+                        $anterior_total_ahorros = $datos_ahorro['anterior_total'];
                         ?>
 
                         <div class="alert alert-info">
