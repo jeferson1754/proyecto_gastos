@@ -1,14 +1,7 @@
 <?php
 
 include('bd.php');
-$mes_actual = date('n');
-$anio_actual = date('Y');
-$sql_ingresos_actual = "SELECT SUM(gastos.Valor) AS total_ingresos FROM gastos 
-                        INNER JOIN categorias_gastos ON categorias_gastos.ID = gastos.ID_Categoria_Gastos 
-                        WHERE categorias_gastos.Nombre = 'Ingresos' 
-                        AND MONTH(gastos.Fecha) = $mes_actual AND YEAR(gastos.Fecha) = $anio_actual";
-$result_ingresos_actual = mysqli_query($conexion, $sql_ingresos_actual);
-$total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] ?? 0;
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -65,27 +58,27 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                         function obtener_datos_ultimos_meses($conexion, $meses = 6)
                         {
                             $datos = [];
+                            $stmt = $conexion->prepare("
+                                SELECT 
+                                    SUM(CASE WHEN categorias_gastos.Nombre = 'Ingresos' THEN gastos.Valor ELSE 0 END) AS total_ingresos,
+                                    SUM(CASE WHEN categorias_gastos.Nombre != 'Ingresos' THEN gastos.Valor ELSE 0 END) AS total_egresos
+                                FROM gastos 
+                                INNER JOIN categorias_gastos ON categorias_gastos.ID = gastos.ID_Categoria_Gastos 
+                                WHERE MONTH(gastos.Fecha) = ? AND YEAR(gastos.Fecha) = ?
+                            ");
+
                             for ($i = $meses - 1; $i >= 0; $i--) {
                                 $fecha = date('Y-m-01', strtotime("-$i month"));
                                 $mes = date('n', strtotime($fecha));
                                 $anio = date('Y', strtotime($fecha));
 
-                                // Consulta para ingresos
-                                $sql_ingresos = "SELECT SUM(gastos.Valor) AS total_ingresos FROM gastos 
-                                                 INNER JOIN categorias_gastos ON categorias_gastos.ID = gastos.ID_Categoria_Gastos 
-                                                 WHERE categorias_gastos.Nombre = 'Ingresos' 
-                                                 AND MONTH(gastos.Fecha) = $mes AND YEAR(gastos.Fecha) = $anio";
-                                $result_ingresos = mysqli_query($conexion, $sql_ingresos);
-                                $total_ingresos = mysqli_fetch_assoc($result_ingresos)['total_ingresos'] ?? 0;
+                                $stmt->bind_param('ii', $mes, $anio);
+                                $stmt->execute();
+                                $result = $stmt->get_result();
+                                $row = $result->fetch_assoc();
 
-                                // Consulta para egresos
-                                $sql_egresos = "SELECT SUM(gastos.Valor) AS total_egresos FROM gastos 
-                                                INNER JOIN categorias_gastos ON categorias_gastos.ID = gastos.ID_Categoria_Gastos 
-                                                WHERE categorias_gastos.Nombre != 'Ingresos' 
-                                                AND MONTH(gastos.Fecha) = $mes AND YEAR(gastos.Fecha) = $anio";
-                                $result_egresos = mysqli_query($conexion, $sql_egresos);
-                                $total_egresos = mysqli_fetch_assoc($result_egresos)['total_egresos'] ?? 0;
-
+                                $total_ingresos = $row['total_ingresos'] ?? 0;
+                                $total_egresos = $row['total_egresos'] ?? 0;
 
                                 $datos[] = [
                                     'mes' => obtener_nombre_mes_espanol($mes),
@@ -93,6 +86,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                                     'egresos' => $total_egresos
                                 ];
                             }
+                            $stmt->close();
                             return $datos;
                         }
 
@@ -101,6 +95,7 @@ $total_ingresos = mysqli_fetch_assoc($result_ingresos_actual)['total_ingresos'] 
                         $ultimo_mes = end($datos_financieros);
                         $balance_mes_actual = $ultimo_mes['ingresos'] - $ultimo_mes['egresos'];
 
+                        $total_ingresos = $ultimo_mes['ingresos'];
                         ?>
 
                         <h2 class="text-center mt-3">Balance del Mes Actual</h2>
