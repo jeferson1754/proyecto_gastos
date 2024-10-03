@@ -2,6 +2,8 @@
 
 include('bd.php');
 
+$cantidad_meses_balance = 6;
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -20,7 +22,7 @@ include('bd.php');
     <div class="container py-1">
         <div class="row mb-1">
             <div class="col-12 text-end">
-                <h5 class="text-muted"><?php echo "$mes $anio"; ?></h5>
+                <h5 class="text-muted"><?php echo "$mes $current_year"; ?></h5>
             </div>
         </div>
 
@@ -33,29 +35,8 @@ include('bd.php');
 
                         <?php
 
-                        $anio_actual = date('Y');
-
-                        // Función para obtener el nombre del mes en español
-                        function obtener_nombre_mes_espanol($numero_mes)
-                        {
-                            $meses = array(
-                                1 => 'Enero',
-                                2 => 'Febrero',
-                                3 => 'Marzo',
-                                4 => 'Abril',
-                                5 => 'Mayo',
-                                6 => 'Junio',
-                                7 => 'Julio',
-                                8 => 'Agosto',
-                                9 => 'Septiembre',
-                                10 => 'Octubre',
-                                11 => 'Noviembre',
-                                12 => 'Diciembre'
-                            );
-                            return $meses[$numero_mes];
-                        }
                         // Función para obtener los datos de ingresos y egresos de los últimos 6 meses
-                        function obtener_datos_ultimos_meses($conexion, $meses = 6)
+                        function obtener_datos_ultimos_meses($conexion, $meses)
                         {
                             $datos = [];
                             $stmt = $conexion->prepare("
@@ -90,7 +71,7 @@ include('bd.php');
                             return $datos;
                         }
 
-                        $datos_financieros = obtener_datos_ultimos_meses($conexion);
+                        $datos_financieros = obtener_datos_ultimos_meses($conexion, $cantidad_meses_balance);
 
                         $ultimo_mes = end($datos_financieros);
                         $balance_mes_actual = $ultimo_mes['ingresos'] - $ultimo_mes['egresos'];
