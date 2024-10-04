@@ -68,7 +68,7 @@ function obtener_datos($conexion, $where, $current_month, $current_year, $previo
     " . $where . "
     AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?";
 
-    $sql_detalles = "SELECT d.Detalle AS Descripcion, g.Valor, c.Nombre
+    $sql_detalles = "SELECT d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha
     FROM gastos g
     INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
     INNER JOIN detalle d ON g.ID_Detalle = d.ID

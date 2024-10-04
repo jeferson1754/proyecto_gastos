@@ -166,8 +166,10 @@ $cantidad_meses_balance = 6;
                             <button type="button" class="btn btn-warning" style="color:white" data-bs-toggle="modal" data-bs-target="#modalGastos">
                                 Añadir Gasto
                             </button>
+                            <button type="button" class="btn btn-secondary" style="color:white" data-bs-toggle="modal" data-bs-target="#modalDetalleGastos">
+                                <i class="fa-solid fa-circle-info"></i>
+                            </button>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -331,6 +333,7 @@ $cantidad_meses_balance = 6;
 
         include('modal_ingresos.php');
         include('modal_gastos.php');
+        include('modal_detalle_gastos.php');
         include('modal_ocio.php');
         include('modal_ahorro.php');
 
@@ -382,113 +385,107 @@ $cantidad_meses_balance = 6;
             </div>
         </div>
 
-        <!-- Botón para mostrar/ocultar gráficos -->
-        <div class="text-center mb-4">
-            <button id="toggle-graficos" class="btn btn-primary">Mostrar Gráficos</button>
-        </div>
-        
-        <!-- Gráficos -->
-        <div id="graficos" class="hidden">
-            <!--GRAFICO HISTORICO 50%, 30% , 20% -->
-            <div class="row mb-4">
-                <div class="col-md-4 mx-auto responsivo">
-                    <div class="card">
-                        <div class="card-body text-center">
-                            <h3 class="text">Gastos Historicos</h3>
-                            <?php
-                            echo "
+
+        <!--GRAFICO HISTORICO 50%, 30% , 20% -->
+        <div class="row mb-4">
+            <div class="col-md-4 mx-auto responsivo">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="text">Gastos Historicos</h3>
+                        <?php
+                        echo "
                         <h5 class=" . $color_gastos . ">$" .
 
-                                number_format($anterior_gastos, 0, '', '.');
+                            number_format($anterior_gastos, 0, '', '.');
 
-                            "</h5>";
-                            ?>
-                            <div id="gastos-historico" class="restante"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mx-auto responsivo">
-                    <div class="card">
-                        <div class="card-body text-center">
-                            <h3 class="text">Ocios Historico</h3>
-
-                            <?php
-                            echo "
-                        <h5 class=" . $color_ocio . ">$" .
-
-                                number_format($anterior_ocio, 0, '', '.');
-
-                            "</h5>";
-                            ?>
-                            <div id="ocio-historico" class="restante"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mx-auto">
-                    <div class="card">
-                        <div class="card-body text-center">
-                            <h3 class="text">Ahorros Historicos</h3>
-
-                            <?php
-                            echo "
-                        <h5 class=" . $color_ahorro . ">$" .
-
-                                number_format($anterior_ahorros, 0, '', '.');
-
-                            "</h5>";
-                            ?>
-                            <div id="ahorro-historico" class="restante"></div>
-                        </div>
+                        "</h5>";
+                        ?>
+                        <div id="gastos-historico" class="restante"></div>
                     </div>
                 </div>
             </div>
+            <div class="col-md-4 mx-auto responsivo">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="text">Ocios Historico</h3>
 
-            <!--GRAFICO TOTAL 50%, 30% , 20% -->
-            <div class="row mb-4">
-                <div class="col-md-4 mx-auto responsivo">
-                    <div class="card">
-                        <div class="card-body text-center">
-                            <h3 class="text">Total Gastos</h3>
+                        <?php
+                        echo "
+                        <h5 class=" . $color_ocio . ">$" .
 
-                            <h5>$
-                                <?php
-                                echo number_format($suma_total_gastos, 0, '', '.');
-                                ?>
-                            </h5>
-                            <div id="total-gastos" class="restante"></div>
-                        </div>
+                            number_format($anterior_ocio, 0, '', '.');
+
+                        "</h5>";
+                        ?>
+                        <div id="ocio-historico" class="restante"></div>
                     </div>
                 </div>
-                <div class="col-md-4 mx-auto responsivo">
-                    <div class="card">
-                        <div class="card-body text-center">
-                            <h3 class="text">Total Ocio</h3>
+            </div>
+            <div class="col-md-4 mx-auto">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="text">Ahorros Historicos</h3>
 
-                            <h5>$
-                                <?php
-                                echo number_format($suma_total_ocio, 0, '', '.');
-                                ?>
-                            </h5>
-                            <div id="total-ocio" class="restante"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 mx-auto">
-                    <div class="card">
-                        <div class="card-body text-center">
-                            <h3 class="text">Total Ahorro</h3>
+                        <?php
+                        echo "
+                        <h5 class=" . $color_ahorro . ">$" .
 
-                            <h5>$
-                                <?php
-                                echo number_format($suma_total_ahorro, 0, '', '.');
-                                ?>
-                            </h5>
-                            <div id="total-ahorro" class="restante"></div>
-                        </div>
+                            number_format($anterior_ahorros, 0, '', '.');
+
+                        "</h5>";
+                        ?>
+                        <div id="ahorro-historico" class="restante"></div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!--GRAFICO TOTAL 50%, 30% , 20% -->
+        <div class="row mb-4">
+            <div class="col-md-4 mx-auto responsivo">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="text">Total Gastos</h3>
+
+                        <h5>$
+                            <?php
+                            echo number_format($suma_total_gastos, 0, '', '.');
+                            ?>
+                        </h5>
+                        <div id="total-gastos" class="restante"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mx-auto responsivo">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="text">Total Ocio</h3>
+
+                        <h5>$
+                            <?php
+                            echo number_format($suma_total_ocio, 0, '', '.');
+                            ?>
+                        </h5>
+                        <div id="total-ocio" class="restante"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mx-auto">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="text">Total Ahorro</h3>
+
+                        <h5>$
+                            <?php
+                            echo number_format($suma_total_ahorro, 0, '', '.');
+                            ?>
+                        </h5>
+                        <div id="total-ahorro" class="restante"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -593,19 +590,6 @@ $cantidad_meses_balance = 6;
     bigchart('total-ocio', $total_categorias_ocio, $colores_ocios);
     bigchart('total-ahorro', $total_categorias_ahorro, $colores_ahorros);
     ?>
-
-    <script>
-        document.getElementById('toggle-graficos').onclick = function() {
-            const graficosDiv = document.getElementById('graficos');
-            if (graficosDiv.classList.contains('hidden')) {
-                graficosDiv.classList.remove('hidden');
-                this.textContent = 'Ocultar Gráficos';
-            } else {
-                graficosDiv.classList.add('hidden');
-                this.textContent = 'Mostrar Gráficos';
-            }
-        };
-    </script>
 </body>
 
 </html>
