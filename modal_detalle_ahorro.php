@@ -1,31 +1,30 @@
 <!-- Modal para añadir gastos -->
-<div class="modal fade" id="modalDetalleGastos" tabindex="-1" aria-labelledby="modalGastosLabel" aria-hidden="true">
+<div class="modal fade" id="modalDetalleAhorro" tabindex="-1" aria-labelledby="modalGastosLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
 
             <div class="modal-header">
-                <h5 class="modal-title" id="modalGastosLabel">Detalles Gastos</h5>
+                <h5 class="modal-title" id="modalGastosLabel">Detalles Ahorro</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <?php
 
-                $where = "WHERE c.Nombre = 'Gastos' OR c.Categoria_Padre = '2'";
+                $where = "WHERE c.Nombre = 'Ahorro' OR c.Categoria_Padre = '4'";
 
                 // Llamar a la función pasando los parámetros
-                $datos_gastos = obtener_datos($conexion, $where, $current_month, $current_year, $previous_month, $previous_year);
+                $datos_ahorro = obtener_datos($conexion, $where, $current_month, $current_year, $previous_month, $previous_year);
 
                 // Acceder a los resultados
-                $total_gastos = $datos_gastos['total'];
-                $result_detalles = $datos_gastos['detalles'];
-
-
+                $total_ahorros = $datos_ahorro['total'];
+                $result_detalles = $datos_ahorro['detalles'];
+                $anterior_total_ahorros = $datos_ahorro['anterior_total'];
                 ?>
 
 
 
                 <table class="table table-bordered table-striped">
-                    <thead class="table-warning">
+                    <thead class="table-info">
                         <tr>
                             <th>Detalle</th>
                             <th>Categoria</th>
@@ -47,7 +46,7 @@
 
                         <?php endwhile;
 
-                        if ($gastos < $total_gastos) {
+                        if ($ahorro < $total_ahorros) {
                             $color = "red";
                         } else {
                             $color = "";
@@ -57,7 +56,7 @@
                         <tr>
                             <td colspan="4" align="right" style="font-weight: bold;">Total:
                                 <span class=" <?php echo $color; ?>">
-                                    $ <?php echo number_format($total_gastos, 0, '', '.'); ?>
+                                    $ <?php echo number_format($total_ahorros, 0, '', '.'); ?>
                                 </span>
                             </td>
                         </tr>

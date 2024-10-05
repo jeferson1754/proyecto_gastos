@@ -223,6 +223,9 @@ $cantidad_meses_balance = 6;
                             <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalOcio">
                                 Añadir Ocio
                             </button>
+                            <button type="button" class="btn btn-secondary" style="color:white" data-bs-toggle="modal" data-bs-target="#modalDetalleOcio">
+                                <i class="fa-solid fa-circle-info"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -277,6 +280,9 @@ $cantidad_meses_balance = 6;
                             <div class="text-center mt-4">
                                 <button type="button" class="btn btn-info" style="color:white" data-bs-toggle="modal" data-bs-target="#modalAhorro">
                                     Añadir Ahorros
+                                </button>
+                                <button type="button" class="btn btn-secondary" style="color:white" data-bs-toggle="modal" data-bs-target="#modalDetalleAhorro">
+                                    <i class="fa-solid fa-circle-info"></i>
                                 </button>
                             </div>
 
@@ -334,6 +340,8 @@ $cantidad_meses_balance = 6;
         include('modal_ingresos.php');
         include('modal_gastos.php');
         include('modal_detalle_gastos.php');
+        include('modal_detalle_ocio.php');
+        include('modal_detalle_ahorro.php');
         include('modal_ocio.php');
         include('modal_ahorro.php');
 
