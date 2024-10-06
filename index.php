@@ -311,15 +311,15 @@ $cantidad_meses_balance = 6;
         $total_categorias_ahorro = $resultado3['categorias'];
         $suma_total_ahorro = $resultado3['suma_total'];
 
-        $fecha = "AND MONTH(gastos.Fecha) = $current_month AND YEAR(gastos.Fecha) = $current_year";
+        $fecha = "MONTH(g.Fecha) = $current_month AND YEAR(g.Fecha) = $current_year";
 
-        $resultado4 = ejecutar_consulta($pdo, "$where_gastos $fecha");
+        $resultado4 = ejecutar_consulta($pdo, "$fecha AND ($where_gastos)");
         $categorias_gastos = $resultado4['categorias'];
 
-        $resultado5 = ejecutar_consulta($pdo, "$where_ocio $fecha");
+        $resultado5 = ejecutar_consulta($pdo, "$fecha AND ($where_ocio)");
         $categorias_ocio = $resultado5['categorias'];
 
-        $resultado6 = ejecutar_consulta($pdo, "$where_ahorros $fecha");
+        $resultado6 = ejecutar_consulta($pdo, "$fecha AND ($where_ahorros)");
         $categorias_ahorro = $resultado6['categorias'];
 
         include('modal_ingresos.php');

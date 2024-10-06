@@ -129,9 +129,9 @@ function obtenerColor($anterior_valor, $valor_actual)
 function ejecutar_consulta($pdo, $where)
 {
     // Consulta SQL para obtener el total por categoría
-    $sql = "SELECT c.Nombre AS categoria, SUM(gastos.Valor) AS total_categoria
-            FROM gastos
-            INNER JOIN categorias_gastos c ON gastos.ID_Categoria_Gastos = c.ID
+    $sql = "SELECT c.Nombre AS categoria, SUM(g.Valor) AS total_categoria
+            FROM gastos g
+            INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
             WHERE $where
             GROUP BY c.Nombre
             ORDER BY total_categoria DESC";

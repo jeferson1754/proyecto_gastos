@@ -8,7 +8,7 @@ try {
     // Obtener datos del formulario
     $descripcion_nombre = $_POST['descripcionIngreso'] ?? '';
     $categoria_nombre = $_POST['categoriaIngreso'] ?? '';
-    $categoria_padre = 3; // ID predeterminado de la categoría padre
+    $categoria_padre = 24; // ID predeterminado de la categoría padre
     $valor = $_POST['monto'] ?? '';
     $fecha = $_POST['fecha'] ?? date('Y-m-d');
 
