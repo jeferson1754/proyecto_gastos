@@ -30,6 +30,7 @@
                         <tbody class="align-items-center">
                             <?php while ($detalle = mysqli_fetch_assoc($result_detalles)): ?>
                                 <tr>
+                                    
                                     <td><?= htmlspecialchars($detalle['Descripcion']) ?></td>
                                     <td><?= htmlspecialchars($detalle['categoria']) ?></td>
                                     <td><?= htmlspecialchars($detalle['Fecha']) ?></td>

@@ -124,7 +124,7 @@ $cantidad_meses_balance = 6;
 
                         <?php
 
-                        $where_gastos = "WHERE c.Nombre = 'Gastos' OR c.Categoria_Padre = '28'";
+                        $where_gastos = "c.Nombre = 'Gastos' OR c.Categoria_Padre = '23'";
 
                         // Llamar a la función pasando los parámetros
                         $datos_gastos = obtener_datos($conexion, $where_gastos, $current_month, $current_year, $previous_month, $previous_year);
@@ -180,7 +180,7 @@ $cantidad_meses_balance = 6;
                         <h4 class="card-title text-center mb-4">Ocio</h4>
                         <?php
 
-                        $where_ocio = "WHERE c.Nombre = 'Ocio' OR c.Categoria_Padre = '29'";
+                        $where_ocio = "c.Nombre = 'Ocio' OR c.Categoria_Padre = '24'";
 
                         // Llamar a la función pasando los parámetros
                         $datos_ocio = obtener_datos($conexion, $where_ocio, $current_month, $current_year, $previous_month, $previous_year);
@@ -233,7 +233,7 @@ $cantidad_meses_balance = 6;
                         <h4 class="card-title text-center mb-4">Ahorro e Inversión</h4>
                         <?php
 
-                        $where_ahorros = "WHERE c.Nombre = 'Ahorros' OR c.Categoria_Padre = '2'";
+                        $where_ahorros = "c.Nombre = 'Ahorros' OR c.Categoria_Padre = '2'";
 
                         // Llamar a la función pasando los parámetros
                         $datos_ahorro = obtener_datos($conexion, $where_ahorros, $current_month, $current_year, $previous_month, $previous_year);

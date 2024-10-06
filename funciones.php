@@ -65,22 +65,22 @@ function obtener_datos($conexion, $where, $current_month, $current_year, $previo
     $sql_total = "SELECT SUM(g.Valor) AS total
     FROM gastos g
     INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
-    " . $where . "
-    AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?";
+    WHERE (MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?)
+    AND(" . $where . ")";
 
     $sql_detalles = "SELECT d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha
     FROM gastos g
     INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
     INNER JOIN detalle d ON g.ID_Detalle = d.ID
-    " . $where . "
-    AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?
+    WHERE (MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?)
+    AND(" . $where . ")
     ORDER BY g.Fecha DESC";
 
     $sql_anterior = "SELECT SUM(g.Valor) AS total
     FROM gastos g
     INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
-    " . $where . "
-    AND MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?";
+    WHERE (MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?)
+    AND(" . $where . ")";
 
     // Consulta del total de gastos del mes actual
     $stmt_total = mysqli_prepare($conexion, $sql_total);
@@ -120,7 +120,6 @@ function obtenerColor($anterior_valor, $valor_actual)
         #echo "El valor actual de $tipo es mayor al anterior, el color es rojo.<br>";
         return "red"; // El valor actual es mayor, por lo tanto, el color es rojo
     } else {
-
     }
 }
 
@@ -133,7 +132,7 @@ function ejecutar_consulta($pdo, $where)
     $sql = "SELECT c.Nombre AS categoria, SUM(gastos.Valor) AS total_categoria
             FROM gastos
             INNER JOIN categorias_gastos c ON gastos.ID_Categoria_Gastos = c.ID
-            $where
+            WHERE $where
             GROUP BY c.Nombre
             ORDER BY total_categoria DESC";
 
@@ -241,7 +240,7 @@ function DatosHistoricos($where, $conexion, $nombre_grafico, $colores)
         gastos 
     INNER JOIN 
         categorias_gastos c ON gastos.ID_Categoria_Gastos = c.ID 
-    $where 
+    WHERE $where 
     GROUP BY 
         c.Nombre, mes;";
 
