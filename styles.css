@@ -1,8 +1,10 @@
+/* Global Styles */
 body {
     font-family: 'Roboto', sans-serif;
     background-color: #f8f9fa;
 }
 
+/* Card Styles */
 .card {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border: none;
@@ -14,7 +16,9 @@ body {
     transform: translateY(-5px);
 }
 
-#chart-container {
+/* Chart Styles */
+#chart-container,
+#grafico-ingresos-egresos {
     height: 300px;
 }
 
@@ -23,10 +27,7 @@ body {
     margin-top: 25px;
 }
 
-#grafico-ingresos-egresos {
-    height: 350px;
-}
-
+/* Budget Item Styles */
 .budget-item {
     border-right: 1px solid #dee2e6;
 }
@@ -35,17 +36,7 @@ body {
     border-right: none;
 }
 
-.details {
-    height: 200px;
-    overflow-y: auto;
-}
-
-.category-icon {
-    font-size: 2rem;
-    margin-bottom: 10px;
-}
-
-
+/* Scrollable Container */
 .detalles-container {
     max-height: 250px;
     overflow-y: auto;
@@ -71,6 +62,32 @@ body {
     border-radius: 15px;
 }
 
+/* Category Specific Scrollbar Colors */
+.detalles-container.ocio::-webkit-scrollbar-thumb {
+    background-color: #198754;
+}
+
+.detalles-container.ahorro::-webkit-scrollbar-thumb {
+    background-color: #0DCAF0;
+}
+
+/* Responsive Styles */
+@media only screen and (max-width: 600px) {
+    .responsivo {
+        margin-bottom: 20px;
+    }
+}
+
+/* Color Styles */
+.red {
+    color: red !important;
+}
+
+.green {
+    color: green !important;
+}
+
+/* List Group Item Hover Effect */
 .list-group-item {
     transition: background-color 0.2s ease;
     border-left: 4px solid transparent;
@@ -81,32 +98,50 @@ body {
     border-left-color: #FFC107;
 }
 
+/* Badge Hover Effect */
 .badge {
     transition: background-color 0.2s ease;
 }
 
-.detalles-container.ocio::-webkit-scrollbar-thumb {
+/* Scrollbar Styles for Table */
+.table-responsive {
+    scrollbar-color: #FFC107 #f1f1f1;
+    scrollbar-width: thin;
+}
+
+.table-responsive::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background-color: #FFC107;
+    border-radius: 10px;
+    border: 1px solid #f9f9f9;
+}
+
+/* Ocio and Ahorro Specific Scrollbars */
+.table-responsive.ocio::-webkit-scrollbar-thumb {
     background-color: #198754;
 }
 
-.detalles-container.ahorro::-webkit-scrollbar-thumb {
+.table-responsive.ahorro::-webkit-scrollbar-thumb {
     background-color: #0DCAF0;
-
 }
 
-
-@media only screen and (max-width: 600px) {
-    .responsivo {
-        margin-bottom: 20px;
-    }
+/* Firefox Scrollbar for Ocio and Ahorro */
+.table-responsive.ocio {
+    scrollbar-color: #198754 #f1f1f1;
 }
 
-.red {
-    color: red;
-
+.table-responsive.ahorro {
+    scrollbar-color: #0DCAF0 #f1f1f1;
 }
 
-.green {
-    color: green;
-
+.category-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
 }

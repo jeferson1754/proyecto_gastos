@@ -124,10 +124,10 @@ $cantidad_meses_balance = 6;
 
                         <?php
 
-                        $where = "WHERE c.Nombre = 'Gastos' OR c.Categoria_Padre = '2'";
+                        $where_gastos = "WHERE c.Nombre = 'Gastos' OR c.Categoria_Padre = '28'";
 
                         // Llamar a la función pasando los parámetros
-                        $datos_gastos = obtener_datos($conexion, $where, $current_month, $current_year, $previous_month, $previous_year);
+                        $datos_gastos = obtener_datos($conexion, $where_gastos, $current_month, $current_year, $previous_month, $previous_year);
 
                         // Acceder a los resultados
                         $total_gastos = $datos_gastos['total'];
@@ -140,13 +140,9 @@ $cantidad_meses_balance = 6;
                             Valor Actual:
                             <?php
 
-                            if ($gastos < $total_gastos) {
-                                $color = "red";
-                            } else {
-                                $color = "";
-                            }
+                            $color_gastos_detalles = obtenerColor($gastos, $total_gastos);
 
-                            echo "<i class=" . $color . ">$ " . number_format($total_gastos, 0, '', '.') . "</i>";
+                            echo "<i class=" . $color_gastos_detalles . ">$ " . number_format($total_gastos, 0, '', '.') . "</i>";
 
                             ?>
                         </div>
@@ -184,10 +180,10 @@ $cantidad_meses_balance = 6;
                         <h4 class="card-title text-center mb-4">Ocio</h4>
                         <?php
 
-                        $where = "WHERE c.Nombre = 'Ocio' OR c.Categoria_Padre = '3'";
+                        $where_ocio = "WHERE c.Nombre = 'Ocio' OR c.Categoria_Padre = '29'";
 
                         // Llamar a la función pasando los parámetros
-                        $datos_ocio = obtener_datos($conexion, $where, $current_month, $current_year, $previous_month, $previous_year);
+                        $datos_ocio = obtener_datos($conexion, $where_ocio, $current_month, $current_year, $previous_month, $previous_year);
 
                         // Acceder a los resultados
                         $total_ocio = $datos_ocio['total'];
@@ -199,13 +195,9 @@ $cantidad_meses_balance = 6;
                             Valor Actual:
                             <?php
 
-                            if ($ocio < $total_ocio) {
-                                $color = "red";
-                            } else {
-                                $color = "";
-                            }
+                            $color_ocio_detalle = obtenerColor($ocio, $total_ocio);
 
-                            echo "<i class=" . $color . ">$ " . number_format($total_ocio, 0, '', '.') . "</i>";
+                            echo "<i class=" . $color_ocio_detalle . ">$ " . number_format($total_ocio, 0, '', '.') . "</i>";
 
                             ?>
                         </div>
@@ -241,14 +233,14 @@ $cantidad_meses_balance = 6;
                         <h4 class="card-title text-center mb-4">Ahorro e Inversión</h4>
                         <?php
 
-                        $where = "WHERE c.Nombre = 'Ahorro' OR c.Categoria_Padre = '4'";
+                        $where_ahorros = "WHERE c.Nombre = 'Ahorros' OR c.Categoria_Padre = '2'";
 
                         // Llamar a la función pasando los parámetros
-                        $datos_ahorro = obtener_datos($conexion, $where, $current_month, $current_year, $previous_month, $previous_year);
+                        $datos_ahorro = obtener_datos($conexion, $where_ahorros, $current_month, $current_year, $previous_month, $previous_year);
 
                         // Acceder a los resultados
                         $total_ahorros = $datos_ahorro['total'];
-                        $result_detalles = $datos_ahorro['detalles'];
+                        $result_detalles_ahorros = $datos_ahorro['detalles'];
                         $anterior_total_ahorros = $datos_ahorro['anterior_total'];
                         ?>
 
@@ -256,19 +248,16 @@ $cantidad_meses_balance = 6;
                             Valor Actual:
                             <?php
 
-                            if ($ahorro < $total_ahorros) {
-                                $color = "red";
-                            } else {
-                                $color = "";
-                            }
+                            $color_ahorro_detalle = obtenerColor($ahorro, $total_ahorros);
 
-                            echo "<i class=" . $color . ">$ " . number_format($total_ahorros, 0, '', '.') . "</i>";
+
+                            echo "<i class=" . $color_ahorro_detalle . ">$ " . number_format($total_ahorros, 0, '', '.') . "</i>";
 
                             ?>
                         </div>
                         <div class="detalles-container ahorro">
                             <ul class="list-group list-group-flush ahorro">
-                                <?php while ($detalle = mysqli_fetch_assoc($result_detalles)): ?>
+                                <?php while ($detalle = mysqli_fetch_assoc($result_detalles_ahorros)): ?>
                                     <li class="list-group-item d-flex justify-content-between align-items-center">
                                         <span><?= htmlspecialchars($detalle['Descripcion']) ?></span>
                                         <span class="badge bg-info rounded-pill">$<?= number_format($detalle['Valor'], 0, '', '.') ?></span>
@@ -302,14 +291,10 @@ $cantidad_meses_balance = 6;
         $anterior_ocio = $anterior_total_ocio - $total_ocio;
         $anterior_ahorros = $anterior_total_ahorros - $total_ahorros;
 
-        // Obtener colores
-        $color_gastos = obtenerColor($anterior_total_gastos, $total_gastos);
-        $color_ocio = obtenerColor($anterior_total_ocio, $total_ocio);
-        $color_ahorro = obtenerColor($anterior_total_ahorros, $total_ahorros);
-
-        $where_gastos = "WHERE categorias_gastos.Nombre='Gastos' OR categorias_gastos.Categoria_Padre = 2";
-        $where_ocio = "WHERE categorias_gastos.Nombre='Ocio' OR categorias_gastos.Categoria_Padre = 3";
-        $where_ahorros = "WHERE categorias_gastos.Nombre='Ahorro' OR categorias_gastos.Categoria_Padre = 4";
+        // Obtener colores para historico
+        $color_gastos_historico = obtenerColor($anterior_total_gastos, $total_gastos);
+        $color_ocio_historico = obtenerColor($anterior_total_ocio, $total_ocio);
+        $color_ahorro_historico = obtenerColor($anterior_total_ahorros, $total_ahorros);
 
         $pdo = new PDO("mysql:host=$host;dbname=$database", $user, $password);
 
@@ -339,11 +324,11 @@ $cantidad_meses_balance = 6;
 
         include('modal_ingresos.php');
         include('modal_gastos.php');
+        include('modal_ocio.php');
+        include('modal_ahorro.php');
         include('modal_detalle_gastos.php');
         include('modal_detalle_ocio.php');
         include('modal_detalle_ahorro.php');
-        include('modal_ocio.php');
-        include('modal_ahorro.php');
 
         ?>
 
@@ -402,7 +387,7 @@ $cantidad_meses_balance = 6;
                         <h3 class="text">Gastos Historicos</h3>
                         <?php
                         echo "
-                        <h5 class=" . $color_gastos . ">$" .
+                        <h5 class=" . $color_gastos_historico . ">$" .
 
                             number_format($anterior_gastos, 0, '', '.');
 
@@ -419,7 +404,7 @@ $cantidad_meses_balance = 6;
 
                         <?php
                         echo "
-                        <h5 class=" . $color_ocio . ">$" .
+                        <h5 class=" . $color_ocio_historico . ">$" .
 
                             number_format($anterior_ocio, 0, '', '.');
 
@@ -436,7 +421,7 @@ $cantidad_meses_balance = 6;
 
                         <?php
                         echo "
-                        <h5 class=" . $color_ahorro . ">$" .
+                        <h5 class=" . $color_ahorro_historico . ">$" .
 
                             number_format($anterior_ahorros, 0, '', '.');
 

@@ -28,7 +28,7 @@
                             <option value="Ingresos">Ingresos Base</option>
                             <option value="Gastos">Gastos</option>
                             <option value="Ocio">Ocio</option>
-                            <option value="Ahorro">Ahorro</option>
+                            <option value="Ahorros">Ahorros</option>
                         </select>
                     </div>
                     <div class="mb-3">

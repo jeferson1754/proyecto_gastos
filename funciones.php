@@ -120,8 +120,7 @@ function obtenerColor($anterior_valor, $valor_actual)
         #echo "El valor actual de $tipo es mayor al anterior, el color es rojo.<br>";
         return "red"; // El valor actual es mayor, por lo tanto, el color es rojo
     } else {
-        #echo "El valor actual de $tipo es menor o igual al anterior, el color es verde.<br>";
-        return "green"; // El valor actual es menor o igual, por lo tanto, el color es verde
+
     }
 }
 
@@ -131,11 +130,11 @@ function obtenerColor($anterior_valor, $valor_actual)
 function ejecutar_consulta($pdo, $where)
 {
     // Consulta SQL para obtener el total por categoría
-    $sql = "SELECT categorias_gastos.Nombre AS categoria, SUM(gastos.Valor) AS total_categoria
+    $sql = "SELECT c.Nombre AS categoria, SUM(gastos.Valor) AS total_categoria
             FROM gastos
-            INNER JOIN categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID
+            INNER JOIN categorias_gastos c ON gastos.ID_Categoria_Gastos = c.ID
             $where
-            GROUP BY categorias_gastos.Nombre
+            GROUP BY c.Nombre
             ORDER BY total_categoria DESC";
 
     try {
@@ -235,16 +234,16 @@ function DatosHistoricos($where, $conexion, $nombre_grafico, $colores)
     // Construir la consulta SQL
     $sql = "
     SELECT 
-        categorias_gastos.Nombre AS categoria, 
+        c.Nombre AS categoria, 
         DATE_FORMAT(gastos.Fecha, '%Y-%m') AS mes, 
         SUM(gastos.Valor) AS total_categoria 
     FROM 
         gastos 
     INNER JOIN 
-        categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID 
+        categorias_gastos c ON gastos.ID_Categoria_Gastos = c.ID 
     $where 
     GROUP BY 
-        categorias_gastos.Nombre, mes;";
+        c.Nombre, mes;";
 
     // Ejecutar la consulta
     $result = $conexion->query($sql);
