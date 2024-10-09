@@ -145,3 +145,17 @@ body {
     font-size: 2rem;
     margin-bottom: 10px;
 }
+
+.progress-bar {
+    transition: width 0.5s ease-in-out;
+    font-weight: bold;
+}
+
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.card-title {
+    margin-bottom: 1rem;
+    font-weight: 600;
+}

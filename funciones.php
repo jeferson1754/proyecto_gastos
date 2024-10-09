@@ -410,3 +410,41 @@ function bigchart($id, $categoria_nombre, $colores)
 <?php
 }
 //USO: bigchart('total-ahorro', $total_categorias_ahorro, $colores_ahorros);
+
+// Función para calcular porcentajes
+function calcularPorcentaje($actual, $presupuesto)
+{
+    if ($presupuesto <= 0) return 0;
+    return min(100, round(($actual / $presupuesto) * 100));
+}
+
+// Función para obtener color según el porcentaje
+function obtenerColorBarra($porcentaje)
+{
+    
+    if ($porcentaje >= 80) return 'danger';
+    if ($porcentaje >= 60) return 'warning';
+    if ($porcentaje >= 40) return 'success';
+    if ($porcentaje >= 20) return 'secondary';
+    return 'primary';
+}
+
+// Componente de barra de progreso
+function mostrarBarraProgreso($valorActual, $presupuestoTotal)
+{
+    $porcentaje = calcularPorcentaje($valorActual, $presupuestoTotal);
+    $colorBarra = obtenerColorBarra($porcentaje);
+
+    return "
+            <div class='progress' style='height: 20px;'>
+                <div class='progress-bar bg-$colorBarra' 
+                     role='progressbar' 
+                     style='width: $porcentaje%' 
+                     aria-valuenow='$porcentaje' 
+                     aria-valuemin='0' 
+                     aria-valuemax='100'>
+                    $porcentaje%
+                </div>
+            </div>";
+}
+?>

@@ -5,6 +5,40 @@ require_once('funciones.php');
 
 $cantidad_meses_balance = 6;
 
+// Definir los where para cada categoría
+$where_gastos = "c.Nombre = 'Gastos' OR c.Categoria_Padre = '23'";
+$where_ocio = "c.Nombre = 'Ocio' OR c.Categoria_Padre = '24'";
+$where_ahorros = "c.Nombre = 'Ahorros' OR c.Categoria_Padre = '2'";
+
+// Crear un arreglo para manejar las categorías y sus where correspondientes
+$modulos = [
+    'Gastos' => $where_gastos,
+    'Ocio' => $where_ocio,
+    'Ahorros' => $where_ahorros
+];
+
+// Crear un arreglo para almacenar los resultados
+$resultados = [];
+
+foreach ($modulos as $nombre_categoria => $where_clause) {
+    // Llamar a la función con cada where y almacenar los resultados
+    $resultados[$nombre_categoria] = obtener_datos($conexion, $where_clause, $current_month, $current_year, $previous_month, $previous_year);
+}
+
+// Acceder a los resultados de cada categoría
+$total_gastos = $resultados['Gastos']['total'];
+$result_detalles_gastos = $resultados['Gastos']['detalles'];
+$anterior_total_gastos = $resultados['Gastos']['anterior_total'];
+
+$total_ocio = $resultados['Ocio']['total'];
+$result_detalles_ocio = $resultados['Ocio']['detalles'];
+$anterior_total_ocio = $resultados['Ocio']['anterior_total'];
+
+$total_ahorros = $resultados['Ahorros']['total'];
+$result_detalles_ahorros = $resultados['Ahorros']['detalles'];
+$anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
+
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -18,11 +52,6 @@ $cantidad_meses_balance = 6;
     <title>Resumen Financiero</title>
     <link rel="stylesheet" href="styles.css?<?php echo time() ?>">
 </head>
-<style>
-    .hidden {
-        display: none;
-    }
-</style>
 
 <body>
     <div class="container py-1">
@@ -83,7 +112,15 @@ $cantidad_meses_balance = 6;
                             echo number_format($gastos, 0, '', '.'); ?>
                         </h5>
                         <p class="text-muted">Gastos y Cuentas</p>
+                        <?php
+                        // Uso para Gastos
+                        echo mostrarBarraProgreso(
+                            $total_gastos,  // Variable de tu código original
+                            $gastos        // Variable de tu código original que representa el 50%
+                        );
+                        ?>
                     </div>
+
                 </div>
             </div>
             <div class="col-md-4 responsivo">
@@ -95,6 +132,13 @@ $cantidad_meses_balance = 6;
                             echo number_format($ocio, 0, '', '.'); ?>
                         </h5>
                         <p class="text-muted">Ocio</p>
+                        <?php
+                        // Uso para Gastos
+                        echo mostrarBarraProgreso(
+                            $total_ocio,  // Variable de tu código original
+                            $ocio        // Variable de tu código original que representa el 50%
+                        );
+                        ?>
                     </div>
                 </div>
             </div>
@@ -107,6 +151,13 @@ $cantidad_meses_balance = 6;
                             echo number_format($ahorro, 0, '', '.'); ?>
                         </h5>
                         <p class="text-muted">Ahorro e Inversión</p>
+                        <?php
+                        // Uso para Ahorro
+                        echo mostrarBarraProgreso(
+                            $total_ahorros, // Variable de tu código original
+                            $ahorro        // Variable de tu código original que representa el 20%
+                        );
+                        ?>
                     </div>
                 </div>
             </div>
@@ -122,20 +173,7 @@ $cantidad_meses_balance = 6;
                         </div>
                         <h4 class="card-title text-center mb-4">Gastos y Cuentas</h4>
 
-                        <?php
 
-                        $where_gastos = "c.Nombre = 'Gastos' OR c.Categoria_Padre = '23'";
-
-                        // Llamar a la función pasando los parámetros
-                        $datos_gastos = obtener_datos($conexion, $where_gastos, $current_month, $current_year, $previous_month, $previous_year);
-
-                        // Acceder a los resultados
-                        $total_gastos = $datos_gastos['total'];
-                        $result_detalles = $datos_gastos['detalles'];
-                        $anterior_total_gastos = $datos_gastos['anterior_total'];
-
-
-                        ?>
                         <div class="alert alert-warning">
                             Valor Actual:
                             <?php
@@ -149,7 +187,7 @@ $cantidad_meses_balance = 6;
 
                         <div class="detalles-container">
                             <ul class="list-group list-group-flush">
-                                <?php while ($detalle = mysqli_fetch_assoc($result_detalles)): ?>
+                                <?php while ($detalle = mysqli_fetch_assoc($result_detalles_gastos)): ?>
                                     <li class="list-group-item d-flex justify-content-between align-items-center">
                                         <span><?= htmlspecialchars($detalle['Descripcion']) ?></span>
                                         <span class="badge bg-warning rounded-pill">$<?= number_format($detalle['Valor'], 0, '', '.') ?></span>
@@ -178,19 +216,6 @@ $cantidad_meses_balance = 6;
                             <i class="fas fa-utensils"></i>
                         </div>
                         <h4 class="card-title text-center mb-4">Ocio</h4>
-                        <?php
-
-                        $where_ocio = "c.Nombre = 'Ocio' OR c.Categoria_Padre = '24'";
-
-                        // Llamar a la función pasando los parámetros
-                        $datos_ocio = obtener_datos($conexion, $where_ocio, $current_month, $current_year, $previous_month, $previous_year);
-
-                        // Acceder a los resultados
-                        $total_ocio = $datos_ocio['total'];
-                        $result_detalles = $datos_ocio['detalles'];
-                        $anterior_total_ocio = $datos_ocio['anterior_total'];
-                        ?>
-
                         <div class="alert alert-success">
                             Valor Actual:
                             <?php
@@ -203,7 +228,7 @@ $cantidad_meses_balance = 6;
                         </div>
                         <div class="detalles-container ocio">
                             <ul class="list-group list-group-flush">
-                                <?php while ($detalle = mysqli_fetch_assoc($result_detalles)): ?>
+                                <?php while ($detalle = mysqli_fetch_assoc($result_detalles_ocio)): ?>
                                     <li class="list-group-item d-flex justify-content-between align-items-center">
                                         <span><?= htmlspecialchars($detalle['Descripcion']) ?></span>
                                         <span class="badge bg-success rounded-pill">$<?= number_format($detalle['Valor'], 0, '', '.') ?></span>
@@ -231,18 +256,6 @@ $cantidad_meses_balance = 6;
                             <i class="fas fa-piggy-bank"></i>
                         </div>
                         <h4 class="card-title text-center mb-4">Ahorro e Inversión</h4>
-                        <?php
-
-                        $where_ahorros = "c.Nombre = 'Ahorros' OR c.Categoria_Padre = '2'";
-
-                        // Llamar a la función pasando los parámetros
-                        $datos_ahorro = obtener_datos($conexion, $where_ahorros, $current_month, $current_year, $previous_month, $previous_year);
-
-                        // Acceder a los resultados
-                        $total_ahorros = $datos_ahorro['total'];
-                        $result_detalles_ahorros = $datos_ahorro['detalles'];
-                        $anterior_total_ahorros = $datos_ahorro['anterior_total'];
-                        ?>
 
                         <div class="alert alert-info">
                             Valor Actual:
@@ -291,6 +304,10 @@ $cantidad_meses_balance = 6;
         $anterior_ocio = $anterior_total_ocio - $total_ocio;
         $anterior_ahorros = $anterior_total_ahorros - $total_ahorros;
 
+        $color_gastos_restante = obtenerColor($gastos_restante, $total_gastos);
+        $color_ocio_restante = obtenerColor($ocio_restante, $total_ocio);
+        $color_ahorro_restante = obtenerColor($ahorros_restante, $total_ahorros);
+
         // Obtener colores para historico
         $color_gastos_historico = obtenerColor($anterior_total_gastos, $total_gastos);
         $color_ocio_historico = obtenerColor($anterior_total_ocio, $total_ocio);
@@ -332,6 +349,7 @@ $cantidad_meses_balance = 6;
 
         ?>
 
+
         <!--GRAFICO RESTANTE 50%, 30% , 20% -->
         <div class="row mb-4">
             <div class="col-md-4 mx-auto responsivo">
@@ -339,11 +357,14 @@ $cantidad_meses_balance = 6;
                     <div class="card-body text-center">
                         <h3 class="text">Gastos Restantes</h3>
 
-                        <h5>$
-                            <?php
-                            echo number_format($gastos_restante, 0, '', '.');
-                            ?>
-                        </h5>
+                        <?php
+                        echo "
+                        <h5 class=" . $color_gastos_restante . ">$" .
+
+                            number_format($gastos_restante, 0, '', '.');
+
+                        "</h5>";
+                        ?>
                         <div id="gastos-restante" class="restante"></div>
                     </div>
                 </div>
@@ -353,11 +374,14 @@ $cantidad_meses_balance = 6;
                     <div class="card-body text-center">
                         <h3 class="text">Ocio Restante</h3>
 
-                        <h5>$
-                            <?php
-                            echo number_format($ocio_restante, 0, '', '.');
-                            ?>
-                        </h5>
+                        <?php
+                        echo "
+                        <h5 class=" . $color_ocio_restante . ">$" .
+
+                            number_format($ocio_restante, 0, '', '.');
+
+                        "</h5>";
+                        ?>
                         <div id="ocio-restante" class="restante"></div>
                     </div>
                 </div>
@@ -367,11 +391,14 @@ $cantidad_meses_balance = 6;
                     <div class="card-body text-center">
                         <h3 class="text">Ahorro Restante</h3>
 
-                        <h5>$
-                            <?php
-                            echo number_format($ahorros_restante, 0, '', '.');
-                            ?>
-                        </h5>
+                        <?php
+                        echo "
+                        <h5 class=" . $color_ahorro_restante . ">$" .
+
+                            number_format($ahorros_restante, 0, '', '.');
+
+                        "</h5>";
+                        ?>
                         <div id="ahorro-restante" class="restante"></div>
                     </div>
                 </div>
@@ -478,6 +505,7 @@ $cantidad_meses_balance = 6;
                 </div>
             </div>
         </div>
+
 
     </div>
 
