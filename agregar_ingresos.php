@@ -7,15 +7,43 @@ try {
 
     // Obtener datos del formulario
     $descripcion_nombre = $_POST['descripcionIngreso'] ?? '';
-    $categoria_nombre = $_POST['categoriaIngreso'] ?? '';
     $valor = $_POST['monto'] ?? '';
     $fecha = $_POST['fecha'] ?? date('Y-m-d');
 
+
+    // Obtener el tipo de categoría seleccionada
+    $categoria_principal = $_POST['categoriaIngresoPrincipal'];
+
+
+    // Verificar qué categoría fue seleccionada
+    if ($categoria_principal === 'Ingresos') {
+        // Procesar como ingreso
+        $categoria_nombre = 'Ingresos Base';
+        $categoria_padre = 1;
+    } elseif ($categoria_principal === 'Gastos') {
+        // Procesar como gasto
+        $categoria_nombre = $_POST['categoriaGasto'];
+        $categoria_padre = 23;
+    } elseif ($categoria_principal === 'Ocio') {
+        // Procesar como ocio
+        $categoria_nombre = $_POST['categoriaOcio'];
+        $categoria_padre = 24;
+    } elseif ($categoria_principal === 'Ahorros') {
+        // Procesar como ahorro
+        $categoria_nombre = $_POST['categoriaAhorro'];
+        $categoria_padre = 2;
+    }
+
+
     // Validar datos
-    if (empty($descripcion_nombre) || empty($categoria_nombre) || empty($valor)) {
+    if (empty($descripcion_nombre) || empty($categoria_principal) || empty($valor)) {
         throw new Exception('Todos los campos son requeridos.');
     }
 
+
+    echo "Categoria Padre:" . $categoria_principal . "<br> Nombre_Categoria:" . "$categoria_nombre" . "<br>";
+
+    // Obtener o crear categoría
     // Obtener o crear categoría
     $stmt = $pdo->prepare("SELECT ID FROM categorias_gastos WHERE Nombre = :nombre");
     $stmt->execute([':nombre' => $categoria_nombre]);
@@ -24,10 +52,13 @@ try {
     if ($categoria) {
         $categoria_id = $categoria['ID'];
     } else {
-        $stmt = $pdo->prepare("INSERT INTO categorias_gastos (Nombre) VALUES (:nombre)");
-        $stmt->execute([':nombre' => $categoria_nombre]);
+        // Si la categoría no existe, insertarla y recuperar el ID
+        $stmt = $pdo->prepare("INSERT INTO categorias_gastos (Nombre, Categoria_Padre) VALUES (:nombre, :categoria_padre)");
+        $stmt->execute([':nombre' => $categoria_nombre, ':categoria_padre' => $categoria_padre]);
         $categoria_id = $pdo->lastInsertId();
     }
+
+    echo "ID_Categoria:" . $categoria_id;
 
     // Obtener o crear detalle
     $stmt = $pdo->prepare("SELECT ID FROM detalle WHERE Detalle = :nombre");
@@ -45,12 +76,10 @@ try {
     // Determinar el valor correcto basado en la categoría
     $nuevo_valor = ($categoria_nombre != "Ingresos") ? "-$valor" : $valor;
 
-    // Insertar ingreso en la base de datos
     $stmt = $pdo->prepare("
-    INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha)
-    VALUES (:detalle_id, :categoria_id, :valor, :fecha)
+        INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha)
+        VALUES (:detalle_id, :categoria_id, :valor, :fecha)
     ");
-    
     $stmt->execute([
         ':detalle_id' => $detalle_id,
         ':categoria_id' => $categoria_id,
