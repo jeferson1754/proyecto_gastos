@@ -1,4 +1,11 @@
 /* Global Styles */
+
+:root{
+    --gasto:  #FFC107;
+    --ahorro: #0DCAF0;
+    --ocio: #198754;
+}
+
 body {
     font-family: 'Roboto', sans-serif;
     background-color: #f8f9fa;
@@ -52,7 +59,7 @@ body {
 }
 
 .detalles-container::-webkit-scrollbar-thumb {
-    background-color: #FFC107;
+    background-color: var(--gasto);
     border-radius: 15px;
     border: 4px solid #f9f9f9;
 }
@@ -64,11 +71,11 @@ body {
 
 /* Category Specific Scrollbar Colors */
 .detalles-container.ocio::-webkit-scrollbar-thumb {
-    background-color: #198754;
+    background-color: var(--ocio);
 }
 
 .detalles-container.ahorro::-webkit-scrollbar-thumb {
-    background-color: #0DCAF0;
+    background-color: var(--ahorro);
 }
 
 /* Responsive Styles */
@@ -95,7 +102,17 @@ body {
 
 .list-group-item:hover {
     background-color: #f0f0f0;
-    border-left-color: #FFC107;
+    border-left-color: var(--gasto);
+}
+
+.list-group-item.ocio:hover {
+    background-color: #f0f0f0;
+    border-left-color: var(--ocio);
+}
+
+.list-group-item.ahorro:hover {
+    background-color: #f0f0f0;
+    border-left-color: var(--ahorro);
 }
 
 /* Badge Hover Effect */
@@ -105,7 +122,7 @@ body {
 
 /* Scrollbar Styles for Table */
 .table-responsive {
-    scrollbar-color: #FFC107 #f1f1f1;
+    scrollbar-color: var(--gasto) #f1f1f1;
     scrollbar-width: thin;
 }
 
@@ -118,27 +135,27 @@ body {
 }
 
 .table-responsive::-webkit-scrollbar-thumb {
-    background-color: #FFC107;
+    background-color: var(--gasto);
     border-radius: 10px;
     border: 1px solid #f9f9f9;
 }
 
 /* Ocio and Ahorro Specific Scrollbars */
 .table-responsive.ocio::-webkit-scrollbar-thumb {
-    background-color: #198754;
+    background-color: var(--ocio);
 }
 
 .table-responsive.ahorro::-webkit-scrollbar-thumb {
-    background-color: #0DCAF0;
+    background-color: var(--ahorro);
 }
 
 /* Firefox Scrollbar for Ocio and Ahorro */
 .table-responsive.ocio {
-    scrollbar-color: #198754 #f1f1f1;
+    scrollbar-color: var(--ocio) #f1f1f1;
 }
 
 .table-responsive.ahorro {
-    scrollbar-color: #0DCAF0 #f1f1f1;
+    scrollbar-color:var(--ahorro) #f1f1f1;
 }
 
 .category-icon {
@@ -155,7 +172,4 @@ body {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.card-title {
-    margin-bottom: 1rem;
-    font-weight: 600;
-}
+

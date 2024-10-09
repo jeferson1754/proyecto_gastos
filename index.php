@@ -5,6 +5,8 @@ require_once('funciones.php');
 
 $cantidad_meses_balance = 6;
 
+$minRepeticiones = 5;
+
 // Definir los where para cada categoría
 $where_gastos = "c.Nombre = 'Gastos' OR c.Categoria_Padre = '23'";
 $where_ocio = "c.Nombre = 'Ocio' OR c.Categoria_Padre = '24'";
@@ -349,7 +351,6 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
 
         ?>
 
-
         <!--GRAFICO RESTANTE 50%, 30% , 20% -->
         <div class="row mb-4">
             <div class="col-md-4 mx-auto responsivo">
@@ -404,7 +405,6 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                 </div>
             </div>
         </div>
-
 
         <!--GRAFICO HISTORICO 50%, 30% , 20% -->
         <div class="row mb-4">

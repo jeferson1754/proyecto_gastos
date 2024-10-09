@@ -421,7 +421,7 @@ function calcularPorcentaje($actual, $presupuesto)
 // Función para obtener color según el porcentaje
 function obtenerColorBarra($porcentaje)
 {
-    
+
     if ($porcentaje >= 80) return 'danger';
     if ($porcentaje >= 60) return 'warning';
     if ($porcentaje >= 40) return 'success';
@@ -446,5 +446,51 @@ function mostrarBarraProgreso($valorActual, $presupuestoTotal)
                     $porcentaje%
                 </div>
             </div>";
+}
+
+function obtenerDatosRecurrentes($conn, $where, $minRepeticiones)
+{
+    // Consulta para obtener gastos recurrentes
+    $query = "
+        SELECT d.Detalle AS Descripcion, g.Valor, c.Nombre  AS categoria, c.Categoria_Padre AS categoria_padre, COUNT(c.ID) AS cantidad_repeticiones
+        FROM gastos g
+        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
+        INNER JOIN detalle d ON g.ID_Detalle = d.ID
+        WHERE $where
+        GROUP BY d.Detalle, c.ID, c.Categoria_Padre
+        HAVING COUNT(c.ID) >= ?
+        ORDER BY `cantidad_repeticiones` DESC
+    ";
+
+    // Preparar la declaración
+    if ($stmt = $conn->prepare($query)) {
+        // Vincular parámetros
+        $stmt->bind_param("i", $minRepeticiones);
+
+        // Ejecutar la declaración
+        $stmt->execute();
+
+        // Obtener el resultado
+        $result = $stmt->get_result();
+
+        // Crear el arreglo de gastos recurrentes
+        $gastosRecurrentes = [];
+        if ($result->num_rows > 0) {
+            while ($row = $result->fetch_assoc()) {
+                $gastosRecurrentes[] = [
+                    'descripcion' => $row['Descripcion'],
+                    'monto' => $row['Valor'],
+                    'categoria' => $row['categoria'],
+                    'categoria_padre' => $row['categoria_padre'],
+                    'cantidad_repeticiones' => $row['cantidad_repeticiones']
+                ];
+            }
+        }
+
+        // Cerrar la declaración
+        $stmt->close();
+    }
+
+    return $gastosRecurrentes;
 }
 ?>
