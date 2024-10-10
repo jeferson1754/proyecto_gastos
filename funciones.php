@@ -425,7 +425,7 @@ function obtenerColorBarra($porcentaje)
     if ($porcentaje >= 80) return 'D0021B';
     if ($porcentaje >= 60) return 'F5A623';
     if ($porcentaje >= 40) return 'F5C542';
-    if ($porcentaje >= 20) return 'A6C36F';
+    if ($porcentaje >= 20) return '198754';
     return '4A90E2';
 }
 
