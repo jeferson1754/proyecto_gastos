@@ -328,6 +328,14 @@ function DatosHistoricos($where, $conexion, $nombre_grafico, $colores)
                     left: '3%', right: '8%', bottom: '1%',
                     containLabel: true
                 },
+                toolbox: {
+                    feature: {
+                        magicType: {
+                            show: true,
+                            type: ['line', 'bar']
+                        }
+                    }
+                },
                 xAxis: {
                     type: 'category',
                     boundaryGap: false,
@@ -415,7 +423,7 @@ function bigchart($id, $categoria_nombre, $colores)
 function calcularPorcentaje($actual, $presupuesto)
 {
     if ($presupuesto <= 0) return 0;
-    return min(100, round(($actual / $presupuesto) * 100));
+    return round(($actual / $presupuesto) * 100, 1); // Devuelve el porcentaje con una cifra decimal
 }
 
 // Función para obtener color según el porcentaje
@@ -625,6 +633,14 @@ function generarGraficosPorCategoria($conexion, $where, $colores, $tipo, $numero
                     },
                     yAxis: {
                         type: 'value'
+                    },
+                    toolbox: {
+                        feature: {
+                            magicType: {
+                                show: true,
+                                type: ['line', 'bar']
+                            }
+                        }
                     },
                     color: ['$color'], // Asignar color único
                     series: [{

@@ -526,6 +526,16 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
             </div>
         </div>
 
+        <div class="container text-center">
+
+            <!-- Botón para mostrar/ocultar iframe -->
+            <button id="toggle-btn" class="btn btn-primary">Mostrar Graficos</button>
+
+            <!-- Contenedor para el iframe -->
+            <div id="iframe-container">
+                <iframe src="./grafico_por_modulo.php"></iframe>
+            </div>
+        </div>
 
     </div>
 
@@ -564,7 +574,14 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                     type: 'shadow'
                 }
             },
-
+            toolbox: {
+                feature: {
+                    magicType: {
+                        show: true,
+                        type: ['line', 'bar']
+                    }
+                }
+            },
             xAxis: {
                 type: 'category',
                 data: meses,
@@ -607,6 +624,20 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
 
         myChart.setOption(option);
         window.addEventListener('resize', myChart.resize);
+    </script>
+
+    <!-- Script para mostrar/ocultar iframe -->
+    <script>
+        document.getElementById('toggle-btn').addEventListener('click', function() {
+            var iframeContainer = document.getElementById('iframe-container');
+            if (iframeContainer.style.display === 'none') {
+                iframeContainer.style.display = 'block';
+                this.textContent = 'Ocultar Graficos'; // Cambiar texto del botón
+            } else {
+                iframeContainer.style.display = 'none';
+                this.textContent = 'Mostrar Graficos'; // Cambiar texto del botón
+            }
+        });
     </script>
 
     <?php
