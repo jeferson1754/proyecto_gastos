@@ -81,7 +81,7 @@ $nombres_meses = [
 <body>
     <div class="container py-1">
         <div class="row mb-4">
-            <div class="col-md-10 mx-auto">
+            <div class="col-md-12 mx-auto">
                 <div class="card">
                     <div class="card-body text-center">
                         <h3 class="text">Tendencia y Promedio Mensual</h3>
