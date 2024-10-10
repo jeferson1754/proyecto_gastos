@@ -127,3 +127,11 @@ try {
 } catch (PDOException $e) {
     echo "Error de conexión: " . $e->getMessage();
 }
+
+$where_gastos = "c.Nombre = 'Gastos' OR c.Categoria_Padre = '23'";
+$where_ocio = "c.Nombre = 'Ocio' OR c.Categoria_Padre = '24'";
+$where_ahorros = "c.Nombre = 'Ahorros' OR c.Categoria_Padre = '2'";
+
+$colores_gastos = ['#FF9800', '#FB8C00', '#F57C00', '#EF6C00', '#E65100', '#FFB74D', '#FFCC80'];
+$colores_ocios = ['#66BB6A', '#4CAF50', '#43A047', '#388E3C', '#2E7D32', '#1B5E20', '#A5D6A7'];
+$colores_ahorros = ['#2196F3', '#1E88E5', '#1976D2', '#1565C0', '#0D47A1', '#64B5F6', '#BBDEFB'];

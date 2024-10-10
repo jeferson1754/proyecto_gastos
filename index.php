@@ -7,10 +7,6 @@ $cantidad_meses_balance = 6;
 
 $minRepeticiones = 5;
 
-// Definir los where para cada categoría
-$where_gastos = "c.Nombre = 'Gastos' OR c.Categoria_Padre = '23'";
-$where_ocio = "c.Nombre = 'Ocio' OR c.Categoria_Padre = '24'";
-$where_ahorros = "c.Nombre = 'Ahorros' OR c.Categoria_Padre = '2'";
 
 // Crear un arreglo para manejar las categorías y sus where correspondientes
 $modulos = [
@@ -367,6 +363,9 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                         "</h5>";
                         ?>
                         <div id="gastos-restante" class="restante"></div>
+
+
+
                     </div>
                 </div>
             </div>
@@ -421,6 +420,13 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                         "</h5>";
                         ?>
                         <div id="gastos-historico" class="restante"></div>
+                        <div class="text-center mt-4">
+                            <a href="./grafico_por_categoria.php?categoria=Gastos">
+                                <button type="button" class="btn btn-warning" style="color:white">
+                                    Ver Graficos
+                                </button>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -438,6 +444,13 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                         "</h5>";
                         ?>
                         <div id="ocio-historico" class="restante"></div>
+                        <div class="text-center mt-4">
+                            <a href="./grafico_por_categoria.php?categoria=Ocio">
+                                <button type="button" class="btn btn-success" style="color:white">
+                                    Ver Graficos
+                                </button>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -455,6 +468,13 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                         "</h5>";
                         ?>
                         <div id="ahorro-historico" class="restante"></div>
+                        <div class="text-center mt-4">
+                            <a href="./grafico_por_categoria.php?categoria=Ahorros">
+                                <button type="button" class="btn btn-info" style="color:white">
+                                    Ver Graficos
+                                </button>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -590,12 +610,6 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
     </script>
 
     <?php
-
-    //Colores para graficos
-    $colores_gastos = ['#FF9800', '#FB8C00', '#F57C00', '#EF6C00', '#E65100', '#FFB74D', '#FFCC80'];
-    $colores_ocios = ['#66BB6A', '#4CAF50', '#43A047', '#388E3C', '#2E7D32', '#1B5E20', '#A5D6A7'];
-    $colores_ahorros = ['#2196F3', '#1E88E5', '#1976D2', '#1565C0', '#0D47A1', '#64B5F6', '#BBDEFB'];
-
     //Graficos Pie Restantes
     piechart('gastos-restante', $categorias_gastos, $colores_gastos);
     piechart('ocio-restante', $categorias_ocio, $colores_ocios);

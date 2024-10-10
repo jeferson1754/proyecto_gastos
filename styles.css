@@ -172,4 +172,26 @@ body {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+.menu-icon {
+    font-size: 2rem;
+    color: #333;
+    cursor: pointer;
+    margin: 0 20px;
+}
+
+.menu-item {
+    text-align: center;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #666;
+}
+
+.menu-container {
+    display: flex;
+    justify-content: flex-end;
+    /* Alinea el menú a la derecha */
+    align-items: center;
+    margin-top: 20px;
+}
+
 

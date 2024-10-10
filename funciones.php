@@ -422,11 +422,11 @@ function calcularPorcentaje($actual, $presupuesto)
 function obtenerColorBarra($porcentaje)
 {
 
-    if ($porcentaje >= 80) return 'danger';
-    if ($porcentaje >= 60) return 'warning';
-    if ($porcentaje >= 40) return 'success';
-    if ($porcentaje >= 20) return 'secondary';
-    return 'primary';
+    if ($porcentaje >= 80) return 'D0021B';
+    if ($porcentaje >= 60) return 'F5A623';
+    if ($porcentaje >= 40) return 'F5C542';
+    if ($porcentaje >= 20) return 'A6C36F';
+    return '4A90E2';
 }
 
 // Componente de barra de progreso
@@ -437,9 +437,9 @@ function mostrarBarraProgreso($valorActual, $presupuestoTotal)
 
     return "
             <div class='progress' style='height: 20px;'>
-                <div class='progress-bar bg-$colorBarra' 
+                <div class='progress-bar bg' 
                      role='progressbar' 
-                     style='width: $porcentaje%' 
+                     style='width: $porcentaje%;background-color:#$colorBarra' 
                      aria-valuenow='$porcentaje' 
                      aria-valuemin='0' 
                      aria-valuemax='100'>
@@ -493,4 +493,159 @@ function obtenerDatosRecurrentes($conn, $where, $minRepeticiones)
 
     return $gastosRecurrentes;
 }
+
+
+
+function generarGraficosPorCategoria($conexion, $where, $colores, $tipo, $numero)
+{
+    // Construir la consulta SQL
+    $sql = "
+        SELECT
+            c.Nombre AS categoria,
+            DATE_FORMAT(gastos.Fecha, '%Y-%m') AS mes,
+            SUM(gastos.Valor) AS total_categoria
+        FROM
+            gastos
+        INNER JOIN
+            categorias_gastos c ON gastos.ID_Categoria_Gastos = c.ID
+        WHERE $where
+        GROUP BY
+            c.Nombre, mes
+            ORDER BY gastos.Valor DESC;";
+
+    // Ejecutar la consulta
+    $result = $conexion->query($sql);
+
+    // Inicializar arrays para los datos
+    $total_historico = [];
+    $mes_historico = [];
+
+    // Crear un array de mapeo de meses
+    $meses_nombres = [
+        "2024-01" => "Enero",
+        "2024-02" => "Febrero",
+        "2024-03" => "Marzo",
+        "2024-04" => "Abril",
+        "2024-05" => "Mayo",
+        "2024-06" => "Junio",
+        "2024-07" => "Julio",
+        "2024-08" => "Agosto",
+        "2024-09" => "Septiembre",
+        "2024-10" => "Octubre",
+        "2024-11" => "Noviembre",
+        "2024-12" => "Diciembre",
+    ];
+
+    // Procesar los resultados
+    if ($result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $categorias_historico[] = $row['categoria'];
+            $mes_historico[] = $row['mes'];
+            $total_historico[$row['categoria']][$row['mes']] = $row['total_categoria'];
+        }
+    }
+
+    $mes_historico = array_unique($mes_historico);
+    sort($mes_historico); // Ordenar los meses
+
+    // Convertir meses a sus nombres
+    $meses_con_nombres = [];
+    foreach ($mes_historico as $mes) {
+        $meses_con_nombres[] = $meses_nombres[$mes];
+    }
+
+    // Convertir arrays a formato JSON para usarlos en JavaScript
+    $meses_json = json_encode($mes_historico);
+    $meses_nombre = json_encode($meses_con_nombres);
+    $js_colors = json_encode($colores);
+
+    // Obtener el mes anterior
+    $mes_anterior = date('Y-m', strtotime('-1 month')); // Mes anterior
+    $mes_actual = date('Y-m'); // Mes actual
+
+    // Generar el script del gráfico para cada categoría
+    $color_count = 0; // Contador para seleccionar colores
+    foreach ($total_historico as $categoria => $valores_categoria) {
+        $color = $colores[$color_count % count($colores)];
+        $gastos_actual = isset($valores_categoria[$mes_actual]) ? $valores_categoria[$mes_actual] : 0;
+        $gastos_anterior = isset($valores_categoria[$mes_anterior]) ? $valores_categoria[$mes_anterior] : 0;
+
+        // Calcular aumento/disminución y porcentaje
+        $diferencia = $gastos_actual - $gastos_anterior;
+        $porcentaje = $gastos_anterior > 0 ? ($diferencia / $gastos_anterior) * 100 : ($gastos_actual > 0 ? 100 : 0);
+
+        if ($diferencia > 0) {
+            $tipo_diferencia = "Aumento de ";
+        } else if ($diferencia == 0) {
+            $tipo_diferencia = "";
+        } else {
+            $tipo_diferencia = "Disminución de ";
+        }
+
+
+        echo "<div class='col-md-$numero mx-auto responsivo'><br><br>
+                <h4 class='text-center'>$categoria</h4>
+                
+                <p>$tipo_diferencia<strong>$" . number_format($diferencia, 0, '', '.') . "</strong> (" . number_format($porcentaje, 1) . "%)</p>
+                <div id='$tipo-historico-$categoria' style='height: 400px;'></div>
+              </div>";
+
+        echo "
+        <script>
+            (function() {
+                var dom = document.getElementById('$tipo-historico-$categoria');
+                var myChart = echarts.init(dom, null, {
+                    renderer: 'canvas',
+                    useDirtyRect: false
+                });
+
+                var name = $meses_nombre; 
+                var meses = $meses_json; // Meses obtenidos de PHP
+                var valores = " . json_encode($valores_categoria) . "; // Valores para la categoría actual
+
+                // Preparar datos para el gráfico
+                var data = meses.map(function(mes) {
+                    return valores[mes] || 0; // Añadir 0 si no hay datos
+                });
+
+                var option = {
+                    tooltip: {
+                        trigger: 'axis'
+                    },
+                    grid: {
+                        left: '3%',
+                        right: '8%',
+                        bottom: '1%',
+                        containLabel: true
+                    },
+                    xAxis: {
+                        type: 'category',
+                        boundaryGap: false,
+                        data: name
+                    },
+                    yAxis: {
+                        type: 'value'
+                    },
+                    color: ['$color'], // Asignar color único
+                    series: [{
+                        name: '$categoria',
+                        type: 'line',
+                        data: data
+                    }]
+                };
+
+                myChart.setOption(option);
+                window.addEventListener('resize', myChart.resize);
+            })();
+        </script>
+        ";
+
+        $color_count++; // Incrementar contador de color
+    }
+}
+
+
+
+
+
 ?>
