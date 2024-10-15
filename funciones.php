@@ -117,9 +117,10 @@ function obtener_datos($conexion, $where, $current_month, $current_year, $previo
 function obtenerColor($anterior_valor, $valor_actual)
 {
     if ($anterior_valor < $valor_actual) {
-        #echo "El valor actual de $tipo es mayor al anterior, el color es rojo.<br>";
+         #echo "El valor actual de $valor_actual es mayor al anterior de $anterior_valor, el color es rojo.<br>";
         return "red"; // El valor actual es mayor, por lo tanto, el color es rojo
     } else {
+        #echo "El valor actual de $valor_actual es menor o igual al anterior de $anterior_valor, el color es verde.<br>";
     }
 }
 

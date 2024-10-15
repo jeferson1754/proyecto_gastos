@@ -195,6 +195,11 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                         </div>
                         <!-- Botón para añadir gastos -->
                         <div class="text-center mt-4">
+                            <a href="./busqueda.php?categoria=Gastos">
+                                <button type="button" class="btn btn-secondary" style="color:white">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                </button>
+                            </a>
                             <button type="button" class="btn btn-warning" style="color:white" data-bs-toggle="modal" data-bs-target="#modalGastos">
                                 Añadir Gasto
                             </button>
@@ -235,6 +240,11 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                             </ul>
                         </div>
                         <div class="text-center mt-4">
+                            <a href="./busqueda.php?categoria=Ocio">
+                                <button type="button" class="btn btn-secondary" style="color:white">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                </button>
+                            </a>
                             <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalOcio">
                                 Añadir Ocio
                             </button>
@@ -278,6 +288,11 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                         </div>
                         <div class="text-center mt-4">
                             <div class="text-center mt-4">
+                                <a href="./busqueda.php?categoria=Ahorros">
+                                    <button type="button" class="btn btn-secondary" style="color:white">
+                                        <i class="fa-solid fa-magnifying-glass"></i>
+                                    </button>
+                                </a>
                                 <button type="button" class="btn btn-info" style="color:white" data-bs-toggle="modal" data-bs-target="#modalAhorro">
                                     Añadir Ahorros
                                 </button>
@@ -302,9 +317,9 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
         $anterior_ocio = $anterior_total_ocio - $total_ocio;
         $anterior_ahorros = $anterior_total_ahorros - $total_ahorros;
 
-        $color_gastos_restante = obtenerColor($gastos_restante, $total_gastos);
-        $color_ocio_restante = obtenerColor($ocio_restante, $total_ocio);
-        $color_ahorro_restante = obtenerColor($ahorros_restante, $total_ahorros);
+        $color_gastos_restante = obtenerColor($gastos, $total_gastos);
+        $color_ocio_restante = obtenerColor($ocio, $total_ocio);
+        $color_ahorro_restante = obtenerColor($ahorro, $total_ahorros);
 
         // Obtener colores para historico
         $color_gastos_historico = obtenerColor($anterior_total_gastos, $total_gastos);
