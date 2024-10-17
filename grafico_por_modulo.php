@@ -74,13 +74,6 @@ $color_ahorro="#0DCAF0";
     <link rel="stylesheet" href="styles.css?<?php echo time() ?>">
 </head>
 
-<style>
-    .chart {
-        position: relative;
-        height: 400px;
-        margin-bottom: 10px;
-    }
-</style>
 
 <body>
     <div class="container py-1">

@@ -218,3 +218,9 @@ a{
     color:white;
     text-decoration: none;
 }
+
+.chart {
+    position: relative;
+    height: 400px;
+    margin-bottom: 10px;
+}
