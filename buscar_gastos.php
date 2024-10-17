@@ -27,7 +27,7 @@ if (isset($_POST['query']) && !empty($_POST['query'])) {
     INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
     INNER JOIN detalle d ON g.ID_Detalle = d.ID
     WHERE $where
-    AND d.Detalle LIKE '%$query%'
+    AND (d.Detalle LIKE '%$query%' OR g.Valor LIKE '%$query%' OR c.Nombre LIKE '%$query%' OR g.Fecha LIKE '%$query%')
     ORDER BY g.Fecha DESC;";
 } else {
     // Si no hay una búsqueda, mostrar todos los registros según la categoría
@@ -38,9 +38,6 @@ if (isset($_POST['query']) && !empty($_POST['query'])) {
     WHERE $where
     ORDER BY g.Fecha DESC;";
 }
-
-// Imprimir la consulta para depurar
-echo $sql;
 
 $resultado = $conexion->query($sql);
 
