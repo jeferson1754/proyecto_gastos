@@ -18,7 +18,7 @@ try {
     // Verificar qué categoría fue seleccionada
     if ($categoria_principal === 'Ingresos') {
         // Procesar como ingreso
-        $categoria_nombre = 'Ingresos Base';
+        $categoria_nombre = 'Ingresos';
         $categoria_padre = 1;
     } elseif ($categoria_principal === 'Gastos') {
         // Procesar como gasto

@@ -56,6 +56,10 @@ $nombres_meses = [
     '12' => 'Diciembre'
 ];
 
+$color_gastos="#FF9800";
+$color_ocio="#198754";
+$color_ahorro="#0DCAF0";
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -165,7 +169,7 @@ $nombres_meses = [
                     type: 'bar', // Cambiar a tipo 'bar' para gráfico de barras
                     data: data_gastos,
                     itemStyle: {
-                        color: '#FFC107' // Color personalizado para Gastos
+                        color: '<?php echo $color_gastos ?>' // Color personalizado para Gastos
                     },
                     markLine: {
                         data: [{
@@ -173,7 +177,7 @@ $nombres_meses = [
                             type: 'average', // Tipo promedio
                             lineStyle: {
                                 type: 'dashed', // Líneas entrecortadas
-                                color: '#FFC107' // Color de la línea de límite
+                                color: '<?php echo $color_gastos ?>' // Color de la línea de límite
                             }
                         }]
                     }
@@ -183,7 +187,7 @@ $nombres_meses = [
                     type: 'bar', // Cambiar a tipo 'bar' para gráfico de barras
                     data: data_ocio,
                     itemStyle: {
-                        color: '#198754' // Color personalizado para Ocio
+                        color: '<?php echo $color_ocio ?>' // Color personalizado para Ocio
                     },
                     markLine: {
                         data: [{
@@ -191,7 +195,7 @@ $nombres_meses = [
                             type: 'average', // Tipo promedio
                             lineStyle: {
                                 type: 'dashed', // Líneas entrecortadas
-                                color: '#198754' // Color de la línea de límite
+                                color: '<?php echo $color_ocio ?>' // Color de la línea de límite
                             }
                         }]
                     }
@@ -201,7 +205,7 @@ $nombres_meses = [
                     type: 'bar', // Cambiar a tipo 'bar' para gráfico de barras
                     data: data_ahorros,
                     itemStyle: {
-                        color: '#0DCAF0' // Color personalizado para Ahorros
+                        color: '<?php echo $color_ahorro ?>' // Color personalizado para Ahorros
                     },
                     markLine: {
                         data: [{
@@ -209,7 +213,7 @@ $nombres_meses = [
                             type: 'average', // Tipo promedio
                             lineStyle: {
                                 type: 'dashed', // Líneas entrecortadas
-                                color: '#0DCAF0' // Color de la línea de límite
+                                color: '<?php echo $color_ahorro ?>' // Color de la línea de límite
                             }
                         }]
                     }
