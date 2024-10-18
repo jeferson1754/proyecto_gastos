@@ -195,7 +195,7 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                         </div>
                         <!-- Botón para añadir gastos -->
                         <div class="text-center mt-4">
-                            <a href="./busqueda.php?categoria=Gastos">
+                            <a href="./Busqueda/?categoria=Gastos">
                                 <button type="button" class="btn btn-secondary" style="color:white">
                                     <i class="fa-solid fa-magnifying-glass"></i>
                                 </button>
@@ -240,7 +240,7 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                             </ul>
                         </div>
                         <div class="text-center mt-4">
-                            <a href="./busqueda.php?categoria=Ocio">
+                            <a href="./Busqueda/?categoria=Ocio">
                                 <button type="button" class="btn btn-secondary" style="color:white">
                                     <i class="fa-solid fa-magnifying-glass"></i>
                                 </button>
@@ -288,7 +288,7 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                         </div>
                         <div class="text-center mt-4">
                             <div class="text-center mt-4">
-                                <a href="./busqueda.php?categoria=Ahorros">
+                                <a href="./Busqueda/?categoria=Ahorros">
                                     <button type="button" class="btn btn-secondary" style="color:white">
                                         <i class="fa-solid fa-magnifying-glass"></i>
                                     </button>

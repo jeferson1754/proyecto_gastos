@@ -99,9 +99,9 @@ try {
 
     // Consultas para las diferentes categorías
     $consultas = [
-        'gastos' => "SELECT DISTINCT Nombre FROM `categorias_gastos` as c WHERE c.Nombre = 'Gastos' OR c.Categoria_Padre = '23' ORDER BY `ID` DESC;",
-        'ocio' => "SELECT DISTINCT Nombre FROM `categorias_gastos` as c WHERE c.Nombre = 'Ocio' OR c.Categoria_Padre = '24' ORDER BY `ID` DESC;",
-        'ahorro' => "SELECT DISTINCT Nombre FROM `categorias_gastos` as c WHERE c.Nombre = 'Ahorros' OR c.Categoria_Padre = '2' ORDER BY `ID` DESC;"
+        'gastos' => "SELECT DISTINCT Nombre FROM `categorias_gastos` as c WHERE c.Nombre = 'Gastos' OR c.Categoria_Padre = '23' ORDER BY `Nombre` ASC;",
+        'ocio' => "SELECT DISTINCT Nombre FROM `categorias_gastos` as c WHERE c.Nombre = 'Ocio' OR c.Categoria_Padre = '24' ORDER BY `Nombre` ASC;",
+        'ahorro' => "SELECT DISTINCT Nombre FROM `categorias_gastos` as c WHERE c.Nombre = 'Ahorros' OR c.Categoria_Padre = '2' ORDER BY `Nombre` ASC;"
     ];
 
     // Ejecutar las consultas y almacenar los resultados
