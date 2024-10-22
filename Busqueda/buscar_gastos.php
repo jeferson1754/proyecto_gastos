@@ -69,13 +69,12 @@ $resultado = $conexion->query($sql);
 if ($resultado->num_rows > 0) {
     // Mostrar filas de la tabla con los resultados
     while ($fila = $resultado->fetch_assoc()) {
-        echo "
-        <tr>
-            <td>{$fila['Descripcion']}</td>
-            <td>{$fila['Categoria']}</td>
-            <td>{$fila['Valor']}</td>
-            <td>{$fila['Fecha']}</td>
-        </tr>";
+        echo "<tr>
+                <td>{$fila['Descripcion']}</td>
+                <td>{$fila['Categoria']}</td>
+                <td>$" . number_format($fila['Valor'], 0, '', '.') . "</td>
+                <td>{$fila['Fecha']}</td>
+              </tr>";
     }
 } else {
     echo "
