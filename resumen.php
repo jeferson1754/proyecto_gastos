@@ -349,6 +349,70 @@ function obtenerCategoriasGastos($conexion)
 }
 
 $categorias_gastos = obtenerCategoriasGastos($conexion);
+
+function obtenerCategoriasGastosMes($conexion)
+{
+    // Consulta SQL para obtener los datos de gastos por categoría
+    $sql = "
+        SELECT 
+            c.Nombre AS categorias, 
+            SUM(CASE 
+                    WHEN MONTH(g.Fecha) = MONTH(CURDATE()) AND YEAR(g.Fecha) = YEAR(CURDATE()) 
+                    THEN g.Valor ELSE 0 
+                END) AS mes_actual, 
+            SUM(CASE 
+                    WHEN MONTH(g.Fecha) = MONTH(CURDATE() - INTERVAL 1 MONTH) AND YEAR(g.Fecha) = YEAR(CURDATE() - INTERVAL 1 MONTH) 
+                    THEN g.Valor ELSE 0 
+                END) AS mes_anterior 
+        FROM 
+            gastos g 
+        JOIN 
+            categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
+        WHERE 
+            g.ID_Categoria_Gastos NOT IN (1, 2)
+        GROUP BY 
+            c.Nombre
+        ORDER BY 
+            mes_actual DESC, mes_anterior DESC
+        LIMIT 10;
+    ";
+
+    $result = $conexion->query($sql);
+
+    // Arreglo para almacenar los datos formateados
+    $categorias_gastos = [];
+
+    if ($result) {
+        while ($fila = $result->fetch_assoc()) {
+            $mes_actual = $fila['mes_actual'];
+            $mes_anterior = $fila['mes_anterior'];
+
+
+            // Calcular la tendencia de esta semana en comparación con la semana pasada
+            $trend = ($mes_anterior != 0) ? (($mes_actual - $mes_anterior) / $mes_anterior) * 100 : null;
+
+            // Formatear la tendencia para mostrar
+            $trend_format = $trend !== null ? ($trend > 0 ? "+" : "") . round($trend, 2) . "%" : "0%";
+
+            // Alternativamente, puedes definir $trend_format como "N/A" si no hay datos
+            // $trend_format = $trend !== null ? ($trend > 0 ? "+" : "") . round($trend, 2) . "%" : "N/A";
+
+            // Agregar datos al arreglo
+            $categorias_gastos[] = [
+                "category" => $fila['categorias'],
+                "weekly" => $mes_actual,
+                "monthly" => $mes_anterior,
+                "trend" => $trend_format
+            ];
+        }
+    } else {
+        echo "Error en la consulta: " . $conexion->error;
+    }
+
+    return $categorias_gastos;
+}
+
+$categorias_gastos_mensual = obtenerCategoriasGastosMes($conexion);
 ?>
 
 <!DOCTYPE html>
@@ -395,7 +459,7 @@ $categorias_gastos = obtenerCategoriasGastos($conexion);
 </head>
 
 <body class="gradient-bg min-h-screen p-6">
-    
+
     <div class="max-w-7xl mx-auto">
         <header class="mb-8">
             <h1 class="text-4xl font-bold text-gray-800">Control de Gastos</h1>
@@ -435,36 +499,74 @@ $categorias_gastos = obtenerCategoriasGastos($conexion);
             </div>
         </div>
 
-        <div class="card p-6">
-            <h2 class="text-xl font-semibold mb-4">Desglose de Gastos</h2>
+        <div class="card p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Desglose de Gastos Semanal</h2>
             <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left">
-                    <thead class="bg-gray-50">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-100">
                         <tr>
-                            <th class="px-6 py-3">Categoría</th>
-                            <th class="px-6 py-3">Esta Semana</th>
-                            <th class="px-6 py-3">Semana Anterior</th>
-                            <th class="px-6 py-3">Tendencia</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Categoría</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Esta Semana</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Semana Anterior</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Tendencia</th>
                         </tr>
                     </thead>
-                    <tbody id="expensesTable">
-
-                        <?php
-
-                        foreach ($categorias_gastos as $categoria) {
-
-                            $tendencia_clase = (strpos($categoria['trend'], '+') === 0) ? 'text-red-500' : 'text-green-500';
-
-                            // Suponiendo que ya tienes el arreglo $categorias_gastos y que has definido $tendencia_clase
-
-                            echo "<tr class='border-b hover:bg-gray-50'>";
-                            echo "<td class='px-6 py-4 font-medium'>" . htmlspecialchars($categoria['category']) . "</td>"; // Evitar XSS
-                            echo "<td class='px-6 py-4'>$" . number_format($categoria['weekly'], 0, '', '.') . "</td>"; // Formato del gasto semanal
-                            echo "<td class='px-6 py-4'>$" . number_format($categoria['monthly'], 0, '', '.') . "</td>"; // Formato del gasto mensual
-                            echo "<td class='px-6 py-4 {$tendencia_clase}'>" . htmlspecialchars($categoria['trend']) . "</td>"; // Evitar XSS
-                            echo "</tr>";
-                        }
-                        ?>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <?php foreach ($categorias_gastos as $categoria): ?>
+                            <?php $tendencia_clase = (strpos($categoria['trend'], '+') === 0) ? 'text-red-600 font-medium' : 'text-green-600 font-medium'; ?>
+                            <tr class="hover:bg-gray-50 transition-colors duration-200">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($categoria['category']) ?></div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">$<?= number_format($categoria['weekly'], 0, '', '.') ?></div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">$<?= number_format($categoria['monthly'], 0, '', '.') ?></div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="<?= $tendencia_clase ?>"><?= htmlspecialchars($categoria['trend']) ?></span>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Desglose de Gastos Mensual</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Categoría</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Este Mes</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Mes Anterior</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Tendencia</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <?php foreach ($categorias_gastos_mensual as $categoria_mensual): ?>
+                            <?php $tendencia_clase = (strpos($categoria_mensual['trend'], '+') === 0) ? 'text-red-600 font-medium' : 'text-green-600 font-medium'; ?>
+                            <tr class="hover:bg-gray-50 transition-colors duration-200">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($categoria_mensual['category']) ?></div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">$<?= number_format($categoria_mensual['weekly'], 0, '', '.') ?></div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">$<?= number_format($categoria_mensual['monthly'], 0, '', '.') ?></div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="<?= $tendencia_clase ?>"><?= htmlspecialchars($categoria_mensual['trend']) ?></span>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
