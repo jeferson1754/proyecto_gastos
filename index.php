@@ -47,6 +47,10 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <script src="https://fastly.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
     <title>Resumen Financiero</title>
     <link rel="stylesheet" href="styles.css?<?php echo time() ?>">
 </head>
@@ -62,38 +66,54 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
         <!--INGRESOS VS EGRESOS -->
         <div class="row mb-4">
             <div class="col-md-8 mx-auto">
-                <div class="card">
-                    <div class="card-body">
-                        <h4 class="text-center">Ingresos vs Egresos de los Últimos <?php echo "$cantidad_meses_balance"; ?> Meses</h4>
-                        <div id="grafico-ingresos-egresos"></div>
+                <div class="card shadow-lg border-0 rounded-lg">
+                    <div class="card-body p-4">
+                        <!-- Título principal con mejor espaciado y estilo -->
+                        <h4 class="text-center mb-4 fw-bold">
+                            Ingresos vs Egresos de los Últimos <?php echo "$cantidad_meses_balance"; ?> Meses
+                        </h4>
+
+                        <!-- Contenedor del gráfico con altura fija -->
+                        <div id="grafico-ingresos-egresos" class="mb-4" style="height: 300px;"></div>
 
                         <?php
-
                         $datos_financieros = obtener_datos_ultimos_meses($conexion, $cantidad_meses_balance);
-
                         $ultimo_mes = end($datos_financieros);
                         $balance_mes_actual = $ultimo_mes['ingresos'] - $ultimo_mes['egresos'];
-
                         $total_ingresos = $ultimo_mes['ingresos'];
                         ?>
 
-                        <h2 class="text-center mt-3">Balance del Mes Actual</h2>
-                        <h3 class="text-center">
-                            <?php if ($balance_mes_actual < 0) {
-                                echo "<p class='red'> $" . number_format($balance_mes_actual, 0, '', '.') . "</p>";
-                            } else {
-                                echo "<p>$" . number_format($balance_mes_actual, 0, '', '.') . "</p>";
-                            }
-                            ?>
-                        </h3>
-                        <div class="text-center" style="color:white">
-                            <button type="button" class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#modalIngresos">
-                                Añadir Ingreso
-                            </button>
+                        <!-- Sección de balance con mejor diseño -->
+                        <div class="text-center py-3 bg-light rounded-3 mb-4">
+                            <h5 class="text-secondary mb-3">Balance del Mes Actual</h5>
+                            <h2 class="display-6 mb-0">
+                                <?php if ($balance_mes_actual < 0): ?>
+                                    <span class="text-danger">
+                                        $<?php echo number_format($balance_mes_actual, 0, '', '.'); ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="text-success">
+                                        $<?php echo number_format($balance_mes_actual, 0, '', '.'); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </h2>
                         </div>
 
-
-
+                        <!-- Botones con mejor diseño y espaciado -->
+                        <div class="d-flex justify-content-center gap-3">
+                            <button type="button"
+                                class="btn btn-primary px-4 py-2 d-flex align-items-center"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalIngresos">
+                                <i class="bi bi-plus-circle me-2"></i>
+                                Añadir Ingreso
+                            </button>
+                            <a href="./resumen.php"
+                                class="btn btn-outline-secondary px-4 py-2 d-flex align-items-center">
+                                <i class="bi bi-graph-up me-2"></i>
+                                Dashboard Gastos
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
