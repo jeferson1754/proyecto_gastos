@@ -455,6 +455,57 @@ $categorias_gastos_mensual = obtenerCategoriasGastosMes($conexion);
         .red {
             color: rgba(239, 68, 68);
         }
+
+        @media only screen and (max-width: 600px) {
+            .chart-container {
+                position: relative;
+                height: 400px;
+                margin-bottom: 10px;
+                width: 200px;
+            }
+
+            .card {
+                width: 100%;
+                padding-left: 15px;
+            }
+
+            .grid {
+                display: flex;
+                flex-wrap: wrap;
+                /* Permite que los elementos pasen a la siguiente fila si no caben */
+                gap: 1rem;
+                /* Espacio entre los elementos */
+            }
+
+        }
+
+        /* Estilos para la barra de desplazamiento (scrollbar) */
+        .scrollbar-thin {
+            scrollbar-width: thin;
+            /* Estilo del navegador Firefox */
+        }
+
+        .scrollbar-thumb-gray-400 {
+            scrollbar-color: #9CA3AF #E5E7EB;
+            /* Color del "pulgar" y la pista en Firefox */
+        }
+
+        /* Para navegadores basados en WebKit (Chrome, Safari) */
+        .scrollbar-thin::-webkit-scrollbar {
+            height: 8px;
+            /* Altura del scrollbar */
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background-color: #E5E7EB;
+            /* Color de la pista */
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background-color: #9CA3AF;
+            /* Color del "pulgar" */
+            border-radius: 10px;
+        }
     </style>
 </head>
 
@@ -498,37 +549,38 @@ $categorias_gastos_mensual = obtenerCategoriasGastosMes($conexion);
                 <span class="text-sm text-gray-500"><?php echo $porcentaje_presupuesto . '% del presupuesto'; ?></span>
             </div>
         </div>
-        
-        <div class="grid md:grid-cols-2 gap-6 mb-8">
-            <div class="card p-6">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">Desglose de Gastos Semanal</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
+
+        <div class="grid md:grid-cols-2 gap-4 mb-8">
+
+            <div class="card p-4 sm:p-6">
+                <h2 class="text-lg sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">Desglose de Gastos Semanal</h2>
+                <div class="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200">
+                    <table class="divide-y divide-gray-200 table">
                         <thead class="bg-gray-100">
                             <tr>
-                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Categoría</th>
-                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Esta Semana</th>
-                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Semana Anterior</th>
-                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Tendencia</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider">Categoría</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider">Esta Semana</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider hidden md:table-cell">Semana Anterior</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider">Tendencia</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             <?php foreach ($categorias_gastos as $categoria): ?>
                                 <?php $tendencia_clase = (strpos($categoria['trend'], '+') === 0) ? 'text-red-600 font-medium' : 'text-green-600 font-medium'; ?>
                                 <tr class="hover:bg-gray-50 transition-colors duration-200">
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                                         <div class="flex items-center">
-                                            <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($categoria['category']) ?></div>
+                                            <div class="text-xs sm:text-sm font-medium text-gray-900"><?= htmlspecialchars($categoria['category']) ?></div>
                                         </div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-900">$<?= number_format($categoria['weekly'], 0, '', '.') ?></div>
+                                    <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                        <div class="text-xs sm:text-sm text-gray-900">$<?= number_format($categoria['weekly'], 0, '', '.') ?></div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-900">$<?= number_format($categoria['monthly'], 0, '', '.') ?></div>
+                                    <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap hidden md:table-cell">
+                                        <div class="text-xs sm:text-sm text-gray-900">$<?= number_format($categoria['monthly'], 0, '', '.') ?></div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="<?= $tendencia_clase ?>"><?= htmlspecialchars($categoria['trend']) ?></span>
+                                    <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                        <span class="<?= $tendencia_clase ?> text-xs sm:text-sm"><?= htmlspecialchars($categoria['trend']) ?></span>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -536,35 +588,38 @@ $categorias_gastos_mensual = obtenerCategoriasGastosMes($conexion);
                     </table>
                 </div>
             </div>
+
+
+
             <div class="card p-6">
                 <h2 class="text-2xl font-bold text-gray-800 mb-11">Desglose de Gastos Mensual</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
+                <div class="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200">
+                    <table class="divide-y divide-gray-200 table">
                         <thead class="bg-gray-100">
                             <tr>
-                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Categoría</th>
-                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Este Mes</th>
-                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Mes Anterior</th>
-                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Tendencia</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider">Categoría</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider">Este Mes</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider hidden md:table-cell">Mes Anterior</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider">Tendencia</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            <?php foreach ($categorias_gastos_mensual as $categoria_mensual): ?>
-                                <?php $tendencia_clase = (strpos($categoria_mensual['trend'], '+') === 0) ? 'text-red-600 font-medium' : 'text-green-600 font-medium'; ?>
+                            <?php foreach ($categorias_gastos_mensual as $categoria): ?>
+                                <?php $tendencia_clase = (strpos($categoria['trend'], '+') === 0) ? 'text-red-600 font-medium' : 'text-green-600 font-medium'; ?>
                                 <tr class="hover:bg-gray-50 transition-colors duration-200">
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                                         <div class="flex items-center">
-                                            <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($categoria_mensual['category']) ?></div>
+                                            <div class="text-xs sm:text-sm font-medium text-gray-900"><?= htmlspecialchars($categoria['category']) ?></div>
                                         </div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-900">$<?= number_format($categoria_mensual['weekly'], 0, '', '.') ?></div>
+                                    <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                        <div class="text-xs sm:text-sm text-gray-900">$<?= number_format($categoria['weekly'], 0, '', '.') ?></div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-900">$<?= number_format($categoria_mensual['monthly'], 0, '', '.') ?></div>
+                                    <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap hidden md:table-cell">
+                                        <div class="text-xs sm:text-sm text-gray-900">$<?= number_format($categoria['monthly'], 0, '', '.') ?></div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="<?= $tendencia_clase ?>"><?= htmlspecialchars($categoria_mensual['trend']) ?></span>
+                                    <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                        <span class="<?= $tendencia_clase ?> text-xs sm:text-sm"><?= htmlspecialchars($categoria['trend']) ?></span>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
