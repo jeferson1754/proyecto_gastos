@@ -102,21 +102,21 @@ switch ($categoria) {
                 <div class="form-row">
                     <div class="form-group col-md-6">
                         <label for="valorMin">Valor mínimo:</label>
-                        <input type="number" class="form-control" id="valorMin" name="valorMin">
+                        <input type="number" class="form-control" placeholder="$0" id="valorMin" name="valorMin">
                     </div>
                     <div class="form-group col-md-6">
                         <label for="valorMax">Valor máximo:</label>
-                        <input type="number" class="form-control" id="valorMax" name="valorMax">
+                        <input type="number" class="form-control" placeholder="$0" id="valorMax" name="valorMax">
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group col-md-6">
                         <label for="fechaInicio">Fecha inicio:</label>
-                        <input type="date" class="form-control" id="fechaInicio" name="fechaInicio">
+                        <input type="date" class="form-control" placeholder="dd-mm-aaaa" id="fechaInicio" name="fechaInicio">
                     </div>
                     <div class="form-group col-md-6">
                         <label for="fechaFin">Fecha fin:</label>
-                        <input type="date" class="form-control" id="fechaFin" name="fechaFin">
+                        <input type="date" class="form-control" placeholder="dd-mm-aaaa" id="fechaFin" name="fechaFin">
                     </div>
                 </div>
 
