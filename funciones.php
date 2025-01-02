@@ -117,7 +117,7 @@ function obtener_datos($conexion, $where, $current_month, $current_year, $previo
 function obtenerColor($anterior_valor, $valor_actual)
 {
     if ($anterior_valor < $valor_actual) {
-         #echo "El valor actual de $valor_actual es mayor al anterior de $anterior_valor, el color es rojo.<br>";
+        #echo "El valor actual de $valor_actual es mayor al anterior de $anterior_valor, el color es rojo.<br>";
         return "red"; // El valor actual es mayor, por lo tanto, el color es rojo
     } else {
         #echo "El valor actual de $valor_actual es menor o igual al anterior de $anterior_valor, el color es verde.<br>";
@@ -252,22 +252,34 @@ function DatosHistoricos($where, $conexion, $nombre_grafico, $colores)
     $total_historico = [];
     $mes_historico = [];
 
-    // Crear un array de mapeo de meses
-    $meses_nombres = [
-        "2024-01" => "Enero",
-        "2024-02" => "Febrero",
-        "2024-03" => "Marzo",
-        "2024-04" => "Abril",
-        "2024-05" => "Mayo",
-        "2024-06" => "Junio",
-        "2024-07" => "Julio",
-        "2024-08" => "Agosto",
-        "2024-09" => "Septiembre",
-        "2024-10" => "Octubre",
-        "2024-11" => "Noviembre",
-        "2024-12" => "Diciembre",
+    // Generar dinámicamente el array de mapeo de meses
+    $meses_nombres = [];
+    $meses = [
+        "Enero",
+        "Febrero",
+        "Marzo",
+        "Abril",
+        "Mayo",
+        "Junio",
+        "Julio",
+        "Agosto",
+        "Septiembre",
+        "Octubre",
+        "Noviembre",
+        "Diciembre"
     ];
 
+    // Rango de años a considerar
+    $año_inicio = 2024;
+    $año_fin = 2025;
+
+    // Crear el array de mapeo dinámicamente
+    for ($año = $año_inicio; $año <= $año_fin; $año++) {
+        foreach ($meses as $index => $nombre_mes) {
+            $mes_numero = str_pad($index + 1, 2, "0", STR_PAD_LEFT); // Formato MM
+            $meses_nombres["$año-$mes_numero"] = $nombre_mes;
+        }
+    }
 
     // Procesar los resultados
     if ($result->num_rows > 0) {
@@ -284,7 +296,7 @@ function DatosHistoricos($where, $conexion, $nombre_grafico, $colores)
     // Convertir meses a sus nombres
     $meses_con_nombres = [];
     foreach ($mes_historico as $mes) {
-        $meses_con_nombres[] = $meses_nombres[$mes];
+        $meses_con_nombres[] = $meses_nombres[$mes] ?? $mes; // Usar el mes original si no está en el mapeo
     }
 
     // Convertir arrays a formato JSON para usarlos en JavaScript
@@ -292,6 +304,7 @@ function DatosHistoricos($where, $conexion, $nombre_grafico, $colores)
     $meses_nombre = json_encode($meses_con_nombres);
     $valores_json = json_encode($total_historico);
     $js_colors = json_encode($colores);
+
 
     // Generar el script del gráfico
     echo "
@@ -529,21 +542,34 @@ function generarGraficosPorCategoria($conexion, $where, $colores, $tipo, $numero
     $total_historico = [];
     $mes_historico = [];
 
-    // Crear un array de mapeo de meses
-    $meses_nombres = [
-        "2024-01" => "Enero",
-        "2024-02" => "Febrero",
-        "2024-03" => "Marzo",
-        "2024-04" => "Abril",
-        "2024-05" => "Mayo",
-        "2024-06" => "Junio",
-        "2024-07" => "Julio",
-        "2024-08" => "Agosto",
-        "2024-09" => "Septiembre",
-        "2024-10" => "Octubre",
-        "2024-11" => "Noviembre",
-        "2024-12" => "Diciembre",
+    // Generar dinámicamente el array de mapeo de meses
+    $meses_nombres = [];
+    $meses = [
+        "Enero",
+        "Febrero",
+        "Marzo",
+        "Abril",
+        "Mayo",
+        "Junio",
+        "Julio",
+        "Agosto",
+        "Septiembre",
+        "Octubre",
+        "Noviembre",
+        "Diciembre"
     ];
+
+    // Rango de años a considerar
+    $año_inicio = 2024;
+    $año_fin = 2025;
+
+    // Crear el array de mapeo dinámicamente
+    for ($año = $año_inicio; $año <= $año_fin; $año++) {
+        foreach ($meses as $index => $nombre_mes) {
+            $mes_numero = str_pad($index + 1, 2, "0", STR_PAD_LEFT); // Formato MM
+            $meses_nombres["$año-$mes_numero"] = $nombre_mes;
+        }
+    }
 
     // Procesar los resultados
     if ($result->num_rows > 0) {
@@ -560,13 +586,15 @@ function generarGraficosPorCategoria($conexion, $where, $colores, $tipo, $numero
     // Convertir meses a sus nombres
     $meses_con_nombres = [];
     foreach ($mes_historico as $mes) {
-        $meses_con_nombres[] = $meses_nombres[$mes];
+        $meses_con_nombres[] = $meses_nombres[$mes] ?? $mes; // Usar el mes original si no está en el mapeo
     }
 
     // Convertir arrays a formato JSON para usarlos en JavaScript
     $meses_json = json_encode($mes_historico);
     $meses_nombre = json_encode($meses_con_nombres);
+    $valores_json = json_encode($total_historico);
     $js_colors = json_encode($colores);
+
 
     // Obtener el mes anterior
     $mes_anterior = date('Y-m', strtotime('-1 month')); // Mes anterior

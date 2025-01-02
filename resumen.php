@@ -14,19 +14,19 @@ function obtenerGastosDiarios($conexion)
                 WHEN DAYOFWEEK(Fecha) = 5 THEN 'Jueves'
                 WHEN DAYOFWEEK(Fecha) = 6 THEN 'Viernes'
                 WHEN DAYOFWEEK(Fecha) = 7 THEN 'Sábado'
-                WHEN DAYOFWEEK(Fecha) = 1 THEN 'Domingo' -- Ajustar para que 1 sea domingo
+                WHEN DAYOFWEEK(Fecha) = 1 THEN 'Domingo'
             END AS nombre_dia, 
             SUM(Valor) AS total_gastos 
         FROM 
             gastos 
         WHERE 
-            WEEK(Fecha, 1) = WEEK(CURDATE(), 1) 
-            AND YEAR(Fecha) = YEAR(CURDATE()) 
+            Fecha >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
+            AND Fecha < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY)
+            AND ID_Categoria_Gastos != 1
         GROUP BY 
-            nombre_dia 
+            DAYOFWEEK(Fecha) 
         ORDER BY 
-            FIELD(nombre_dia, 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'); 
-
+            FIELD(nombre_dia, 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo');
     ";
 
     // Ejecutar la consulta
@@ -63,12 +63,19 @@ function obtenerGastosSemanales($conexion)
 {
     // Consulta SQL para obtener los gastos semanales de las últimas 8 semanas
     $consulta = "
-        SELECT Fecha, WEEK(Fecha, 1) AS semana, SUM(Valor) AS total_gastos 
-        FROM gastos 
-        WHERE Fecha >= CURDATE() - INTERVAL 8 WEEK AND ID_Categoria_Gastos != 1 
-        GROUP BY semana 
-        ORDER BY semana DESC 
-        LIMIT 8;
+        SELECT 
+            MIN(Fecha) AS Fecha, 
+            YEAR(Fecha) AS anio,
+            WEEK(Fecha, 1) AS semana, 
+            SUM(Valor) AS total_gastos
+        FROM 
+            gastos
+        WHERE 
+            Fecha >= CURDATE() - INTERVAL 8 WEEK 
+            AND ID_Categoria_Gastos != 1
+        GROUP BY 
+            anio, semana 
+        ORDER BY `anio` DESC,`semana` DESC  LIMIT 8;
     ";
 
     // Obtener el número de la semana actual
@@ -141,14 +148,24 @@ function obtenerDiferenciaPromedios($conexion)
 {
     // Consulta para obtener el promedio de gastos de la semana actual y de la semana anterior
     $sql = "
-    SELECT 
-        SUM(CASE WHEN WEEK(Fecha, 1) = WEEK(CURDATE(), 1) 
-                 AND YEAR(Fecha) = YEAR(CURDATE()) 
-                 THEN Valor END) AS promedio_gastos_actual,
-        SUM(CASE WHEN WEEK(Fecha, 1) = WEEK(CURDATE() - INTERVAL 1 WEEK, 1) 
-                 AND YEAR(Fecha) = YEAR(CURDATE()) 
-                 THEN Valor END) AS promedio_gastos_anterior
-    FROM gastos;
+        SELECT 
+            SUM(CASE 
+                    WHEN YEARWEEK(Fecha, 1) = YEARWEEK(CURDATE(), 1) 
+                    THEN Valor 
+                    ELSE 0 
+                END) AS promedio_gastos_actual,
+            
+            SUM(CASE 
+                    WHEN YEARWEEK(Fecha, 1) = YEARWEEK(CURDATE() - INTERVAL 1 WEEK, 1) 
+                    THEN Valor 
+                    ELSE 0 
+                END) AS promedio_gastos_anterior
+        FROM gastos
+        WHERE ID_Categoria_Gastos != 1
+        AND (
+            YEAR(Fecha) = YEAR(CURDATE()) OR 
+            (MONTH(Fecha) = 12 AND YEAR(Fecha) = YEAR(CURDATE()) - 1)
+        );
         ";
 
     $result = $conexion->query($sql);
@@ -195,11 +212,22 @@ function obtenerDiferenciaGastosMeses($conexion)
 {
     // Consulta SQL para obtener los gastos totales de los últimos dos meses
     $consulta = "
-        SELECT MONTH(Fecha) AS mes, SUM(Valor) AS total_gastos 
-        FROM gastos 
-        WHERE ID_Categoria_Gastos != 1 
-        GROUP BY mes 
-        ORDER BY mes DESC 
+        SELECT 
+            MONTH(Fecha) AS mes, 
+            YEAR(Fecha) AS anio, 
+            SUM(Valor) AS total_gastos
+        FROM 
+            gastos
+        WHERE 
+            ID_Categoria_Gastos != 1
+            AND Fecha >= (
+                SELECT DATE_SUB(MAX(Fecha), INTERVAL 2 MONTH)
+                FROM gastos
+            )
+        GROUP BY 
+            anio, mes -- Agrupar por año y mes para manejar correctamente meses de años diferentes
+        ORDER BY 
+            anio DESC, mes DESC
         LIMIT 2;
     ";
 
@@ -280,7 +308,7 @@ function obtenerIngresosMesActual($conexion)
     return $total_ingresos;
 }
 
-$total_ingresos = obtenerIngresosMesActual($conexion);
+$total_ingresos = obtenerIngresosMesActual(conexion: $conexion);
 $variable_comparacion = $gasto_mensual_total;
 
 if ($variable_comparacion > 0) {
@@ -298,20 +326,34 @@ function obtenerCategoriasGastos($conexion)
     $sql = "
     SELECT 
         c.Nombre AS categorias, 
-        SUM(CASE WHEN WEEK(g.Fecha, 1) = WEEK(CURDATE(), 1) AND YEAR(g.Fecha) = YEAR(CURDATE()) THEN g.Valor ELSE 0 END) AS semanal, 
-        SUM(CASE WHEN WEEK(g.Fecha, 1) = WEEK(CURDATE() - INTERVAL 1 WEEK, 1) AND YEAR(g.Fecha) = YEAR(CURDATE()) THEN g.Valor ELSE 0 END) AS semana_anterior 
+        SUM(CASE 
+                WHEN YEARWEEK(g.Fecha, 1) = YEARWEEK(CURDATE(), 1) 
+                THEN g.Valor 
+                ELSE 0 
+            END) AS semanal, 
+        
+        SUM(CASE 
+                WHEN YEARWEEK(g.Fecha, 1) = YEARWEEK(CURDATE() - INTERVAL 1 WEEK, 1) 
+                THEN g.Valor 
+                ELSE 0 
+            END) AS semana_anterior 
     FROM 
         gastos g 
     JOIN 
         categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
     WHERE 
-        g.ID_Categoria_Gastos != 1 AND g.ID_Categoria_Gastos != 2
+        g.ID_Categoria_Gastos != 1 
+        AND g.ID_Categoria_Gastos != 2
+        AND (
+            YEAR(g.Fecha) = YEAR(CURDATE()) OR 
+            (MONTH(g.Fecha) = 12 AND YEAR(g.Fecha) = YEAR(CURDATE()) - 1)
+        )
     GROUP BY 
         c.Nombre
     ORDER BY 
         semanal DESC, semana_anterior DESC
     LIMIT 10;
-    ";
+        ";
 
     $result = $conexion->query($sql);
 

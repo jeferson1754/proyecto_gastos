@@ -14,7 +14,7 @@ $resultados_mensuales = [];
 // Función para obtener datos mensuales
 function obtener_datos_mensuales($conexion, $where)
 {
-    $sql_total = "SELECT DATE_FORMAT(gastos.Fecha, '%m') AS mes, SUM(gastos.Valor) AS total_mensual
+    $sql_total = "SELECT DATE_FORMAT(gastos.Fecha, '%Y-%m') AS mes, SUM(gastos.Valor) AS total_mensual
         FROM gastos
         WHERE ID_Categoria_Gastos IN (
             SELECT ID FROM categorias_gastos as c WHERE $where
@@ -40,6 +40,10 @@ foreach ($modulos as $nombre_categoria => $where_clause) {
     $resultados_mensuales[$nombre_categoria] = obtener_datos_mensuales($conexion, $where_clause);
 }
 
+// Unir todos los meses y asegurarse de que estén ordenados cronológicamente
+$meses_unicos = array_keys(array_merge(...array_values($resultados_mensuales)));
+sort($meses_unicos); // Ordenar los meses cronológicamente
+
 // Crear un arreglo con los nombres de los meses en español
 $nombres_meses = [
     '01' => 'Enero',
@@ -56,9 +60,15 @@ $nombres_meses = [
     '12' => 'Diciembre'
 ];
 
-$color_gastos="#FF9800";
-$color_ocio="#198754";
-$color_ahorro="#0DCAF0";
+// Convertir números de meses al formato completo (e.g., "2024-01" a "Enero 2024")
+$meses_convertidos = array_map(function ($mes) use ($nombres_meses) {
+    [$año, $mes_num] = explode('-', $mes);
+    return $nombres_meses[$mes_num] . " " . $año;
+}, $meses_unicos);
+
+$color_gastos = "#FF9800";
+$color_ocio = "#198754";
+$color_ahorro = "#0DCAF0";
 
 ?>
 <!DOCTYPE html>
@@ -73,7 +83,6 @@ $color_ahorro="#0DCAF0";
     <title>Resumen Financiero</title>
     <link rel="stylesheet" href="styles.css?<?php echo time() ?>">
 </head>
-
 
 <body>
     <div class="container py-1">
@@ -99,34 +108,13 @@ $color_ahorro="#0DCAF0";
         });
 
         // Obtener los datos de PHP
-        var meses_numeros = <?php echo json_encode(array_keys($resultados_mensuales['Gastos'] + $resultados_mensuales['Ocio'] + $resultados_mensuales['Ahorros'])); ?>;
+        var meses_numeros = <?php echo json_encode($meses_unicos); ?>;
         var data_gastos = <?php echo json_encode(array_values($resultados_mensuales['Gastos'])); ?>;
         var data_ocio = <?php echo json_encode(array_values($resultados_mensuales['Ocio'])); ?>;
         var data_ahorros = <?php echo json_encode(array_values($resultados_mensuales['Ahorros'])); ?>;
 
-        // Convertir números de meses a nombres en español
-        var nombres_meses = {
-            '01': 'Enero',
-            '02': 'Febrero',
-            '03': 'Marzo',
-            '04': 'Abril',
-            '05': 'Mayo',
-            '06': 'Junio',
-            '07': 'Julio',
-            '08': 'Agosto',
-            '09': 'Septiembre',
-            '10': 'Octubre',
-            '11': 'Noviembre',
-            '12': 'Diciembre'
-        };
-
-        // Convertir meses a nombres
-        var meses = meses_numeros.map(function(mes) {
-            return nombres_meses[mes];
-        });
-
-
-
+        // Meses convertidos a nombres con años
+        var meses = <?php echo json_encode($meses_convertidos); ?>;
 
         option = {
             tooltip: {
@@ -144,7 +132,7 @@ $color_ahorro="#0DCAF0";
             },
             xAxis: [{
                 type: 'category',
-                data: meses // Cambia los meses numéricos a nombres
+                data: meses // Usar los nombres completos de los meses
             }],
             yAxis: [{
                 type: 'value'
@@ -159,63 +147,59 @@ $color_ahorro="#0DCAF0";
             },
             series: [{
                     name: 'Gastos',
-                    type: 'bar', // Cambiar a tipo 'bar' para gráfico de barras
+                    type: 'bar',
                     data: data_gastos,
                     itemStyle: {
-                        color: '<?php echo $color_gastos ?>' // Color personalizado para Gastos
+                        color: '<?php echo $color_gastos ?>'
                     },
                     markLine: {
                         data: [{
                             name: 'Promedio',
-                            type: 'average', // Tipo promedio
+                            type: 'average',
                             lineStyle: {
-                                type: 'dashed', // Líneas entrecortadas
-                                color: '<?php echo $color_gastos ?>' // Color de la línea de límite
+                                type: 'dashed',
+                                color: '<?php echo $color_gastos ?>'
                             }
                         }]
                     }
                 },
                 {
                     name: 'Ocio',
-                    type: 'bar', // Cambiar a tipo 'bar' para gráfico de barras
+                    type: 'bar',
                     data: data_ocio,
                     itemStyle: {
-                        color: '<?php echo $color_ocio ?>' // Color personalizado para Ocio
+                        color: '<?php echo $color_ocio ?>'
                     },
                     markLine: {
                         data: [{
                             name: 'Promedio',
-                            type: 'average', // Tipo promedio
+                            type: 'average',
                             lineStyle: {
-                                type: 'dashed', // Líneas entrecortadas
-                                color: '<?php echo $color_ocio ?>' // Color de la línea de límite
+                                type: 'dashed',
+                                color: '<?php echo $color_ocio ?>'
                             }
                         }]
                     }
                 },
                 {
                     name: 'Ahorros',
-                    type: 'bar', // Cambiar a tipo 'bar' para gráfico de barras
+                    type: 'bar',
                     data: data_ahorros,
                     itemStyle: {
-                        color: '<?php echo $color_ahorro ?>' // Color personalizado para Ahorros
+                        color: '<?php echo $color_ahorro ?>'
                     },
                     markLine: {
                         data: [{
                             name: 'Promedio',
-                            type: 'average', // Tipo promedio
+                            type: 'average',
                             lineStyle: {
-                                type: 'dashed', // Líneas entrecortadas
-                                color: '<?php echo $color_ahorro ?>' // Color de la línea de límite
+                                type: 'dashed',
+                                color: '<?php echo $color_ahorro ?>'
                             }
                         }]
                     }
                 }
-
             ]
-
-
-
         };
 
         if (option && typeof option === 'object') {
@@ -224,8 +208,6 @@ $color_ahorro="#0DCAF0";
 
         window.addEventListener('resize', myChart.resize);
     </script>
-
-
 </body>
 
 </html>
