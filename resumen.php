@@ -352,8 +352,7 @@ function obtenerCategoriasGastos($conexion)
     GROUP BY 
         c.Nombre
     ORDER BY 
-        semanal DESC, semana_anterior DESC
-    LIMIT 10;
+        semanal DESC, semana_anterior DESC;
         ";
 
     $result = $conexion->query($sql);
@@ -416,8 +415,7 @@ function obtenerCategoriasGastosMes($conexion)
         GROUP BY 
             c.Nombre
         ORDER BY 
-            mes_actual DESC, mes_anterior DESC
-        LIMIT 10;
+            mes_actual DESC, mes_anterior DESC;
     ";
 
     $result = $conexion->query($sql);
@@ -801,10 +799,10 @@ $categorias_gastos_anual = obtenerCategoriasGastosAnuales($conexion);
                     <table class="divide-y divide-gray-200 table-auto w-full min-w-max">
                         <thead class="bg-gray-100 text-sm">
                             <tr>
-                                <th class="px-4 sm:px-6 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider">Categoría</th>
-                                <th class="px-4 sm:px-6 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider">Este Año</th>
-                                <th class="px-4 sm:px-6 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider hidden md:table-cell">Año Anterior</th>
-                                <th class="px-4 sm:px-6 py-2 text-left font-semibold text-gray-700 uppercase tracking-wider">Tendencia</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider">Categoría</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider">Este Año</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider hidden md:table-cell">Año Anterior</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 uppercase tracking-wider">Tendencia</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
@@ -818,11 +816,19 @@ $categorias_gastos_anual = obtenerCategoriasGastosAnuales($conexion);
                                 $total_anual_anterior += $categoria['year_previous']; // Sumar valores mensuales 
                                 ?>
                                 <tr class="hover:bg-gray-50 transition-colors duration-200">
-                                    <td class="px-4 sm:px-6 py-2 text-sm font-medium text-gray-900 whitespace-nowrap"><?= htmlspecialchars($categoria['category']) ?></td>
-                                    <td class="px-4 sm:px-6 py-2 text-sm text-gray-900 whitespace-nowrap">$<?= number_format($categoria['year_current'], 0, '', '.') ?></td>
-                                    <td class="px-4 sm:px-6 py-2 text-sm text-gray-900 whitespace-nowrap hidden md:table-cell">$<?= number_format($categoria['year_previous'], 0, '', '.') ?></td>
-                                    <td class="px-4 sm:px-6 py-2 text-sm whitespace-nowrap">
-                                        <span class="<?= $tendencia_clase ?>"><?= htmlspecialchars($categoria['trend']) ?></span>
+                                    <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="text-xs sm:text-sm font-medium text-gray-900"><?= htmlspecialchars($categoria['category']) ?></div>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                        <div class="text-xs sm:text-sm text-gray-900">$<?= number_format($categoria['year_current'], 0, '', '.') ?></div>
+                                    </td>
+                                    <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap hidden md:table-cell">
+                                        <div class="text-xs sm:text-sm text-gray-900">$<?= number_format($categoria['year_previous'], 0, '', '.') ?></div>
+                                    </td>
+                                    <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                        <span class="<?= $tendencia_clase ?> text-xs sm:text-sm"><?= htmlspecialchars($categoria['trend']) ?></span>
                                     </td>
                                 </tr>
                             <?php endforeach;
@@ -835,11 +841,17 @@ $categorias_gastos_anual = obtenerCategoriasGastosAnuales($conexion);
 
                             <!-- Fila para totales -->
                             <tr class="font-semibold bg-gray-100">
-                                <td class="px-4 sm:px-6 py-2 text-sm">Total</td>
-                                <td class="px-4 sm:px-6 py-2 text-sm text-gray-900">$<?= number_format($total_anual, 0, '', '.') ?></td>
-                                <td class="px-4 sm:px-6 py-2 text-sm text-gray-900 whitespace-nowrap hidden md:table-cell">$<?= number_format($total_anual_anterior, 0, '', '.') ?></td>
-                                <td class="px-4 sm:px-6 py-2 text-sm">
-                                    <span class="<?= $tendencia_anual < 0 ? 'text-green-600' : 'text-red-600' ?>"><?= $tendencia_anual_formateada ?></span> <!-- Mostrar la tendencia semanal -->
+                                <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                    <div class="text-xs sm:text-sm">Total</div>
+                                </td>
+                                <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                    <div class="text-xs sm:text-sm text-gray-900">$<?= number_format($total_anual, 0, '', '.') ?></div>
+                                </td>
+                                <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap hidden md:table-cell">
+                                    <div class="text-xs sm:text-sm text-gray-900">$<?= number_format($total_anual_anterior, 0, '', '.') ?></div>
+                                </td>
+                                <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                                    <span class="<?= $tendencia_anual < 0 ? 'text-green-600' : 'text-red-600' ?> text-xs sm:text-sm"><?= $tendencia_anual_formateada ?></span> <!-- Mostrar la tendencia semanal -->
                                 </td>
                             </tr>
                         </tbody>
