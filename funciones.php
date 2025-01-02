@@ -271,7 +271,7 @@ function DatosHistoricos($where, $conexion, $nombre_grafico, $colores)
 
     // Rango de años a considerar
     $año_inicio = 2024;
-    $año_fin = 2025;
+    $año_fin = date("Y");
 
     // Crear el array de mapeo dinámicamente
     for ($año = $año_inicio; $año <= $año_fin; $año++) {
@@ -561,7 +561,7 @@ function generarGraficosPorCategoria($conexion, $where, $colores, $tipo, $numero
 
     // Rango de años a considerar
     $año_inicio = 2024;
-    $año_fin = 2025;
+    $año_fin = date("Y");
 
     // Crear el array de mapeo dinámicamente
     for ($año = $año_inicio; $año <= $año_fin; $año++) {
