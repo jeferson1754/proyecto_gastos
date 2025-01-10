@@ -92,7 +92,7 @@ function obtenerGastosSemanales($conexion)
     }
 
     $resultados = $conexion->query($consulta);
-
+    // Inicializar arreglos para almacenar los gastos
     // Inicializar arreglos para almacenar los gastos
     $gastos_semanales_actual = [];
     $gastos_semanales_anterior = [];
@@ -124,15 +124,34 @@ function obtenerGastosSemanales($conexion)
         $gastos_semanales_anterior = array_pad($gastos_semanales_anterior, 4, 0);
     }
 
+    // Invertir los arreglos
     $gastos_semanales_invertidos_actual = array_reverse($gastos_semanales_actual);
     $gastos_semanales_invertidos_anterior = array_reverse($gastos_semanales_anterior);
+
+    // Reacomodar los elementos según el formato deseado
+    $gastos_semanales_actual = array_merge(
+        array_slice($gastos_semanales_invertidos_actual, 2),
+        array_slice($gastos_semanales_invertidos_anterior, -2)
+    );
+    $gastos_semanales_anterior = array_merge(
+        array_slice($gastos_semanales_invertidos_anterior, 0, -2),
+        array_slice($gastos_semanales_invertidos_actual, 0, 2)
+    );
+
+    // Eliminar cualquier valor `0` extra si aparece al final de la lista
+    $gastos_semanales_anterior = array_filter($gastos_semanales_anterior, function ($value) {
+        return $value !== 0;
+    });
+
+    // Reindexar el arreglo para que sea una lista (índices consecutivos)
+    $gastos_semanales_anterior = array_values($gastos_semanales_anterior);
 
     $labels_mensuales = array_slice(array_reverse($labels_mensuales), 4, 8);
 
     // Retornar los resultados
     return [
-        'gastos_semanales_actual' => $gastos_semanales_invertidos_actual,
-        'gastos_semanales_anterior' => $gastos_semanales_invertidos_anterior,
+        'gastos_semanales_actual' => $gastos_semanales_actual,
+        'gastos_semanales_anterior' => $gastos_semanales_anterior,
         'labels_mensuales' => $labels_mensuales
     ];
 }
