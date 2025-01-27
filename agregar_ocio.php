@@ -9,7 +9,7 @@ try {
     $descripcion_nombre = $_POST['descripcionIngreso'] ?? '';
     $categoria_nombre = $_POST['categoriaIngreso'] ?? '';
     $categoria_padre = 24; // ID predeterminado de la categoría padre
-    $valor = $_POST['monto'] ?? '';
+    $valor = formatearMonto($_POST['monto']);
     $fecha = $_POST['fecha'] ?? date('Y-m-d');
 
     // Validar datos
@@ -64,5 +64,3 @@ try {
     // Error de validación u otros
     echo "Error: " . $e->getMessage();
 }
-
-?>

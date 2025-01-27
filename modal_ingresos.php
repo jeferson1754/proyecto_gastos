@@ -19,7 +19,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="montoIngreso" class="form-label">Monto</label>
-                        <input type="number" class="form-control" id="montoIngreso" name="monto" min="0" step="1" required>
+                        <input type="text" class="form-control valor_formateado" id="montoIngreso" name="monto" required>
                     </div>
                     <!-- Select principal para elegir la categoría del ingreso -->
                     <div class="mb-3">

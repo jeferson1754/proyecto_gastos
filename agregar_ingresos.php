@@ -7,7 +7,7 @@ try {
 
     // Obtener datos del formulario
     $descripcion_nombre = $_POST['descripcionIngreso'] ?? '';
-    $valor = $_POST['monto'] ?? '';
+    $valor = formatearMonto($_POST['monto']);
     $fecha = $_POST['fecha'] ?? date('Y-m-d');
 
 

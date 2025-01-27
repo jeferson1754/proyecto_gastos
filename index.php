@@ -675,6 +675,29 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
         });
     </script>
 
+    <script>
+        // Función para formatear el número como pesos chilenos
+        function formatPesoChile(value) {
+            value = value.replace(/\D/g, ''); // Eliminar todo lo que no sea un número
+            return new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP'
+            }).format(value);
+        }
+
+        // Obtener todos los campos de entrada con la clase 'monto_gasto'
+        const montoInputs = document.querySelectorAll('.valor_formateado');
+
+        // Evento para formatear el valor mientras el usuario escribe en cada campo
+        montoInputs.forEach(function(montoInput) {
+            montoInput.addEventListener('input', function() {
+                let value = montoInput.value;
+                montoInput.value = formatPesoChile(value); // Aplicar el formato de peso chileno
+            });
+        });
+    </script>
+
+
     <?php
     //Graficos Pie Restantes
     piechart('gastos-restante', $categorias_gastos, $colores_gastos);

@@ -19,9 +19,8 @@
                     </div>
                     <div class="mb-3">
                         <label for="montoIngreso" class="form-label">Monto</label>
-                        <input type="number" class="form-control" id="monto_gasto" name="monto" min="0" step="1" required>
+                        <input type="text" class="form-control valor_formateado" id="monto_gasto" name="monto" required>
                     </div>
-
 
                     <div class="mb-3">
                         <label for="categoria" class="form-label">Categoría del Gasto</label>

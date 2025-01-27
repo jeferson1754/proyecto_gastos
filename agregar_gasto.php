@@ -10,7 +10,7 @@ try {
     $descripcion_nombre = $_POST['descripcionIngreso'] ?? '';
     $categoria_nombre = $_POST['categoriaIngreso'] ?? '';
     $categoria_padre = 23; // ID predeterminado de la categoría padre
-    $valor = $_POST['monto'] ?? '';
+    $valor = formatearMonto($_POST['monto']);
     $fecha = $_POST['fecha'] ?? date('Y-m-d');
 
     // Validación de los campos obligatorios
@@ -67,7 +67,6 @@ try {
     // Redireccionar al usuario después de una inserción exitosa
     header("Location: index.php");
     exit;
-
 } catch (PDOException $e) {
     // En caso de error de base de datos, deshacer la transacción y mostrar un mensaje
     if ($pdo->inTransaction()) {
