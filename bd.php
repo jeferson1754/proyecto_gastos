@@ -17,7 +17,7 @@ mysqli_query($conexion, "SET SESSION collation_connection ='utf8_unicode_ci'");
 $db = mysqli_select_db($conexion, $basededatos) or die("Upps! Error en conectar a la Base de Datos");
 
 //Linea para los caracteres �
-/*
+
 if (!mysqli_set_charset($conexion, "utf8mb4")) {
     printf("Error loading character set utf8mb4: %s\n", mysqli_error($conn));
     exit();
@@ -26,7 +26,7 @@ if (!mysqli_set_charset($conexion, "utf8mb4")) {
 if (mysqli_connect_errno()) {
     die("No se pudo conectar a la base de datos: " . mysqli_connect_error());
 }
-
+/*
 $max_queries_per_hour = 500;
 
 $current_time = date("Y-m-d H:i:s", time());
@@ -59,7 +59,6 @@ if (!$result) {
     die("La consulta falló: " . mysqli_error($conexion));
 }
 */
-
 
 $host = $servidor;
 $user = $usuario;

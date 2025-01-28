@@ -100,16 +100,27 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                         </div>
 
                         <!-- Botones con mejor diseño y espaciado -->
-                        <div class="d-flex justify-content-center gap-3">
+                        <div class="d-flex justify-content-center align-items-center gap-3">
+                            <!-- Botón Añadir Ingreso -->
                             <button type="button"
-                                class="btn btn-primary px-4 py-2 d-flex align-items-center"
+                                class="btn btn-primary d-inline-flex align-items-center px-4 py-2 shadow-sm hover-lift"
                                 data-bs-toggle="modal"
                                 data-bs-target="#modalIngresos">
                                 <i class="bi bi-plus-circle me-2"></i>
                                 Añadir Ingreso
                             </button>
+
+                            <!-- Botón de Búsqueda -->
+                            <button type="button"
+                                class="btn btn-secondary d-inline-flex align-items-center justify-content-center shadow-sm hover-lift"
+                                onclick="window.location.href='./Busqueda/general.php'"
+                                style="width: 42px; height: 42px;">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </button>
+
+                            <!-- Botón Dashboard -->
                             <a href="./resumen.php"
-                                class="btn btn-outline-secondary px-4 py-2 d-flex align-items-center">
+                                class="btn btn-outline-secondary d-inline-flex align-items-center px-4 py-2 shadow-sm hover-lift">
                                 <i class="bi bi-graph-up me-2"></i>
                                 Dashboard Gastos
                             </a>
