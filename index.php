@@ -121,7 +121,7 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
 
                             <!-- Botón de Búsqueda -->
                             <button type="button"
-                                class="btn btn-secondary d-inline-flex align-items-center justify-content-center shadow-sm hover-lift"
+                                class="btn btn-secondary align-items-center justify-content-center shadow-sm hover-lift ocultar"
                                 onclick="window.location.href='./Busqueda/general.php'"
                                 style="width: 42px; height: 42px;">
                                 <i class="fa-solid fa-magnifying-glass"></i>

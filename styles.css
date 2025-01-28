@@ -208,9 +208,17 @@ iframe {
     height: 600px;
 }
 
+.ocultar{
+    display: inline-flex;
+}
+
 @media only screen and (max-width: 600px) {
     iframe {
         width: auto;
+    }
+
+    .ocultar{
+        display: none;
     }
 }
 
