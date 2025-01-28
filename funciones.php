@@ -689,6 +689,16 @@ function generarGraficosPorCategoria($conexion, $where, $colores, $tipo, $numero
     }
 }
 
+function formatearMonto($monto)
+{
+    // Eliminar el símbolo de dólar, puntos y comas (separadores de miles)
+    $monto = str_replace(['$', '.', ','], '', $monto);
+
+    // Convertir el valor a float
+    $monto = (float)$monto;
+
+    return $monto;
+}
 
 
 
