@@ -127,6 +127,28 @@ try {
     echo "Error de conexión: " . $e->getMessage();
 }
 
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$database", $user, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // Consulta para obtener las categorías
+    $stmt = $pdo->query("SELECT DISTINCT quien_paga FROM `pagos`");
+    $quien_paga = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    echo "Error de conexión: " . $e->getMessage();
+}
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$database", $user, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // Consulta para obtener las categorías
+    $stmt = $pdo->query("SELECT DISTINCT Cuenta FROM `pagos`");
+    $cuentas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    echo "Error de conexión: " . $e->getMessage();
+}
+
 $where_gastos = "c.Nombre = 'Gastos' OR c.Categoria_Padre = '23'";
 $where_ocio = "c.Nombre = 'Ocio' OR c.Categoria_Padre = '24'";
 $where_ahorros = "c.Nombre = 'Ahorros' OR c.Categoria_Padre = '2'";

@@ -58,9 +58,18 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
 <body>
     <div class="container py-1">
         <div class="row mb-1">
-            <div class="col-12 text-end">
-                <h5 class="text-muted"><?php echo "$mes $current_year"; ?></h5>
+            <div class="col-12 d-flex justify-content-between align-items-center">
+                <h5 class="text-muted m-0">
+                    <button type="button"
+                        class="btn btn-warning d-inline-flex align-items-center justify-content-center shadow-sm hover-lift"
+                        onclick="window.location.href='./Pagos/'"
+                        style="width: 42px; height: 42px;">
+                        <i class="fa-solid fa-wallet"></i>
+                    </button>
+                </h5>
+                <h5 class="text-muted m-0"><?php echo "$mes $current_year"; ?></h5>
             </div>
+
         </div>
 
         <!--INGRESOS VS EGRESOS -->

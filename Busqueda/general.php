@@ -126,7 +126,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 
 <body class="py-5">
+
     <div class="container">
+
+        <a href="../" class="btn btn-secondary btn-action">
+            <i class="fas fa-arrow-left me-2"></i>Volver
+        </a>
         <!-- Encabezado -->
         <div class="page-header text-center">
             <h2 class="fw-bold mb-4">Buscador General</h2>
@@ -147,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </form>
         </div>
-        
+
 
         <!-- Tabla de Resultados -->
         <div class="table-container">
