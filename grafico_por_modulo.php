@@ -96,6 +96,16 @@ $color_ahorro = "#0DCAF0";
                 </div>
             </div>
         </div>
+        <div class="row mb-4">
+            <div class="col-md-12 mx-auto">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="text">Distribución de Gastos, Ocio y Ahorros</h3>
+                        <div id="pie-chart1" class="chart"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -208,6 +218,71 @@ $color_ahorro = "#0DCAF0";
 
         window.addEventListener('resize', myChart.resize);
     </script>
+
+    <!-- Grafico Circular de Proporcion Total -->
+    <script>
+        var dom = document.getElementById('pie-chart1');
+        var myChart = echarts.init(dom, null, {
+            renderer: 'canvas',
+            useDirtyRect: false
+        });
+
+        var total_gastos = data_gastos.reduce((acc, val) => acc + parseInt(val), 0);
+        var total_ocio = data_ocio.reduce((acc, val) => acc + parseInt(val), 0);
+        var total_ahorros = data_ahorros.reduce((acc, val) => acc + parseInt(val), 0);
+
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+
+        var option = {
+            tooltip: {
+                trigger: 'item',
+                formatter: function(params) {
+                    // Formatear el valor en el tooltip
+                    return params.seriesName + ' <br/>' + params.name + ' : ' + formatNumber(params.value) + ' (' + params.percent.toFixed(2) + '%)';
+                }
+            },
+            series: [{
+                name: 'Total',
+                type: 'pie',
+                radius: '50%',
+                data: [{
+                        value: total_gastos,
+                        name: 'Gastos',
+                        itemStyle: {
+                            color: '<?php echo $color_gastos ?>'
+                        },
+                    },
+                    {
+                        value: total_ocio,
+                        name: 'Ocio',
+                        itemStyle: {
+                            color: '<?php echo $color_ocio ?>'
+                        },
+                    },
+                    {
+                        value: total_ahorros,
+                        name: 'Ahorros',
+                        itemStyle: {
+                            color: '<?php echo $color_ahorro ?>'
+                        },
+                    }
+                ],
+                emphasis: {
+                    itemStyle: {
+                        shadowBlur: 10,
+                        shadowOffsetX: 0,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                }
+            }]
+        };
+
+        myChart.setOption(option);
+        window.addEventListener('resize', myChart.resize);
+    </script>
+
 </body>
 
 </html>

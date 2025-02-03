@@ -4,22 +4,46 @@ include('../bd.php'); // Conexión a la base de datos
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Capturar términos de búsqueda
     $busqueda = $_POST['busqueda'] ?? '';
+    $sub_categoria = $_POST['sub_categoria'] ?? '';
+    $valorMin = $_POST['valorMin'] ?? '';
+    $valorMax = $_POST['valorMax'] ?? '';
+    $fechaInicio = $_POST['fechaInicio'] ?? '';
+    $fechaFin = $_POST['fechaFin'] ?? '';
 
     // Query para buscar en las tres tablas
     $sql = "SELECT g.ID,d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha,c.Categoria_Padre as tipo
     FROM gastos g
     INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
     INNER JOIN detalle d ON g.ID_Detalle = d.ID
-    WHERE d.Detalle LIKE ?  OR c.Nombre LIKE ? OR g.Valor LIKE ? OR g.Fecha LIKE ?   
-    ORDER BY g.Fecha DESC
-    LIMIT 50";
+    WHERE 1=1 ";
 
 
-    $stmt = $conexion->prepare($sql);
-    $likeBusqueda = "%$busqueda%";
-    $stmt->bind_param('ssss', $likeBusqueda, $likeBusqueda, $likeBusqueda, $likeBusqueda);
-    $stmt->execute();
-    $resultados = $stmt->get_result();
+    if (!empty($sub_categoria)) {
+        $sql .= " AND c.Nombre = '$sub_categoria'";
+    }
+    if (!empty($nombre)) {
+        $sql .= " AND d.Detalle LIKE '%$nombre%'";
+    }
+    if ($valorMin > 0) {
+        $sql .= " AND g.Valor >= $valorMin";
+    }
+    if ($valorMax > 0) {
+        $sql .= " AND g.Valor <= $valorMax";
+    }
+    if (!empty($fechaInicio)) {
+        $sql .= " AND g.Fecha >= '$fechaInicio'";
+    }
+    if (!empty($fechaFin)) {
+        $sql .= " AND g.Fecha <= '$fechaFin'";
+    }
+    if (!empty($busqueda)) {
+        $sql .= " AND (d.Detalle LIKE '%$busqueda%' OR g.Valor LIKE '%$busqueda%' OR c.Nombre LIKE '%$busqueda%' OR g.Fecha LIKE '%$busqueda%')";
+    }
+
+
+    $sql .= " ORDER BY g.Fecha DESC LIMIT 50";
+
+    $resultados = $conexion->query($sql);
 } else {
     // Si no se realiza ninguna búsqueda, mostrar todo
     $sql = "SELECT g.ID,d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha,c.Categoria_Padre as tipo
@@ -30,6 +54,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     LIMIT 50";
     $resultados = $conexion->query($sql);
 }
+
+$sql_categoria = "SELECT g.ID, d.Detalle AS Descripcion, g.Valor, g.ID_Categoria_Gastos, 
+c.Nombre as categoria, g.Fecha, c.Categoria_Padre as tipo
+FROM gastos g
+INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
+INNER JOIN detalle d ON g.ID_Detalle = d.ID
+WHERE g.ID = ?";
+
+$stmt = $conexion->prepare($sql_categoria);
+$stmt->bind_param('i', $id);
+$stmt->execute();
+$resultado = $stmt->get_result()->fetch_assoc();
+
+// Obtener categorías para el select
+$sqlCategorias = "SELECT ID, Nombre,Categoria_Padre FROM categorias_gastos ORDER BY Nombre";
+$categorias = $conexion->query($sqlCategorias);
 
 ?>
 
@@ -140,16 +180,87 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <!-- Buscador -->
         <div class="search-container">
             <form method="POST">
-                <div class="input-group">
-                    <input type="text"
-                        name="busqueda"
-                        class="form-control search-input"
-                        placeholder="Buscar en gastos, ocio y ahorros..."
-                        value="<?php echo htmlspecialchars($busqueda ?? ''); ?>">
-                    <button type="submit" class="btn btn-primary btn-search">
-                        <i class="fas fa-search me-2"></i>Buscar
-                    </button>
+                <div class="row mb-4 align-items-center">
+                    <div class="col-md-10">
+                        <div class="input-group">
+                            <input type="search" name="busqueda" class="form-control search-input"
+                                placeholder="Buscar en gastos, ocio y ahorros..."
+                                value="<?php echo htmlspecialchars($busqueda ?? ''); ?>">
+                            <button type="submit" class="btn btn-primary btn-search">
+                                <i class="fas fa-search me-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-md-end text-center mt-2 mt-md-0">
+                        <button type="button" class="btn btn-secondary btn-search" id="toggleFiltros">
+                            <i class="fas fa-filter"></i> Filtros
+                        </button>
+                    </div>
                 </div>
+
+                <!-- Filtros avanzados (inicialmente ocultos) -->
+                <div id="filtrosAvanzados" class="p-3 border rounded bg-light shadow-sm" style="display: none;">
+                    <h5 class="mb-3"><i class="fas fa-filter"></i> Filtros Avanzados</h5>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="nombre" class="form-label">Nombre:</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" placeholder="Ej. Compra en supermercado"
+                                value="">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="sub_categoria" class="form-label">Categoría del Gasto</label>
+                            <select name="sub_categoria" class="form-select">
+                                <option value="">Selecciona una Categoria</option>
+                                <?php
+                                $tipos_clases = [
+                                    2 => "info",
+                                    23 => "warning",
+                                    24 => "success"
+                                ];
+                                foreach ($categorias as $cat):
+                                    // Determinar la clase basada en el tipo
+                                    $clase = $tipos_clases[$cat['Categoria_Padre']] ?? "secondary";
+                                ?>
+                                    <option
+                                        class="text-<?php echo $clase; ?>">
+                                        <?php echo htmlspecialchars($cat['Nombre']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="valorMin" class="form-label">Valor mínimo:</label>
+                            <input type="text" class="form-control valor_formateado" id="valorMin" name="valorMin" placeholder="$0"
+                                value="">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="valorMax" class="form-label">Valor máximo:</label>
+                            <input type="text" class="form-control valor_formateado" id="valorMax" name="valorMax" placeholder="$0"
+                                value="">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="fechaInicio" class="form-label">Fecha inicio:</label>
+                            <input type="date" class="form-control" id="fechaInicio" name="fechaInicio" value="">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="fechaFin" class="form-label">Fecha fin:</label>
+                            <input type="date" class="form-control" id="fechaFin" name="fechaFin" value="">
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-3">
+                        <button type="reset" class="btn btn-secondary me-2"><i class="fas fa-eraser"></i> Limpiar</button>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Aplicar filtros</button>
+                    </div>
+                </div>
+
             </form>
         </div>
 
@@ -161,11 +272,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>
-                                    <div class="form-check">
-                                        <input type="checkbox" class="form-check-input custom-checkbox" id="select_all">
-                                    </div>
-                                </th>
                                 <th>Descripción</th>
                                 <th>Categoría</th>
                                 <th>Valor</th>
@@ -174,29 +280,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </tr>
                         </thead>
                         <tbody>
-                            <?php while ($fila = $resultados->fetch_assoc()) {
+                            <?php
+                            $total_monto = 0;
+                            while ($fila = $resultados->fetch_assoc()) {
                                 $tipos_clases = [
                                     2 => "info",
                                     23 => "warning",
                                     24 => "success"
                                 ];
                                 $clase = $tipos_clases[$fila['tipo']] ?? "secondary";
+
+
                             ?>
                                 <tr class="table-<?php echo $clase; ?>">
-                                    <td>
-                                        <div class="form-check">
-                                            <input type="checkbox"
-                                                class="form-check-input custom-checkbox"
-                                                name="seleccion[]"
-                                                value="<?php echo $fila['tipo'] . '-' . $fila['ID']; ?>">
-                                        </div>
-                                    </td>
                                     <td><?php echo $fila['Descripcion']; ?></td>
                                     <td>
                                         <span class="badge bg-secondary"><?php echo $fila['categoria']; ?></span>
                                     </td>
                                     <td class="fw-bold">
-                                        <?php echo "$" . number_format($fila['Valor'], 0, '', '.') ?>
+                                        <?php
+                                        echo "$" . number_format($fila['Valor'], 0, '', '.');
+                                        $total_monto += $fila['Valor']; // Sumar correctamente el valor al total
+                                        ?>
                                     </td>
                                     <td><?php echo $fila['Fecha']; ?></td>
                                     <td>
@@ -206,7 +311,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         </a>
                                     </td>
                                 </tr>
+
                             <?php } ?>
+                            <tr class="table-secondary text-dark fw-bold">
+                                <td colspan="2" class="text-end">Total:</td>
+                                <td>
+                                    <?php echo "$" . number_format($total_monto, 0, '', '.'); ?>
+                                </td>
+                                <td colspan="2"></td>
+                            </tr>
+
                         </tbody>
                     </table>
                 </div>
@@ -216,6 +330,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const boton = document.getElementById("toggleFiltros");
+            const div = document.getElementById("filtrosAvanzados");
+
+            boton.addEventListener("click", function() {
+                if (div.style.display === "none" || div.style.display === "") {
+                    div.style.display = "block";
+                } else {
+                    div.style.display = "none";
+                }
+            });
+        });
+    </script>
+    <script>
+        // Función para formatear el número como pesos chilenos
+        function formatPesoChile(value) {
+            value = value.replace(/\D/g, ''); // Eliminar todo lo que no sea un número
+            return new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP'
+            }).format(value);
+        }
+
+        // Obtener todos los campos de entrada con la clase 'monto_gasto'
+        const montoInputs = document.querySelectorAll('.valor_formateado');
+
+        // Evento para formatear el valor mientras el usuario escribe en cada campo
+        montoInputs.forEach(function(montoInput) {
+            montoInput.addEventListener('input', function() {
+                let value = montoInput.value;
+                montoInput.value = formatPesoChile(value); // Aplicar el formato de peso chileno
+            });
+        });
+    </script>
 </body>
 
 </html>

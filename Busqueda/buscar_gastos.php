@@ -64,11 +64,12 @@ $sql .= " ORDER BY g.Fecha DESC LIMIT 50";
 
 // Ejecutar la consulta
 $resultado = $conexion->query($sql);
-
+$total_monto = 0;
 // Verificar si hay resultados
 if ($resultado->num_rows > 0) {
     // Mostrar filas de la tabla con los resultados
     while ($fila = $resultado->fetch_assoc()) {
+        $total_monto += $fila['Valor'];
         echo "<tr>
                 <td>{$fila['Descripcion']}</td>
                 <td>{$fila['Categoria']}</td>
@@ -76,6 +77,12 @@ if ($resultado->num_rows > 0) {
                 <td>{$fila['Fecha']}</td>
               </tr>";
     }
+    echo "
+    <tr class='table-secondary' style='font-weight: bold; font-size: 120%;'>
+        <td colspan='2' style='margin:0 auto'>Total:</td>
+         <td >$" . number_format($total_monto, 0, '', '.') . "</td>
+        <td colspan='2'></td>
+    </tr>";
 } else {
     echo "
     <tr>
