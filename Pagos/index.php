@@ -4,11 +4,13 @@ include('../bd.php');
 // Obtener los pagos del mes actual con mejor formato de fecha
 $stmt = $pdo->query("SELECT 
     p.*,
-    DATE_FORMAT(p.Fecha_Pago, '%d/%m/%Y %H:%i') as Fecha_Formateada 
+    DATE_FORMAT(p.Fecha_Pago, '%d/%m/%Y %H:%i') as Fecha_Pagado, 
+    DATE_FORMAT(p.Fecha_Vencimiento, '%d/%m/%Y') as Fecha_Formateada 
     FROM pagos p 
     LEFT JOIN gastos g ON p.gasto_id = g.ID 
     LEFT JOIN detalle d ON g.ID_Detalle = d.ID 
-    ORDER BY p.Fecha_Pago DESC 
+    ORDER BY p.Estado DESC, 
+    p.Fecha_Vencimiento DESC 
     LIMIT 30");
 ?>
 
@@ -227,7 +229,8 @@ $stmt = $pdo->query("SELECT
                             <th><i class="fas fa-user me-2"></i>Quién Paga</th>
                             <th><i class="fas fa-info-circle me-2"></i>Estado</th>
                             <th><i class="fas fa-file-alt me-2"></i>Comprobante</th>
-                            <th><i class="fas fa-calendar-alt me-2"></i>Fecha</th>
+                            <th><i class="fas fa-hourglass-half me-2"></i>Fecha Venc.</th>
+                            <th><i class="fas fa-money-check-alt me-2"></i>Fecha Pago</th>
                             <th><i class="fas fa-cog me-2"></i>Acciones</th>
                         </tr>
                     </thead>
@@ -250,6 +253,7 @@ $stmt = $pdo->query("SELECT
                                     <?php endif; ?>
                                 </td>
                                 <td><?php echo $pago['Fecha_Formateada']; ?></td>
+                                <td><?php echo $pago['Fecha_Pagado']; ?></td>
                                 <td>
                                     <a href="./cuenta_editar.php?id=<?php echo $pago['ID']; ?>" class="btn btn-warning btn-sm">
                                         <i class="fas fa-edit"></i>
@@ -291,8 +295,12 @@ $stmt = $pdo->query("SELECT
                             <span class="mobile-card-value"><?php echo $pago['quien_paga']; ?></span>
                         </div>
                         <div class="mobile-card-item">
-                            <span class="mobile-card-label"><i class="fas fa-calendar-alt me-2"></i>Fecha</span>
+                            <span class="mobile-card-label"><i class="fas fa-hourglass-half me-2"></i>Fecha Venc.</span>
                             <span class="mobile-card-value"><?php echo $pago['Fecha_Formateada']; ?></span>
+                        </div>
+                        <div class="mobile-card-item">
+                            <span class="mobile-card-label"><i class="fas fa-money-check-alt me-2"></i>Fecha Pago</span>
+                            <span class="mobile-card-value"><?php echo $pago['Fecha_Pagado']; ?></span>
                         </div>
                         <div class="mobile-card-item">
                             <span class="mobile-card-label"><i class="fas fa-file-alt me-2"></i>Comprobante</span>

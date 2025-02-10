@@ -33,13 +33,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $quien_paga = $_POST['quien_paga'];
         $cuenta = $_POST['cuenta'];
         $fecha = $_POST['fecha'];
+        $fecha_vencimiento = $_POST['fecha_vencimiento'];
         $estado = $_POST['estado'];
         $estado_antiguo = $_POST['estado_antiguo'];
         $valor  = formatearMonto($_POST['valor']);
         $comprobante_url = $_POST['comprobante_url'];
 
+        $fecha_pago_futuro = "0000-00-00 00:00:00";
+
         // Validaciones
-        if (empty($quien_paga) || empty($cuenta) || empty($valor) || empty($estado) || empty($fecha)) {
+        if (empty($quien_paga) || empty($cuenta) || empty($valor) || empty($estado) || empty($fecha_vencimiento)) {
             throw new Exception("Todos los campos son obligatorios");
         }
 
@@ -51,18 +54,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 
         // Actualizar el pago
-        $stmt = $conexion->prepare("UPDATE pagos SET gasto_id = ?, quien_paga = ?, cuenta = ?, valor = ?, comprobante = ?, Fecha_Pago = ?, Estado = ? WHERE ID = ?");
+        $stmt = $conexion->prepare("UPDATE pagos SET gasto_id = ?, quien_paga = ?, cuenta = ?, valor = ?, comprobante = ?, Fecha_Pago = ?, Fecha_Vencimiento = ?, Estado = ? WHERE ID = ?");
 
         if ($stmt === false) {
             die("Error al preparar la consulta de actualización: " . $conexion->error);
         }
 
-        $stmt->bind_param('issdsssi', $gasto_id, $quien_paga, $cuenta, $valor, $comprobante_url, $fecha, $estado, $id);
+        $stmt->bind_param('isssssssi', $gasto_id, $quien_paga, $cuenta, $valor, $comprobante_url, $fecha, $fecha_vencimiento, $estado, $id);
         $stmt->execute();
 
         if ($estado != $estado_antiguo) {
             // Obtener el siguiente mes
-            $fecha_siguiente_mes = date('Y-m-t', strtotime($fecha . ' +28 days'));
+            $fecha_siguiente_mes = date('Y-m-t', strtotime($fecha_vencimiento . ' +28 days'));
 
 
             if ($cuenta == "Luz") {
@@ -71,10 +74,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $otra_cuenta = "Luz";
             }
 
-            // Insertar el registro de pago para el próximo mes
-            $stmt_next = $pdo->prepare("INSERT INTO pagos (quien_paga, cuenta, estado, fecha_pago) 
-                                        VALUES (?, ?, ?, ?)");
-            $stmt_next->execute([$quien_paga, $otra_cuenta, 'Pendiente', $fecha_siguiente_mes]);
+            // Insertar el registro de pago para el próximo mesz
+            $stmt_next = $pdo->prepare("INSERT INTO pagos (quien_paga, cuenta, estado, fecha_vencimiento, fecha_pago) 
+                                        VALUES (?, ?, ?, ?, ?)");
+            $stmt_next->execute([$quien_paga, $otra_cuenta, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro]);
 
             $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se programó el pago para el siguiente mes."];
         } else {
@@ -262,18 +265,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="invalid-feedback">Por favor ingrese un valor válido</div>
                 </div>
 
-                <div class="mb-4">
-                    <label for="fecha" class="form-label fw-bold">
-                        <i class="fas fa-calendar me-2"></i>Fecha de Pago
-                    </label>
-                    <input type="datetime-local"
-                        class="form-control"
-                        id="fecha"
-                        name="fecha"
-                        value="<?php echo date('Y-m-d\TH:i', strtotime($resultado['Fecha_Pago'])); ?>"
-                        required>
-                    <div class="invalid-feedback">Por favor ingrese una fecha válida</div>
+
+                <div class="row">
+
+                    <div class="col-md-6 mb-4">
+                        <label for="fecha" class="form-label fw-bold">
+                            <i class="fas fa-hourglass-half me-2"></i>Fecha de Vencimiento
+                        </label>
+                        <input type="date"
+                            class="form-control"
+                            id="fecha_vencimiento"
+                            name="fecha_vencimiento"
+                            value="<?php echo date('Y-m-d', strtotime($resultado['Fecha_Vencimiento'])); ?>"
+                            required>
+                        <div class="invalid-feedback">Por favor ingrese una fecha válida</div>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <label for="fecha" class="form-label fw-bold">
+                            <i class="fas fa-calendar me-2"></i>Fecha de Pago
+                        </label>
+                        <input type="datetime-local"
+                            class="form-control"
+                            id="fecha"
+                            name="fecha"
+                            value="<?php echo date('Y-m-d\TH:i', strtotime($resultado['Fecha_Pago'])); ?>">
+                        <div class="invalid-feedback">Por favor ingrese una fecha válida</div>
+                    </div>
+
                 </div>
+
 
                 <div class="mb-4">
                     <label for="estado" class="form-label fw-bold">

@@ -83,7 +83,7 @@ function obtenerGastosSemanales($conexion)
     $semana_actual = date('W'); // Número de semana (de 1 a 52)
 
     // Calcular la semana actual menos 4
-    $semana_menos_4 = $semana_actual - 4;
+    $semana_menos_4 = $semana_actual - 5;
 
     // Ajustar si la semana menos 4 es menor que 1 (por si es principio de año)
     if ($semana_menos_4 < 3) {
