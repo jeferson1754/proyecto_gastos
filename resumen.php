@@ -86,7 +86,7 @@ function obtenerGastosSemanales($conexion)
     $semana_menos_4 = $semana_actual - 5;
 
     // Ajustar si la semana menos 4 es menor que 1 (por si es principio de año)
-    if ($semana_menos_4 < 3) {
+    if ($semana_menos_4 < 4) {
         // Ajustar para evitar números negativos
         $semana_menos_4 += 52; // O 53 dependiendo de la lógica que necesites
     }
