@@ -12,6 +12,8 @@ $stmt = $pdo->query("SELECT
     ORDER BY p.Estado DESC, 
     p.Fecha_Vencimiento DESC 
     LIMIT 30");
+
+$fecha_actual_formateada = date('d/m/Y');
 ?>
 
 <!DOCTYPE html>
@@ -252,10 +254,16 @@ $stmt = $pdo->query("SELECT
                                         </a>
                                     <?php endif; ?>
                                 </td>
-                                <td><?php echo $pago['Fecha_Formateada']; ?></td>
+                                <td><?php
+                                    $color = ($pago['Estado'] == 'Pendiente' && $fecha_actual_formateada > $pago['Fecha_Formateada']) ? 'red' : 'black';
+
+                                    //echo "<span style='color: $color;'>{$pago['Fecha_Formateada']}</span>";
+
+                                    echo "<span style='color: $color;'>{$pago['Fecha_Formateada']}</span>";
+                                    ?></td>
                                 <td><?php echo $pago['Fecha_Pagado']; ?></td>
                                 <td>
-                                    <a href="./cuenta_editar.php?id=<?php echo $pago['ID']; ?>" class="btn btn-warning btn-sm">
+                                    <a href="./cuenta_editar.php?id=<?php echo $pago['ID']; ?>" id="<?php echo $pago['Cuenta']; ?>" class="<?php echo $pago['Estado']; ?> btn btn-warning btn-sm">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                 </td>
