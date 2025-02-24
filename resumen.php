@@ -62,6 +62,7 @@ if ($resultados_dias) {
 
 function obtenerGastosSemanales($conexion)
 {
+
     // Consulta SQL para obtener los gastos semanales de las últimas 8 semanas
     $consulta = "
         SELECT 
@@ -76,38 +77,40 @@ function obtenerGastosSemanales($conexion)
             AND ID_Categoria_Gastos != 1
         GROUP BY 
             anio, semana 
-        ORDER BY `anio` DESC,`semana` DESC  LIMIT 8;
+        ORDER BY anio DESC, semana DESC  
+        LIMIT 8;
     ";
 
     // Obtener el número de la semana actual
     $semana_actual = date('W'); // Número de semana (de 1 a 52)
 
     // Calcular la semana actual menos 4
-    $semana_menos_4 = $semana_actual - 5;
+    $semana_menos_4 = $semana_actual - 4;
 
     // Ajustar si la semana menos 4 es menor que 1 (por si es principio de año)
-    if ($semana_menos_4 < 4) {
+    if ($semana_menos_4 < 1) {
         // Ajustar para evitar números negativos
-        $semana_menos_4 += 52; // O 53 dependiendo de la lógica que necesites
+        $semana_menos_4 += 52; // O 53, según la lógica que necesites
     }
 
     $resultados = $conexion->query($consulta);
-    // Inicializar arreglos para almacenar los gastos
-    // Inicializar arreglos para almacenar los gastos
+    // Inicializar arreglos para almacenar los gastos y etiquetas
     $gastos_semanales_actual = [];
     $gastos_semanales_anterior = [];
     $labels_mensuales = [];
 
-    // Contadores para verificar el número de semanas
+    // Contadores para verificar el número de semanas en cada grupo
     $contador_actual = 0;
     $contador_anterior = 0;
 
     // Procesar los resultados de la consulta
     while ($fila = $resultados->fetch_assoc()) {
-        $semana = "Semana " . $fila['semana'];
-        $labels_mensuales[] = $semana; // Añadir etiqueta de la semana
+        // Generar la etiqueta de la semana
+        $etiqueta_semana = "Semana " . $fila['semana'];
+        $labels_mensuales[] = $etiqueta_semana;
 
-        if ($semana_menos_4 < $fila['semana']) {
+        // Clasificar según si la semana es mayor que $semana_menos_4
+        if ((int)$fila['semana'] > $semana_menos_4) {
             $gastos_semanales_actual[] = (float)$fila['total_gastos'];
             $contador_actual++;
         } else {
@@ -116,7 +119,7 @@ function obtenerGastosSemanales($conexion)
         }
     }
 
-    // Asegurarse de que hay exactamente 4 semanas actuales y anteriores
+    // Asegurarse de que cada grupo tenga al menos 4 semanas, completando con 0 si es necesario
     if ($contador_actual < 4) {
         $gastos_semanales_actual = array_pad($gastos_semanales_actual, 4, 0);
     }
@@ -124,35 +127,36 @@ function obtenerGastosSemanales($conexion)
         $gastos_semanales_anterior = array_pad($gastos_semanales_anterior, 4, 0);
     }
 
-    // Invertir los arreglos
-    $gastos_semanales_invertidos_actual = array_reverse($gastos_semanales_actual);
-    $gastos_semanales_invertidos_anterior = array_reverse($gastos_semanales_anterior);
+    // Invertir los arreglos para obtener el orden cronológico (de la semana más antigua a la más reciente)
+    $gastos_actual_invertidos = array_reverse($gastos_semanales_actual);
+    $gastos_anterior_invertidos = array_reverse($gastos_semanales_anterior);
 
+/*
     // Reacomodar los elementos según el formato deseado
-    $gastos_semanales_actual = array_merge(
-        array_slice($gastos_semanales_invertidos_actual, 2),
-        array_slice($gastos_semanales_invertidos_anterior, -2)
+    // Se extraen 2 semanas de cada grupo para formar el arreglo final
+    $gastos_semanales_actual_final = array_merge(
+        array_slice($gastos_actual_invertidos, 2),         // Últimas 2 semanas del grupo "actual"
+        array_slice($gastos_anterior_invertidos, -2)        // Últimas 2 semanas del grupo "anterior"
     );
-    $gastos_semanales_anterior = array_merge(
-        array_slice($gastos_semanales_invertidos_anterior, 0, -2),
-        array_slice($gastos_semanales_invertidos_actual, 0, 2)
+    $gastos_semanales_anterior_final = array_merge(
+        array_slice($gastos_anterior_invertidos, 0, -2),    // Primeras semanas del grupo "anterior"
+        array_slice($gastos_actual_invertidos, 0, 2)        // Primeras 2 semanas del grupo "actual"
     );
 
-    // Eliminar cualquier valor `0` extra si aparece al final de la lista
-    $gastos_semanales_anterior = array_filter($gastos_semanales_anterior, function ($value) {
+    // Eliminar cualquier valor cero sobrante en el arreglo de gastos anteriores y reindexar
+    $gastos_semanales_anterior_final = array_values(array_filter($gastos_semanales_anterior_final, function ($value) {
         return $value !== 0;
-    });
+    }));
+    */
 
-    // Reindexar el arreglo para que sea una lista (índices consecutivos)
-    $gastos_semanales_anterior = array_values($gastos_semanales_anterior);
+    // Procesar las etiquetas: invertir el arreglo y extraer el subconjunto deseado
+    $labels_final = array_slice(array_reverse($labels_mensuales), 4, 8);
 
-    $labels_mensuales = array_slice(array_reverse($labels_mensuales), 4, 8);
-
-    // Retornar los resultados
+    // Retornar los resultados finales
     return [
-        'gastos_semanales_actual' => $gastos_semanales_actual,
-        'gastos_semanales_anterior' => $gastos_semanales_anterior,
-        'labels_mensuales' => $labels_mensuales
+        'gastos_semanales_actual'   => $gastos_actual_invertidos,
+        'gastos_semanales_anterior' => $gastos_anterior_invertidos,
+        'labels_mensuales'          => $labels_final
     ];
 }
 
