@@ -127,25 +127,36 @@ function obtenerColor($anterior_valor, $valor_actual)
 //USO: $color_ahorro = obtenerColor($anterior_total_ahorros, $total_ahorros);
 
 //FUncion para sacar el total por categoria y su nombre
-function ejecutar_consulta($pdo, $where)
+function ejecutar_consulta($pdo, $where, $limit)
 {
+    // Validar que el parámetro $limit sea un número entero
+    if (!is_int($limit) || $limit <= 0) {
+        $limit = intval($limit);  // Usar intval() para convertir a entero
+    }
+
     // Consulta SQL para obtener el total por categoría
     $sql = "SELECT c.Nombre AS categoria, SUM(g.Valor) AS total_categoria
             FROM gastos g
             INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
-            WHERE $where
+            WHERE ($where) 
+            AND g.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL :limit MONTH), '%Y-%m-01')
             GROUP BY c.Nombre
             ORDER BY total_categoria DESC";
 
     try {
-        // Preparar y ejecutar la consulta
+        // Preparar la consulta
         $stmt = $pdo->prepare($sql);
+
+        // Asociar el valor del parámetro :limit
+        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+
+        // Ejecutar la consulta
         $stmt->execute();
 
         // Obtener las categorías y sus totales
         $categorias = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Calcular la suma total directamente en PHP
+        // Calcular la suma total directamente en la consulta SQL
         $suma_total = array_sum(array_column($categorias, 'total_categoria'));
 
         return [
@@ -153,7 +164,7 @@ function ejecutar_consulta($pdo, $where)
             'suma_total' => $suma_total
         ];
     } catch (PDOException $e) {
-        // Manejo de errores
+        // Manejo de errores con un mensaje más detallado
         throw new Exception("Error en la consulta: " . $e->getMessage());
     }
 }
@@ -229,7 +240,7 @@ function piechart($id, $categoria_nombre, $colores, $title = 'Gastos por Categor
 
 
 //FUNCION PARA SABER LOS DATOS HISTORICOS DE CADA MODULO CON SUS CATEGORIAS
-function DatosHistoricos($where, $conexion, $nombre_grafico, $colores)
+function DatosHistoricos($where, $conexion, $nombre_grafico, $colores, $limit)
 {
     // Construir la consulta SQL
     $sql = "
@@ -241,7 +252,8 @@ function DatosHistoricos($where, $conexion, $nombre_grafico, $colores)
         gastos 
     INNER JOIN 
         categorias_gastos c ON gastos.ID_Categoria_Gastos = c.ID 
-    WHERE $where 
+    WHERE ($where) 
+    AND gastos.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL $limit MONTH), '%Y-%m-01')
     GROUP BY 
         c.Nombre, mes;";
 

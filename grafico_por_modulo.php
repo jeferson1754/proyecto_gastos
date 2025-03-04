@@ -8,17 +8,20 @@ $modulos = [
     'Ahorros' => $where_ahorros
 ];
 
+$cantidad_meses_balance = isset($_GET['cantidad_meses']) ? $_GET['cantidad_meses'] : 6;
+
 // Crear un arreglo para almacenar los totales mensuales
 $resultados_mensuales = [];
 
 // Función para obtener datos mensuales
-function obtener_datos_mensuales($conexion, $where)
+function obtener_datos_mensuales($conexion, $where, $limit)
 {
     $sql_total = "SELECT DATE_FORMAT(gastos.Fecha, '%Y-%m') AS mes, SUM(gastos.Valor) AS total_mensual
         FROM gastos
         WHERE ID_Categoria_Gastos IN (
             SELECT ID FROM categorias_gastos as c WHERE $where
         )
+         AND gastos.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL $limit MONTH), '%Y-%m-01')
         GROUP BY mes
         ORDER BY mes";
 
@@ -37,7 +40,7 @@ function obtener_datos_mensuales($conexion, $where)
 
 // Obtener los totales mensuales para cada módulo
 foreach ($modulos as $nombre_categoria => $where_clause) {
-    $resultados_mensuales[$nombre_categoria] = obtener_datos_mensuales($conexion, $where_clause);
+    $resultados_mensuales[$nombre_categoria] = obtener_datos_mensuales($conexion, $where_clause, $cantidad_meses_balance);
 }
 
 // Unir todos los meses y asegurarse de que estén ordenados cronológicamente
@@ -142,7 +145,11 @@ $color_ahorro = "#0DCAF0";
             },
             xAxis: [{
                 type: 'category',
-                data: meses // Usar los nombres completos de los meses
+                data: meses,
+                axisLabel: {
+                    interval: 0,
+                    rotate: 30
+                } // Usar los nombres completos de los meses
             }],
             yAxis: [{
                 type: 'value'

@@ -3,7 +3,8 @@
 include('bd.php');
 require_once('funciones.php');
 
-$cantidad_meses_balance = 6;
+
+$cantidad_meses_balance = isset($_GET['cantidad_meses']) ? $_GET['cantidad_meses'] : 6;
 
 $minRepeticiones = 5;
 
@@ -56,34 +57,52 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
 </head>
 
 <body>
-    <div class="container py-1">
-        <div class="row mb-1">
-            <div class="col-12 d-flex justify-content-between align-items-center">
-                <h5 class="text-muted m-0">
-                    <button type="button"
-                        class="btn btn-warning d-inline-flex align-items-center justify-content-center shadow-sm hover-lift"
-                        onclick="window.location.href='./Pagos/'"
-                        style="width: 42px; height: 42px;">
-                        <i class="fa-solid fa-wallet"></i>
-                    </button>
-                </h5>
-                <h5 class="text-muted m-0"><?php echo "$mes $current_year"; ?></h5>
+    <div class="container">
+        <div class="row align-items-center mt-3">
+            <div class="col-6">
+                <button type="button"
+                    class="btn btn-warning rounded-circle d-flex align-items-center justify-content-center shadow-sm hover-scale"
+                    onclick="window.location.href='./Pagos/'"
+                    style="width: 50px; height: 50px;">
+                    <i class="fa-solid fa-wallet fs-5"></i>
+                </button>
             </div>
-
+            <div class="col-6 text-end">
+                <h5 class="text-muted mb-0"><?php echo "$mes $current_year"; ?></h5>
+            </div>
         </div>
 
-        <!--INGRESOS VS EGRESOS -->
+
+        <!-- Selector de cantidad de meses -->
+        <div class="row mb-2">
+            <div class="ocultar">
+                <div class="col-12 col-md-8 mx-auto ">
+                    <div class="d-flex align-items-center justify-content-center ">
+                        <label for="mesesSelect" class="form-label me-3 mb-0 fw-bold">Mostrar últimos:</label>
+                        <select id="mesesSelect"
+                            class="form-select form-select-sm w-auto"
+                            onchange="cambiarCantidadMeses()">
+                            <option value="3" <?php echo ($cantidad_meses_balance == 3) ? 'selected' : ''; ?>>3 meses</option>
+                            <option value="6" <?php echo ($cantidad_meses_balance == 6) ? 'selected' : ''; ?>>6 meses</option>
+                            <option value="12" <?php echo ($cantidad_meses_balance == 12) ? 'selected' : ''; ?>>12 meses</option>
+                            <option value="24" <?php echo ($cantidad_meses_balance == 24) ? 'selected' : ''; ?>>24 meses</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico de Ingresos vs Egresos -->
         <div class="row mb-4">
             <div class="col-md-8 mx-auto">
                 <div class="card shadow-lg border-0 rounded-lg">
                     <div class="card-body p-4">
-                        <!-- Título principal con mejor espaciado y estilo -->
                         <h4 class="text-center mb-4 fw-bold">
                             Ingresos vs Egresos de los Últimos <?php echo "$cantidad_meses_balance"; ?> Meses
                         </h4>
 
-                        <!-- Contenedor del gráfico con altura fija -->
-                        <div id="grafico-ingresos-egresos" class="mb-4" style="height: 300px;"></div>
+                        <!-- Contenedor del gráfico -->
+                        <div id="grafico-ingresos-egresos" class="mb-0" style="height: 300px;"></div>
 
                         <?php
                         $datos_financieros = obtener_datos_ultimos_meses($conexion, $cantidad_meses_balance);
@@ -92,7 +111,6 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                         $total_ingresos = $ultimo_mes['ingresos'];
                         ?>
 
-                        <!-- Sección de balance con mejor diseño -->
                         <div class="text-center py-3 bg-light rounded-3 mb-4">
                             <h5 class="text-secondary mb-3">Balance del Mes Actual</h5>
                             <h2 class="display-6 mb-0">
@@ -138,6 +156,14 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                 </div>
             </div>
         </div>
+
+        <script>
+            function cambiarCantidadMeses() {
+                let meses = document.getElementById("mesesSelect").value;
+                window.location.href = window.location.pathname + "?cantidad_meses=" + meses;
+            }
+        </script>
+
 
         <!--CARTAS 50%, 30% , 20% -->
         <div class="row mb-4">
@@ -368,28 +394,28 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
 
         $pdo = new PDO("mysql:host=$host;dbname=$database", $user, $password);
 
-        $resultado1 = ejecutar_consulta($pdo, $where_gastos);
+        $resultado1 = ejecutar_consulta($pdo, $where_gastos, $cantidad_meses_balance);
         $total_categorias_gastos = $resultado1['categorias'];
         $suma_total_gastos = $resultado1['suma_total'];
 
-        $resultado2 = ejecutar_consulta($pdo, $where_ocio);
+        $resultado2 = ejecutar_consulta($pdo, $where_ocio, $cantidad_meses_balance);
         $total_categorias_ocio = $resultado2['categorias'];
         $suma_total_ocio = $resultado2['suma_total'];
 
-        $resultado3 = ejecutar_consulta($pdo, $where_ahorros);
+        $resultado3 = ejecutar_consulta($pdo, $where_ahorros, $cantidad_meses_balance);
 
         $total_categorias_ahorro = $resultado3['categorias'];
         $suma_total_ahorro = $resultado3['suma_total'];
 
         $fecha = "MONTH(g.Fecha) = $current_month AND YEAR(g.Fecha) = $current_year";
 
-        $resultado4 = ejecutar_consulta($pdo, "$fecha AND ($where_gastos)");
+        $resultado4 = ejecutar_consulta($pdo, "$fecha AND ($where_gastos)", $cantidad_meses_balance);
         $categorias_gastos = $resultado4['categorias'];
 
-        $resultado5 = ejecutar_consulta($pdo, "$fecha AND ($where_ocio)");
+        $resultado5 = ejecutar_consulta($pdo, "$fecha AND ($where_ocio)", $cantidad_meses_balance);
         $categorias_ocio = $resultado5['categorias'];
 
-        $resultado6 = ejecutar_consulta($pdo, "$fecha AND ($where_ahorros)");
+        $resultado6 = ejecutar_consulta($pdo, "$fecha AND ($where_ahorros)", $cantidad_meses_balance);
         $categorias_ahorro = $resultado6['categorias'];
 
         include('modal_ingresos.php');
@@ -588,7 +614,7 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
 
             <!-- Contenedor para el iframe -->
             <div id="iframe-container">
-                <iframe src="./grafico_por_modulo.php"></iframe>
+                <iframe src="./grafico_por_modulo.php?cantidad_meses=<?php echo $cantidad_meses_balance ?>"></iframe>
             </div>
         </div>
 
@@ -725,9 +751,9 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
     piechart('ahorro-restante', $categorias_ahorro, $colores_ahorros);
 
     //Graficos Lineal Historico
-    DatosHistoricos($where_gastos, $conexion, "gastos-historico", $colores_gastos);
-    DatosHistoricos($where_ocio, $conexion, "ocio-historico", $colores_ocios);
-    DatosHistoricos($where_ahorros, $conexion, "ahorro-historico", $colores_ahorros);
+    DatosHistoricos($where_gastos, $conexion, "gastos-historico", $colores_gastos, $cantidad_meses_balance);
+    DatosHistoricos($where_ocio, $conexion, "ocio-historico", $colores_ocios, $cantidad_meses_balance);
+    DatosHistoricos($where_ahorros, $conexion, "ahorro-historico", $colores_ahorros, $cantidad_meses_balance);
 
     //Graficos Pie Total
     bigchart('total-gastos', $total_categorias_gastos, $colores_gastos);
