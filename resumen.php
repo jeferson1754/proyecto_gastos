@@ -131,7 +131,7 @@ function obtenerGastosSemanales($conexion)
     $gastos_actual_invertidos = array_reverse($gastos_semanales_actual);
     $gastos_anterior_invertidos = array_reverse($gastos_semanales_anterior);
 
-/*
+    /*
     // Reacomodar los elementos según el formato deseado
     // Se extraen 2 semanas de cada grupo para formar el arreglo final
     $gastos_semanales_actual_final = array_merge(
@@ -647,17 +647,76 @@ $categorias_gastos_anual = obtenerCategoriasGastosAnuales($conexion);
             /* Color del "pulgar" */
             border-radius: 10px;
         }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .header-left {
+            text-align: start;
+        }
+
+        .header-right {
+            text-align: end;
+        }
+
+        .btn-custom {
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 20px;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #6c757d;
+            /* Color del texto inicial */
+            border: 2px solid #6c757d;
+            /* Borde inicial */
+            border-radius: 8px;
+            text-decoration: none;
+            background-color: transparent;
+            transition: all 0.3s ease-in-out;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-custom i {
+            font-size: 1.25rem;
+            margin-right: 8px;
+        }
+
+        .btn-custom:hover {
+            background-color: rgb(164, 164, 164);
+            /* Color de fondo al pasar el mouse */
+            color: white;
+            /* Color del texto en hover */
+            border-color: #6c757d;
+            transform: translateY(-2px);
+            /* Efecto de elevación */
+            box-shadow: 4px 4px 10px rgba(230, 236, 242, 0.2);
+        }
     </style>
 </head>
 
 <body class="gradient-bg min-h-screen p-6">
 
     <div class="max-w-7xl mx-auto">
-        <header class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-800">Control de Gastos</h1>
-            <p class="text-gray-600">Resumen Diario y Semanal</p>
-        </header>
 
+        <header class="row align-items-center mt-3">
+            <div class="col-6 text-start">
+                <h1 class="text-4xl font-bold text-gray-800">Control de Gastos</h1>
+                <p class="text-gray-600">Resumen Diario y Semanal</p>
+            </div>
+            <div class="col-6 text-end">
+                <a href="./resumen_finanzas.php" class="btn-custom">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-bar-graph" viewBox="0 0 16 16" style="margin-right:10px">
+                        <path fill-rule="evenodd" d="M0 0h1v15h15v1H0zm10 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V4.9l-3.613 4.417a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61L13.445 4H10.5a.5.5 0 0 1-.5-.5" />
+                    </svg>
+                    Dashboard Gastos
+                </a>
+            </div>
+        </header>
         <div class="grid md:grid-cols-2 gap-6 mb-8">
             <div class="card p-6">
                 <h2 class="text-xl font-semibold mb-4">Resumen Diario</h2>

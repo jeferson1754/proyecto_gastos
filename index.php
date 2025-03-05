@@ -93,7 +93,7 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
         </div>
 
         <!-- Gráfico de Ingresos vs Egresos -->
-        <div class="row mb-4">
+        <div class="row mb-3">
             <div class="col-md-8 mx-auto">
                 <div class="card shadow-lg border-0 rounded-lg">
                     <div class="card-body p-4">
