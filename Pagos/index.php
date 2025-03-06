@@ -255,9 +255,11 @@ $fecha_actual_formateada = date('d/m/Y');
                                     <?php endif; ?>
                                 </td>
                                 <td><?php
-                                    $color = ($pago['Estado'] == 'Pendiente' && $fecha_actual_formateada > $pago['Fecha_Formateada']) ? 'red' : 'black';
 
-                                    //echo "<span style='color: $color;'>{$pago['Fecha_Formateada']}</span>";
+                                    $fecha_actual = DateTime::createFromFormat('d/m/Y', $fecha_actual_formateada);
+                                    $fecha_pago = DateTime::createFromFormat('d/m/Y', $pago['Fecha_Formateada']);
+
+                                    $color = ($pago['Estado'] == 'Pendiente' && $fecha_actual > $fecha_pago) ? 'red' : 'black';
 
                                     echo "<span style='color: $color;'>{$pago['Fecha_Formateada']}</span>";
                                     ?></td>

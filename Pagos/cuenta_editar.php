@@ -38,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $estado_antiguo = $_POST['estado_antiguo'];
         $valor  = formatearMonto($_POST['valor']);
         $comprobante_url = $_POST['comprobante_url'];
+        $tiempo_pago = $_POST['tiempo_pago'];
 
         $fecha_pago_futuro = "0000-00-00 00:00:00";
 
@@ -54,32 +55,76 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 
         // Actualizar el pago
-        $stmt = $conexion->prepare("UPDATE pagos SET gasto_id = ?, quien_paga = ?, cuenta = ?, valor = ?, comprobante = ?, Fecha_Pago = ?, Fecha_Vencimiento = ?, Estado = ? WHERE ID = ?");
+        $stmt = $conexion->prepare("UPDATE pagos SET gasto_id = ?, quien_paga = ?, cuenta = ?, valor = ?, comprobante = ?, Fecha_Pago = ?, Fecha_Vencimiento = ?, Estado = ?, Vencimiento = ? WHERE ID = ?");
 
         if ($stmt === false) {
             die("Error al preparar la consulta de actualización: " . $conexion->error);
         }
 
-        $stmt->bind_param('isssssssi', $gasto_id, $quien_paga, $cuenta, $valor, $comprobante_url, $fecha, $fecha_vencimiento, $estado, $id);
+        $stmt->bind_param('issssssssi', $gasto_id, $quien_paga, $cuenta, $valor, $comprobante_url, $fecha, $fecha_vencimiento, $estado, $tiempo_pago, $id);
         $stmt->execute();
 
-        if ($estado != $estado_antiguo) {
-            // Obtener el siguiente mes
-            $fecha_siguiente_mes = date('Y-m-t', strtotime($fecha_vencimiento . ' +28 days'));
+        // Actualizar el pago
+        $stmt_vencimiento = $conexion->prepare("UPDATE pagos SET Vencimiento = ? WHERE Cuenta = ?");
 
+        if ($stmt_vencimiento === false) {
+            die("Error al preparar la consulta de actualización: " . $conexion->error);
+        }
+
+        $stmt_vencimiento->bind_param('si', $tiempo_pago, $cuenta);
+        $stmt_vencimiento->execute();
+
+
+
+        if ($estado != $estado_antiguo) {
+
+            // Obtener el siguiente mes
+            $mes_actual = date('m', strtotime($fecha_vencimiento));
+            $fecha_siguiente_mes = ($mes_actual == 2)
+                ? date('Y-m-d', strtotime($fecha_vencimiento . ' +28 days'))
+                : date('Y-m-d', strtotime($fecha_vencimiento . ' +1 month'));
 
             if ($cuenta == "Luz") {
                 $otra_cuenta = "Agua";
-            } else {
+            } else if ($cuenta == "Agua") {
                 $otra_cuenta = "Luz";
+            } else {
+                $otra_cuenta = $cuenta;
             }
 
-            // Insertar el registro de pago para el próximo mesz
-            $stmt_next = $pdo->prepare("INSERT INTO pagos (quien_paga, cuenta, estado, fecha_vencimiento, fecha_pago) 
-                                        VALUES (?, ?, ?, ?, ?)");
-            $stmt_next->execute([$quien_paga, $otra_cuenta, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro]);
+            if ($tiempo_pago == 0) {
+                // Insertar el registro de pago para el próximo mes
+                $stmt_next = $pdo->prepare("INSERT INTO pagos (quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt_next->execute([$quien_paga, $otra_cuenta, $valor, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago]);
 
-            $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se programó el pago para el siguiente mes."];
+                $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se programó el pago para el siguiente mes."];
+            } else if ($tiempo_pago > 1) {
+                // Ejecutar la consulta directamente y obtener el resultado
+                $query = "SELECT COUNT(*) AS total_cuentas FROM pagos WHERE Cuenta = ?";
+                $stmt_count = $conexion->prepare($query);
+                $stmt_count->bind_param("s", $cuenta); // 's' para string
+
+                // Ejecutar y obtener el total de cuentas en una sola línea
+                $stmt_count->execute();
+                $stmt_count->bind_result($total_cuentas);
+                $stmt_count->fetch();
+
+
+                echo $total_cuentas . "<br>";
+                if ($total_cuentas < $tiempo_pago) {
+
+                    $stmt_next = $pdo->prepare("INSERT INTO pagos (quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?)");
+                    $stmt_next->execute([$quien_paga, $otra_cuenta, $valor, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago]);
+
+                    $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se programó el pago para el siguiente mes."];
+                } else {
+                    $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se termino el ciclo de pago"];
+                }
+            } else {
+                $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente"];
+            }
         } else {
             $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente"];
         }
@@ -193,34 +238,42 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <option value="">Seleccione un gasto...</option>
                         <?php
                         // Ejecutar la consulta
-                        $stmt2 = $conexion->query("SELECT 
-        gastos.ID, 
-        detalle.Detalle, 
-        gastos.Valor, 
-        gastos.Fecha, 
-        categorias_gastos.Nombre AS Categoria
-    FROM 
-        gastos
-    INNER JOIN 
-        detalle ON gastos.ID_Detalle = detalle.ID
-    INNER JOIN 
-        categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID
-    WHERE 
-                            YEAR(gastos.Fecha) = YEAR(CURRENT_DATE()) AND 
-                            MONTH(gastos.Fecha) = MONTH(CURRENT_DATE()) AND
-                            categorias_gastos.Nombre = 'Cuentas'
-    ORDER BY gastos.Fecha DESC");
+                        $query = "SELECT 
+                gastos.ID, 
+                detalle.Detalle, 
+                gastos.Valor, 
+                gastos.Fecha, 
+                categorias_gastos.Nombre AS Categoria
+            FROM 
+                gastos
+            INNER JOIN 
+                detalle ON gastos.ID_Detalle = detalle.ID
+            INNER JOIN 
+                categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID
+            WHERE 
+                YEAR(gastos.Fecha) = YEAR(CURRENT_DATE()) AND 
+                MONTH(gastos.Fecha) = MONTH(CURRENT_DATE()) AND
+                categorias_gastos.Categoria_Padre = 23 AND 
+                categorias_gastos.Nombre NOT IN ('Comida','Familia', 'Compras')
+            ORDER BY gastos.Fecha DESC";
 
-                        // Usar mysqli_fetch_assoc para obtener los resultados
-                        while ($gasto = mysqli_fetch_assoc($stmt2)) {
-                            $valor_formateado = "$" . number_format($gasto['Valor'], 0, '', '.');
-                            $detalle_escapado = htmlspecialchars($gasto['Detalle'], ENT_QUOTES, 'UTF-8');
-                            $fecha_formateada = date('d/m/Y', strtotime($gasto['Fecha']));
-                            $selected = ($gasto['ID'] == $resultado['gasto_id']) ? 'selected' : '';
-                            echo "<option value='{$gasto['ID']}' {$selected}>{$fecha_formateada} - {$valor_formateado} - {$detalle_escapado}</option>";
+                        // Verificar si la consulta se ejecutó correctamente
+                        if ($stmt2 = $conexion->query($query)) {
+                            // Usar mysqli_fetch_assoc para obtener los resultados
+                            while ($gasto = $stmt2->fetch_assoc()) {
+                                $valor_formateado = "$" . number_format($gasto['Valor'], 0, '', '.');
+                                $detalle_escapado = htmlspecialchars($gasto['Detalle'], ENT_QUOTES, 'UTF-8');
+                                $fecha_formateada = date('d/m/Y', strtotime($gasto['Fecha']));
+                                $selected = ($gasto['ID'] == $resultado['gasto_id']) ? 'selected' : '';
+                                echo "<option value='{$gasto['ID']}' {$selected}>{$fecha_formateada} - {$valor_formateado} - {$detalle_escapado}</option>";
+                            }
+                        } else {
+                            // Si la consulta falla, mostrar un mensaje de error
+                            echo "Error en la consulta: " . $conexion->error;
                         }
                         ?>
                     </select>
+
 
                 </div>
 
@@ -305,17 +358,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <option value="">Seleccione un estado...</option>
                         <?php
                         // Ejecutar la consulta
-                        $stmt2 = $conexion->query("SELECT DISTINCT Estado FROM `pagos`;");
+                        $query = "SELECT DISTINCT Estado FROM `pagos`;";
 
-                        // Usar mysqli_fetch_assoc para obtener los resultados
-                        while ($estado = mysqli_fetch_assoc($stmt2)) {
-                            $selected = ($estado['Estado'] == $resultado['Estado']) ? 'selected' : '';
-                            echo "<option value='{$estado['Estado']}' {$selected}>{$estado['Estado']}</option>";
+                        // Verificar si la consulta se ejecutó correctamente
+                        if ($stmt3 = $conexion->query($query)) {
+                            // Usar mysqli_fetch_assoc para obtener los resultados
+                            while ($estado = $stmt3->fetch_assoc()) {
+                                $selected = ($estado['Estado'] == $resultado['Estado']) ? 'selected' : '';
+                                echo "<option value='{$estado['Estado']}' {$selected}>{$estado['Estado']}</option>";
+                            }
+                        } else {
+                            // Si la consulta falla, mostrar un mensaje de error
+                            echo "Error en la consulta: " . $conexion->error;
                         }
                         ?>
                     </select>
-                    <div class="invalid-feedback">Por favor ingrese un estado valido</div>
+                    <div class="invalid-feedback">Por favor ingrese un estado válido</div>
                 </div>
+
 
                 <div class="mb-4">
                     <label for="comprobante_url" class="form-label fw-bold">
@@ -329,6 +389,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         value="<?php echo htmlspecialchars($resultado['comprobante'], ENT_QUOTES, 'UTF-8'); ?>"
                         pattern="https?://.+">
                     <div class="invalid-feedback">Por favor ingrese un enlace válido que comience con http:// o https://</div>
+                </div>
+
+
+                <div class="mb-4">
+                    <label for="tiempo_pago" class="form-label fw-bold">
+                        <i class="fas fa-calendar-alt me-2"></i>Tiempo de Pago (en meses)
+                    </label>
+                    <input type="number"
+                        class="form-control"
+                        id="tiempo_pago"
+                        name="tiempo_pago"
+                        placeholder="Ingrese meses (0 = Indefinido)"
+                        min="0"
+                        step="1"
+                        value="<?php echo htmlspecialchars($resultado['Vencimiento'], ENT_QUOTES, 'UTF-8'); ?>"
+                        max="120"
+                        required>
+                    <div class="form-text">Ingrese el número de meses. Use "0" para indicar un pago indefinido.</div>
+                    <div class="invalid-feedback">Ingrese un número válido de meses (0 o 120 meses).</div>
                 </div>
 
                 <div class="d-flex gap-2 justify-content-end mt-4">

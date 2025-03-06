@@ -10,38 +10,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $quien_paga = $_POST['quien_paga'];
         $cuenta = $_POST['cuenta'];
         $fecha = $_POST['fecha'];
+        $fecha_vencimiento = $_POST['fecha_vencimiento'];
         $valor = str_replace(['$', '.', ' '], '', $_POST['valor']); // Limpiamos el formato de moneda
         $comprobante_url = $_POST['comprobante_url'];
+        $tiempo_pago = $_POST['tiempo_pago'];
+
+        $fecha_pago_futuro = "0000-00-00 00:00:00";
 
         // Validaciones
-        if (empty($quien_paga) || empty($cuenta) || empty($valor) || empty($comprobante_url) || empty($fecha)) {
+        if (empty($quien_paga) || empty($cuenta) || empty($valor) || empty($fecha) || empty($fecha_vencimiento)) {
             throw new Exception("Todos los campos son obligatorios");
         }
 
-        if (!filter_var($comprobante_url, FILTER_VALIDATE_URL)) {
-            throw new Exception("El enlace del comprobante no es válido");
-        }
-
         // Registrar el pago
-        $stmt = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, comprobante, Fecha_Pago) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$gasto_id, $quien_paga, $cuenta, $valor, $comprobante_url, $fecha]);
+        $stmt = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, comprobante, Fecha_Pago, Fecha_Vencimiento, Vencimiento) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$gasto_id, $quien_paga, $cuenta, $valor, $comprobante_url, $fecha, $fecha_vencimiento, $tiempo_pago]);
 
-        // Obtener el siguiente mes
-        $fecha_siguiente_mes = date('Y-m-t', strtotime($fecha . ' +28 days'));
-
+        $mes_actual = date('m', strtotime($fecha));
+        $fecha_siguiente_mes = ($mes_actual == 2)
+            ? date('Y-m-d', strtotime($fecha . ' +28 days'))
+            : date('Y-m-d', strtotime($fecha . ' +1 month'));
 
         if ($cuenta == "Luz") {
             $otra_cuenta = "Agua";
-        } else {
+        } else if ($cuenta == "Agua") {
             $otra_cuenta = "Luz";
+        } else {
+            $otra_cuenta = $cuenta;
         }
 
-        // Insertar el registro de pago para el próximo mes
-        $stmt_next = $pdo->prepare("INSERT INTO pagos (quien_paga, cuenta, estado, fecha_pago) 
-                                        VALUES (?, ?, ?, ?)");
-        $stmt_next->execute([$quien_paga, $otra_cuenta, 'Pendiente', $fecha_siguiente_mes]);
+        if ($tiempo_pago == 0 || $tiempo_pago != 1) {
+            // Insertar el registro de pago para el próximo mes
+            $stmt_next = $pdo->prepare("INSERT INTO pagos (quien_paga, cuenta, valor, estado, fecha_vencimiento,Fecha_Pago, Vencimiento) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt_next->execute([$quien_paga, $otra_cuenta, $valor, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago]);
 
-        $mensaje = ["tipo" => "success", "texto" => "Pago registrado exitosamente y se programó el pago para el siguiente mes."];
+            $mensaje = ["tipo" => "success", "texto" => "Pago registrado exitosamente y se programó el pago para el siguiente mes."];
+        } else {
+            $mensaje = ["tipo" => "success", "texto" => "Pago registrado exitosamente"];
+        }
     } catch (Exception $e) {
         $mensaje = ["tipo" => "danger", "texto" => $e->getMessage()];
     }
@@ -149,8 +156,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID
                         WHERE 
                             YEAR(gastos.Fecha) = YEAR(CURRENT_DATE()) AND 
-                            MONTH(gastos.Fecha) = MONTH(CURRENT_DATE()) AND
-                            categorias_gastos.Nombre = 'Cuentas'
+                            MONTH(gastos.Fecha) = MONTH(CURRENT_DATE()) AND 
+                            categorias_gastos.Categoria_Padre = 23 AND 
+                            categorias_gastos.Nombre NOT IN ('Comida','Familia', 'Compras')
                         ORDER BY gastos.Fecha DESC");
 
                         while ($gasto = $stmt->fetch()) {
@@ -204,17 +212,34 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
 
 
-                <div class="mb-4">
-                    <label for="fecha" class="form-label fw-bold">
-                        <i class="fas fa-calendar me-2"></i>Fecha de Pago
-                    </label>
-                    <input type="datetime-local"
-                        class="form-control"
-                        id="fecha"
-                        name="fecha"
-                        value="<?php echo $fecha_actual_hora_actual ?>"
-                        required>
-                    <div class="invalid-feedback">Por favor ingrese una fecha válida</div>
+                <div class="row">
+
+                    <div class="col-md-6 mb-4">
+                        <label for="fecha" class="form-label fw-bold">
+                            <i class="fas fa-hourglass-half me-2"></i>Fecha de Vencimiento
+                        </label>
+                        <input type="date"
+                            class="form-control"
+                            id="fecha_vencimiento"
+                            name="fecha_vencimiento"
+                            value="<?php echo $fecha_actual_hora_actual ?>"
+                            required>
+                        <div class="invalid-feedback">Por favor ingrese una fecha válida</div>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <label for="fecha" class="form-label fw-bold">
+                            <i class="fas fa-calendar me-2"></i>Fecha de Pago
+                        </label>
+                        <input type="datetime-local"
+                            class="form-control"
+                            id="fecha"
+                            name="fecha"
+                            value="<?php echo date('Y-m-d\TH:i', strtotime($resultado['Fecha_Pago'])); ?>"
+                            required>
+                        <div class="invalid-feedback">Por favor ingrese una fecha válida</div>
+                    </div>
+
                 </div>
 
                 <div class="mb-4">
@@ -226,10 +251,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         id="comprobante_url"
                         name="comprobante_url"
                         placeholder="https://..."
-                        required
                         pattern="https?://.+">
                     <div class="invalid-feedback">Por favor ingrese un enlace válido que comience con http:// o https://</div>
                 </div>
+
+                <div class="mb-4">
+                    <label for="tiempo_pago" class="form-label fw-bold">
+                        <i class="fas fa-calendar-alt me-2"></i>Tiempo de Pago (en meses)
+                    </label>
+                    <input type="number"
+                        class="form-control"
+                        id="tiempo_pago"
+                        name="tiempo_pago"
+                        placeholder="Ingrese meses (0 = Indefinido)"
+                        min="0"
+                        step="1"
+                        max="120"
+                        required>
+                    <div class="form-text">Ingrese el número de meses. Use "0" para indicar un pago indefinido.</div>
+                    <div class="invalid-feedback">Ingrese un número válido de meses (0 o 120 meses).</div>
+                </div>
+
+
 
                 <div class="d-grid gap-2">
                     <button type="submit" class="btn btn-primary">
