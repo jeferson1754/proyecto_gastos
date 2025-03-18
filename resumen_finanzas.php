@@ -38,6 +38,7 @@ function obtener_dashboard($conexion, $meses)
         // Almacenar los resultados en el array $datos
         $datos[] = [
             'mes' => obtener_nombre_mes_espanol($mes),
+            'number_mes' => $anio . "-" . $mes,
             'anio' => $anio,
             'ingresos' => $total_ingresos,
             'egresos' => $total_egresos,
@@ -61,6 +62,81 @@ function obtener_dashboard($conexion, $meses)
 }
 
 $dashboard = obtener_dashboard($conexion, $meses);
+
+// Función para obtener los datos de la consulta SQL
+function obtenerDatos($conexion, $id_categoria, $fecha)
+{
+    // Preparar la consulta SQL con parámetros
+    $consulta = "
+        SELECT 
+            DATE_FORMAT(g.Fecha, '%Y-%m') AS Mes, 
+            g.Fecha AS Dia, 
+            g.Valor AS Monto, 
+            cg.Nombre AS Categoria, 
+            d.Detalle 
+        FROM 
+            (
+                SELECT 
+                    g.*, 
+                    ROW_NUMBER() OVER (PARTITION BY DATE_FORMAT(g.Fecha, '%Y-%m') ORDER BY g.Valor DESC) AS rn 
+                FROM 
+                    gastos g 
+                JOIN 
+                    categorias_gastos cg ON g.ID_Categoria_Gastos = cg.ID 
+                WHERE 
+                    cg.Categoria_Padre = ? 
+            ) AS g 
+        JOIN 
+            categorias_gastos cg ON g.ID_Categoria_Gastos = cg.ID 
+        JOIN 
+            detalle d ON g.ID_Detalle = d.ID 
+        WHERE 
+            g.rn = 1 
+            AND DATE_FORMAT(g.Fecha, '%Y-%m') = ?
+        ORDER BY 
+            Mes DESC
+        LIMIT 1;
+    ";
+
+    // Preparar la declaración SQL
+    if ($stmt = $conexion->prepare($consulta)) {
+        // Vincular los parámetros a la declaración
+        $stmt->bind_param('is', $id_categoria, $fecha);
+
+        // Ejecutar la consulta
+        if ($stmt->execute()) {
+            // Obtener el resultado
+            $resultado = $stmt->get_result();
+
+            // Verificar si hay resultados
+            if ($resultado->num_rows > 0) {
+                // Crear un array para almacenar los datos
+                $datos = array();
+
+                // Recorrer los resultados y almacenarlos en el array
+                while ($fila = $resultado->fetch_assoc()) {
+                    $datos[] = $fila;
+                }
+
+                // Devolver los datos
+                return $datos;
+            } else {
+                // Si no hay resultados, devolver un array vacío
+                return array();
+            }
+        } else {
+            // Error al ejecutar la consulta
+            return array('error' => 'Error en la ejecución de la consulta.');
+        }
+
+        // Cerrar la declaración
+        $stmt->close();
+    } else {
+        // Error al preparar la consulta
+        return array('error' => 'Error al preparar la consulta.');
+    }
+}
+
 
 function obtener_top_categorias($conexion, $meses)
 {
@@ -189,6 +265,20 @@ function obtener_gastos_menores($conexion, $meses)
     return $gastos_menores;
 }
 
+function formatMonth($number_mes)
+{
+    // Separamos el año y el mes usando explode
+    list($anio, $mes) = explode('-', $number_mes);
+
+    // Aseguramos que el mes tenga dos dígitos (agregamos un cero si es necesario)
+    $mes = str_pad($mes, 2, '0', STR_PAD_LEFT);
+
+    // Devolvemos el resultado con el formato adecuado
+    return $anio . '-' . $mes;
+}
+
+
+
 
 ?>
 
@@ -201,6 +291,7 @@ function obtener_gastos_menores($conexion, $meses)
     <title>Dashboard Financiero</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <style>
         :root {
             --primary-color: #3498db;
@@ -414,6 +505,35 @@ function obtener_gastos_menores($conexion, $meses)
             background: #e67e22;
             /* Color al pasar el cursor */
         }
+
+        .details-row {
+            background-color: #f8f9fa;
+        }
+
+        .details-content {
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .toggle-details {
+            transition: transform 0.3s ease;
+        }
+
+        .toggle-details:hover {
+            transform: scale(1.1);
+        }
     </style>
 </head>
 
@@ -466,6 +586,7 @@ function obtener_gastos_menores($conexion, $meses)
                             <th>Egresos</th>
                             <th>Diferencia</th>
                             <th>Tendencia</th>
+                            <th>Acciones</th> <!-- Nueva columna para el botón -->
                         </tr>
                     </thead>
                     <tbody>
@@ -475,11 +596,10 @@ function obtener_gastos_menores($conexion, $meses)
                         $totales_diferencia = 0;
 
                         foreach ($dashboard as $row):
-
                             $totales_ingresos += $row['ingresos'];
                             $totales_egresos += $row['egresos'];
                             $totales_diferencia += $row['diferencia'];
-
+                            $formatted_mes = formatMonth($row['number_mes']);
                         ?>
                             <tr>
                                 <td><?php echo $row['mes'] . ' ' . $row['anio']; ?></td>
@@ -505,8 +625,89 @@ function obtener_gastos_menores($conexion, $meses)
                                     <?php endif; ?>
                                     <?php echo number_format($row['diferencia_porcentaje'], 2) ?>%
                                 </td>
+                                <td>
+                                    <!-- Botón para expandir/colapsar -->
+                                    <button class="btn btn-sm btn-outline-primary toggle-details" data-target="details-<?php echo $row['mes'] . '-' . $row['anio']; ?>">
+                                        <i class="bi bi-chevron-down"></i>
+                                    </button>
+                                </td>
                             </tr>
+
+                            <!-- Fila de detalles oculta -->
+                            <tr id="details-<?php echo $row['mes'] . '-' . $row['anio']; ?>" class="details-row" style="display: none;">
+                                <td colspan="6">
+                                    <div class="details-content p-4 bg-light rounded shadow-sm">
+                                        <div class="row g-3">
+                                            <?php
+                                            // Definir los tipos de tarjetas con sus configuraciones
+                                            $tarjetas = [
+                                                [
+                                                    'funcion' => '23',
+                                                    'clase' => 'bg-warning',
+                                                    'icono' => 'fa-file-invoice-dollar',
+                                                    'titulo' => 'Mayor Gasto del Mes',
+                                                    'descripcion' => 'El gasto más significativo registrado'
+                                                ],
+                                                [
+                                                    'funcion' => '24',
+                                                    'clase' => 'bg-success',
+                                                    'icono' => 'fa-utensils',
+                                                    'titulo' => 'Mayor Ocio del Mes',
+                                                    'descripcion' => 'Tu actividad de ocio más costosa'
+                                                ],
+                                                [
+                                                    'funcion' => '2',
+                                                    'clase' => 'bg-info',
+                                                    'icono' => 'fa-piggy-bank',
+                                                    'titulo' => 'Mayor Ahorro del Mes',
+                                                    'descripcion' => 'Tu ahorro más destacado'
+                                                ]
+                                            ];
+
+                                            // Recorrer cada tipo de tarjeta y generar su contenido
+                                            foreach ($tarjetas as $tarjeta):
+                                                $datos = obtenerDatos($conexion, $tarjeta['funcion'], $formatted_mes);
+                                                foreach ($datos as $fila):
+                                            ?>
+                                                    <div class="col-md-4">
+                                                        <div class="card h-100 border-0 shadow-sm overflow-hidden">
+                                                            <div class="card-header <?php echo $tarjeta['clase']; ?> text-white py-3">
+                                                                <h5 class="card-title mb-0">
+                                                                    <i class="fas <?php echo $tarjeta['icono']; ?> me-2"></i>
+                                                                    <?php echo $tarjeta['titulo']; ?>
+                                                                </h5>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                <p class="text-muted small mb-2"><?php echo $tarjeta['descripcion']; ?></p>
+                                                                <h3 class="mb-3 text-dark">$<?php echo number_format($fila['Monto'], 0, '', '.'); ?></h3>
+                                                                <div class="d-flex align-items-center text-secondary">
+                                                                    <div class="me-3">
+                                                                        <i class="far fa-calendar-alt me-1"></i>
+                                                                        <span>Día: <?php echo date("d-m-Y h:i A", strtotime($fila['Dia']));  ?></span>
+                                                                    </div>
+                                                                    <div>
+                                                                        <i class="fas fa-tag me-1"></i>
+                                                                        <span><?php echo $fila['Categoria']; ?></span>
+                                                                    </div>
+                                                                </div>
+                                                                <p class="mt-3 mb-0 text-secondary small">
+                                                                    <i class="fas fa-info-circle me-1"></i>
+                                                                    <?php echo $fila['Detalle']; ?>
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                            <?php
+                                                endforeach;
+                                            endforeach;
+                                            ?>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+
                         <?php endforeach; ?>
+                        <!-- Fila de totales -->
                         <tr class="total-row">
                             <td><strong>Totales</strong></td>
                             <td class="text-success">
@@ -522,19 +723,12 @@ function obtener_gastos_menores($conexion, $meses)
                                 $<?php echo number_format($totales_diferencia, 0, '', '.'); ?>
                             </td>
                             <td class="<?php echo $totales_diferencia >= 0 ? 'text-success' : 'text-danger'; ?>">
-
-
-
                                 <?php
-
-                                // Si el total de egresos no es cero, calcula la diferencia porcentual
                                 if ($totales_egresos != 0) {
                                     $totales_diferencia_porcentaje = (($totales_ingresos - $totales_egresos) / $totales_egresos) * 100;
                                 } else {
-                                    // Si los egresos son cero, no se puede dividir entre cero, por lo que el porcentaje será cero.
                                     $totales_diferencia_porcentaje = $totales_ingresos > 0 ? 100 : 0;
                                 }
-
                                 $diferencia = $totales_ingresos - $totales_egresos;
                                 $totales_tendencia = $diferencia > 0 ? 1 : ($diferencia < 0 ? -1 : 0);
 
@@ -547,6 +741,7 @@ function obtener_gastos_menores($conexion, $meses)
                                 <?php endif; ?>
                                 <?php echo number_format($totales_diferencia_porcentaje, 2); ?>%
                             </td>
+                            <td></td> <!-- Celda vacía para alinear -->
                         </tr>
                     </tbody>
                 </table>
@@ -643,6 +838,29 @@ function obtener_gastos_menores($conexion, $meses)
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Seleccionar todos los botones de toggle
+            const toggleButtons = document.querySelectorAll(".toggle-details");
+
+            toggleButtons.forEach(button => {
+                button.addEventListener("click", function() {
+                    const targetId = this.getAttribute("data-target");
+                    const detailsRow = document.getElementById(targetId);
+
+                    // Alternar la visibilidad de la fila de detalles
+                    if (detailsRow.style.display === "none" || !detailsRow.style.display) {
+                        detailsRow.style.display = "table-row";
+                        this.innerHTML = '<i class="bi bi-chevron-up"></i>'; // Cambiar ícono
+                    } else {
+                        detailsRow.style.display = "none";
+                        this.innerHTML = '<i class="bi bi-chevron-down"></i>'; // Cambiar ícono
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 
 </html>
