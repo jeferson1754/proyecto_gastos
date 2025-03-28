@@ -11,18 +11,26 @@ function alerta($alertTitle, $alertText, $alertType, $redireccion)
 
     echo '
  <script>
-        Swal.fire({
-            title: "' . $alertTitle . '",
-            text: "' . $alertText . '",
-            html: "' . $alertText . '",
-            icon: "' . $alertType . '",
-            showCancelButton: false,
-            confirmButtonText: "OK",
-            closeOnConfirm: false
-        }).then(function() {
-          ' . $redireccion . '  ; // Redirigir a la página principal
-        });
-    </script>';
+    Swal.fire({
+        title: "' . $alertTitle . '",
+        text: "' . $alertText . '",
+        html: "' . $alertText . '",
+        icon: "' . $alertType . '",
+        showCancelButton: true,
+        confirmButtonText: "OK",
+        cancelButtonText: "Cancelar",
+        closeOnConfirm: false,
+        reverseButtons: true
+    }).then(function(result) {
+        if (result.isConfirmed) {
+            // Redirigir a la función deseada
+            ' . $redireccion . ';
+        } else if (result.dismiss === Swal.DismissReason.cancel) {
+            // Redirigir a otra página
+            window.location.href = "index.php"; // Cambia esta URL por la que desees
+        }
+    });
+</script>';
 }
 try {
     // Establecer la conexión a la base de datos
