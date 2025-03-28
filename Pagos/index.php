@@ -1,6 +1,14 @@
 <?php
 include('../bd.php');
 
+if (isset($_GET['pendientes'])) {
+    $where = "WHERE p.Estado ='Pendiente'";
+} else if (isset($_GET['mesactual'])) {
+    $where = "WHERE p.Estado ='Pendiente' AND MONTH(p.Fecha_Vencimiento) = MONTH(CURRENT_DATE) AND YEAR(p.Fecha_Vencimiento) = YEAR(CURRENT_DATE)";
+} else {
+    $where = "";
+}
+
 // Obtener los pagos del mes actual con mejor formato de fecha
 $stmt = $pdo->query("SELECT 
     p.*,
@@ -9,11 +17,14 @@ $stmt = $pdo->query("SELECT
     FROM pagos p 
     LEFT JOIN gastos g ON p.gasto_id = g.ID 
     LEFT JOIN detalle d ON g.ID_Detalle = d.ID 
+    $where
     ORDER BY p.Estado DESC, 
     p.Fecha_Vencimiento DESC 
     LIMIT 30");
 
 $fecha_actual_formateada = date('d/m/Y');
+
+
 ?>
 
 <!DOCTYPE html>
@@ -70,18 +81,17 @@ $fecha_actual_formateada = date('d/m/Y');
         }
 
         .header-buttons {
-            display: flex;
-            gap: 0.5rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
             width: 100%;
-            justify-content: space-between;
         }
 
         .btn-action {
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            white-space: nowrap;
-            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
         }
 
         /* Estilos para las tarjetas móviles */
@@ -200,6 +210,22 @@ $fecha_actual_formateada = date('d/m/Y');
                 padding: 0.3rem 0.8rem;
                 font-size: 0.75rem;
             }
+
+
+        }
+
+        @media (max-width: 576px) {
+            .header-buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-action {
+                width: 100%;
+            }
+        }
+
+        .btn-action i {
+            margin-right: 0.5rem;
         }
     </style>
 </head>
@@ -207,19 +233,31 @@ $fecha_actual_formateada = date('d/m/Y');
 <body>
     <div class="page-container">
         <div class="dashboard-card">
-            <div class="page-header">
-                <h1 class="page-title">
-                    <i class="fas fa-history me-2"></i>Cronología de Pagos
-                </h1>
-                <div class="header-buttons">
-                    <a href="../" class="btn btn-secondary btn-action">
-                        <i class="fas fa-arrow-left me-2"></i>Volver
-                    </a>
-                    <a href="./cuenta_pagada.php" class="btn btn-success btn-action">
-                        <i class="fas fa-plus me-2"></i>Agregar Pago
-                    </a>
+            <form method="GET">
+                <div class="page-header">
+                    <h1 class="page-title">
+                        <i class="fas fa-history me-2"></i>Cronología de Pagos
+                    </h1>
+
+                    <div class="header-buttons">
+
+                        <a href="../" class="btn btn-secondary btn-action">
+                            <i class="fas fa-arrow-left me-2"></i>Volver
+                        </a>
+                        <a href="./cuenta_pagada.php" class="btn btn-success btn-action">
+                            <i class="fas fa-plus me-2"></i>Agregar Pago
+                        </a>
+                        <button class="btn btn-warning btn-action" type="submit" name="pendientes">
+                            <i class="fas fa-exclamation-circle me-2"></i>Cuentas Pendientes
+                        </button>
+                        <button class="btn btn-danger btn-action" type="submit" name="mesactual">
+                            <i class="fas fa-calendar-times me-2"></i>Pendientes Este Mes
+                        </button>
+
+                    </div>
+
                 </div>
-            </div>
+            </form>
 
             <!-- Tabla para desktop -->
             <div class="table-responsive desktop-table">
