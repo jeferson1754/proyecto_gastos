@@ -65,13 +65,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt->execute();
 
         // Actualizar el pago
-        $stmt_vencimiento = $conexion->prepare("UPDATE pagos SET Vencimiento = ? WHERE Cuenta = ?");
+        $stmt_vencimiento = $conexion->prepare("UPDATE pagos SET Vencimiento = ? WHERE ID = ?");
 
         if ($stmt_vencimiento === false) {
             die("Error al preparar la consulta de actualización: " . $conexion->error);
         }
 
-        $stmt_vencimiento->bind_param('si', $tiempo_pago, $cuenta);
+        $stmt_vencimiento->bind_param('ii', $tiempo_pago, $id);
         $stmt_vencimiento->execute();
 
 
