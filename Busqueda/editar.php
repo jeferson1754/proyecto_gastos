@@ -401,7 +401,7 @@
     // Procesar actualización
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $nuevo_valor = formatearMonto($_POST['valor']);
-        $nueva_categoria = $_POST['categoria'];
+        $nueva_categoria = $_POST['sub_categoria'];
         $nueva_descripcion = $_POST['descripcion'];
         $nueva_fecha = $_POST['fecha'];
 
@@ -434,6 +434,7 @@
                         WHERE ID = :id";
 
             $stmtGasto = $pdo->prepare($sqlGasto);
+            
             $stmtGasto->execute([
                 ':nuevo_valor' => $nuevo_valor,
                 ':nueva_categoria' => $nueva_categoria,
@@ -441,6 +442,7 @@
                 ':nueva_fecha' => $nueva_fecha,
                 ':id' => $id
             ]);
+            // Confirmar transacción
 
             $pdo->commit();
             $mensaje = "¡Registro actualizado exitosamente! 🎉";
@@ -550,6 +552,9 @@
                                 <select name="sub_categoria" id="sub_categoria" class="form-select">
                                     <option value="">Selecciona una Categoría</option>
                                     <?php
+
+                                    $sub_categoria = htmlspecialchars($resultado['categoria'] ?? '');
+
                                     $tipos_clases = [
                                         2 => ["clase" => "info", "tipo" => "AHORRO", "icono" => "📈"],
                                         23 => ["clase" => "warning", "tipo" => "GASTOS", "icono" => "💰"],
@@ -567,13 +572,13 @@
                                     ?>
                                         <optgroup label="<?php echo $config['icono'] . ' ' . $config['tipo']; ?>">
                                             <?php foreach ($cats as $cat):
-                                                $valor = htmlspecialchars($cat['Nombre'], ENT_QUOTES);
-                                                $selected = (isset($sub_categoria) && $sub_categoria === $valor) ? 'selected' : '';
+                                                $valor = htmlspecialchars($cat['ID'], ENT_QUOTES);
+                                                $selected = (isset($sub_categoria) && $sub_categoria === $cat['Nombre']) ? 'selected' : '';
                                             ?>
-                                                <option value="<?php echo $valor; ?>"
+                                                <option value="<?php echo $valor ?>"
                                                     class="text-<?php echo $config['clase']; ?>"
                                                     <?php echo $selected; ?>>
-                                                    [<?php echo $config['tipo']; ?>] <?php echo $valor; ?>
+                                                    [<?php echo $config['tipo']; ?>] <?php echo $cat['Nombre']; ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         </optgroup>
