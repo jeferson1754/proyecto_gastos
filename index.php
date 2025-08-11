@@ -227,6 +227,13 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
             </div>
         </div>
 
+        <?php
+        $gastos_restante = $gastos - $total_gastos;
+        $ocio_restante = $ocio - $total_ocio;
+        $ahorros_restante = $ahorro - $total_ahorros;
+
+        ?>
+
         <!--DETALLES 50%, 30% , 20% -->
         <div class="row">
             <div class="col-md-4 mb-4">
@@ -374,9 +381,6 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
         </div>
 
         <?php
-        $gastos_restante = $gastos - $total_gastos;
-        $ocio_restante = $ocio - $total_ocio;
-        $ahorros_restante = $ahorro - $total_ahorros;
 
         // Calcular diferencias
         $anterior_gastos = $anterior_total_gastos - $total_gastos;

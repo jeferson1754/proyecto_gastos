@@ -41,9 +41,19 @@ try {
     $descripcion_nombre = $_POST['descripcionIngreso'] ?? '';
     $categoria_nombre = $_POST['categoriaIngreso'] ?? '';
     $categoria_padre = 2; // ID predeterminado de la categoría padre
+
     $valor = formatearMonto($_POST['monto']);
+    $monto = $_POST['monto'] ?? 0;
+    $presupuesto_restante = $_POST['presupuesto'] ?? '';
 
     $fecha = $_POST['fecha'] ?? date('Y-m-d');
+    $monto_formateado = formatearNumero($monto);
+    $presupuesto_formateado = formatearNumero($presupuesto_restante);
+
+    $resta = $valor - $presupuesto_restante;
+
+    $restante_presupuesto = formatearNumero($resta);
+
 
     // Validación de los campos obligatorios
     if (empty($descripcion_nombre) || empty($categoria_nombre) || empty($valor)) {
@@ -81,12 +91,11 @@ try {
         $stmt->execute([':nombre' => $descripcion_nombre]);
         $detalle_id = $pdo->lastInsertId();
     }
-
     // Insertar el ingreso en la tabla de gastos
     $stmt = $pdo->prepare("
         INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha)
         VALUES (:detalle_id, :categoria_id, :valor, :fecha)
-    ");
+        ");
     $stmt->execute([
         ':detalle_id' => $detalle_id,
         ':categoria_id' => $categoria_id,
@@ -99,6 +108,51 @@ try {
     // Confirmar la transacción
     $pdo->commit();
 
+
+    // 1. Verificar si ya se mostró la alerta este mes (mover lógica antes de cualquier die() o exit;)
+    if ($presupuesto_restante > $monto) {
+        $stmt = $pdo->prepare("SELECT COUNT(*) AS total FROM alertas_presupuesto WHERE seccion = :seccion AND mes_alerta = :mes AND anio_alerta = :anio");
+        $stmt->execute([
+            ':seccion' => $categoria_padre,
+            ':mes' => $current_month,
+            ':anio' => $current_year
+        ]);
+        $resultado1 = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($resultado1['total'] == 0) {
+            // 2. Si no hay registros, mostrar la alerta
+            $alertTitle = '¡Monto Excede!';
+            $alertText = "El monto $" . $monto_formateado . " excede el presupuesto de $" . $presupuesto_formateado . " por $" . $presupuesto_restante;
+            $alertType = 'warning';
+
+            echo '
+            <script>
+                Swal.fire({
+                    title: "' . $alertTitle . '",
+                    html: "' . $alertText . '",
+                    icon: "' . $alertType . '",
+                    confirmButtonText: "OK",
+                }).then(function(result) {
+                    if (result.isConfirmed) {
+                        window.location.href = "index.php"; 
+                    }
+                });
+            </script>';
+
+            // 3. Registrar la alerta en la base de datos para no mostrarla de nuevo este mes
+            $stmt_insert = $pdo->prepare("INSERT INTO alertas_presupuesto (seccion, mes_alerta, anio_alerta, ultima_alerta) VALUES (:seccion, :mes, :anio, NOW())");
+            $stmt_insert->execute([
+                ':seccion' => $categoria_padre,
+                ':mes' => $current_month,
+                ':anio' => $current_year
+            ]);
+            die();
+        } else {
+            // Si ya hay un registro, simplemente redirigir sin mostrar la alerta
+            header("Location: index.php");
+            exit;
+        }
+    }
 
     if ($categoria_nombre == "Prestamos" || $categoria_id == 17) {
 
@@ -130,7 +184,6 @@ try {
         $alertText = 'Se detecto un prestamo, desea agregarlo al modulo de deudas correspondiente?';
         $alertType = 'info';
         $redireccion = "window.location='agregar_deuda.php?id_deudor=" . urlencode($id_deudor) . "&monto=" . urlencode($valor) . "';";
-
 
         alerta($alertTitle, $alertText, $alertType, $redireccion);
         die();

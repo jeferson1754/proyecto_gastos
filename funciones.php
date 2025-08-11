@@ -713,6 +713,19 @@ function formatearMonto($monto)
 }
 
 
+function formatearNumero($numero, $decimales = 0, $sep_decimal = ',', $sep_miles = '.')
+{
 
+    // 1. Limpiar el valor de entrada.
+    // Elimina el signo de dólar y los puntos usados como separadores de miles,
+    // y reemplaza la coma por un punto para que sea un flotante válido en PHP.
+    $numero_limpio = str_replace(array('$', '.'), '', $numero);
+    $numero_limpio = str_replace(',', '.', $numero_limpio);
 
+    // 2. Convertir el valor a un tipo numérico (flotante)
+    $valor_numerico = (float)$numero_limpio;
+
+    // 3. Devolver el número formateado
+    return number_format($valor_numerico, $decimales, $sep_decimal, $sep_miles);
+}
 ?>

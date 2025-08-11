@@ -1,3 +1,8 @@
+<!--coment-->
+<header>
+    <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</header>
+
 <?php
 include('bd.php'); // Conexión a la base de datos
 
@@ -9,8 +14,18 @@ try {
     $descripcion_nombre = $_POST['descripcionIngreso'] ?? '';
     $categoria_nombre = $_POST['categoriaIngreso'] ?? '';
     $categoria_padre = 24; // ID predeterminado de la categoría padre
+
     $valor = formatearMonto($_POST['monto']);
+    $monto = $_POST['monto'] ?? 0;
+    $presupuesto_restante = $_POST['presupuesto'] ?? '';
+
     $fecha = $_POST['fecha'] ?? date('Y-m-d');
+    $monto_formateado = formatearNumero($monto);
+    $presupuesto_formateado = formatearNumero($presupuesto_restante);
+
+    $resta = $valor - $presupuesto_restante;
+
+    $restante_presupuesto = formatearNumero($resta);
 
     // Validar datos
     if (empty($descripcion_nombre) || empty($categoria_nombre) || empty($valor)) {
@@ -53,6 +68,51 @@ try {
         ':valor' => $valor,
         ':fecha' => $fecha
     ]);
+
+    if ($presupuesto_restante > $monto) {
+        $stmt = $pdo->prepare("SELECT COUNT(*) AS total FROM alertas_presupuesto WHERE seccion = :seccion AND mes_alerta = :mes AND anio_alerta = :anio");
+        $stmt->execute([
+            ':seccion' => $categoria_padre,
+            ':mes' => $current_month,
+            ':anio' => $current_year
+        ]);
+        $resultado1 = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($resultado1['total'] == 0) {
+            // 2. Si no hay registros, mostrar la alerta
+            $alertTitle = '¡Monto Excede!';
+            $alertText = "El monto $" . $monto_formateado . " excede el presupuesto de $" . $presupuesto_formateado . " por $" . $restante_presupuesto;
+            $alertType = 'warning';
+
+            echo '
+            <script>
+                Swal.fire({
+                    title: "' . $alertTitle . '",
+                    html: "' . $alertText . '",
+                    icon: "' . $alertType . '",
+                    confirmButtonText: "OK",
+                }).then(function(result) {
+                    if (result.isConfirmed) {
+                        window.location.href = "index.php"; 
+                    }
+                });
+            </script>';
+
+            // 3. Registrar la alerta en la base de datos para no mostrarla de nuevo este mes
+            $stmt_insert = $pdo->prepare("INSERT INTO alertas_presupuesto (seccion, mes_alerta, anio_alerta, ultima_alerta) VALUES (:seccion, :mes, :anio, NOW())");
+            $stmt_insert->execute([
+                ':seccion' => $categoria_padre,
+                ':mes' => $current_month,
+                ':anio' => $current_year
+            ]);
+            die();
+        } else {
+            // Si ya hay un registro, simplemente redirigir sin mostrar la alerta
+            header("Location: index.php");
+            exit;
+        }
+    }
+
 
     // Redireccionar
     header("Location: index.php");
