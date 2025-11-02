@@ -25,6 +25,76 @@ $stmt = $pdo->query("SELECT
 $fecha_actual_formateada = date('d/m/Y');
 
 
+$sql = "
+   SELECT 
+    p.Cuenta as categoria,
+    DATE_FORMAT(p.Fecha_Vencimiento,'%Y-%m') as mes,
+    p.Valor as total_categoria
+    FROM pagos p 
+    LEFT JOIN gastos g ON p.gasto_id = g.ID 
+    LEFT JOIN detalle d ON g.ID_Detalle = d.ID 
+    ORDER BY p.Estado DESC, 
+    p.Fecha_Vencimiento DESC 
+    LIMIT 50;";
+
+// Ejecutar la consulta
+$result = $conexion->query($sql);
+
+// Inicializar arrays para los datos
+$total_historico = [];
+$mes_historico = [];
+
+// Generar dinámicamente el array de mapeo de meses
+$meses_nombres = [];
+$meses = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre"
+];
+
+// Rango de años a considerar
+$año_inicio = 2024;
+$año_fin = date("Y");
+
+// Crear el array de mapeo dinámicamente
+for ($año = $año_inicio; $año <= $año_fin; $año++) {
+    foreach ($meses as $index => $nombre_mes) {
+        $mes_numero = str_pad($index + 1, 2, "0", STR_PAD_LEFT); // Formato MM
+        $meses_nombres["$año-$mes_numero"] = $nombre_mes;
+    }
+}
+
+// Procesar los resultados
+if ($result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $categorias_historico[] = $row['categoria'];
+        $mes_historico[] = $row['mes'];
+        $total_historico[$row['categoria']][$row['mes']] = $row['total_categoria'];
+    }
+}
+
+$mes_historico = array_unique($mes_historico);
+sort($mes_historico); // Ordenar los meses
+
+// Convertir meses a sus nombres
+$meses_con_nombres = [];
+foreach ($mes_historico as $mes) {
+    $meses_con_nombres[] = $meses_nombres[$mes] ?? $mes; // Usar el mes original si no está en el mapeo
+}
+
+// Convertir arrays a formato JSON para usarlos en JavaScript
+$meses_json = json_encode($mes_historico);
+$meses_nombre = json_encode($meses_con_nombres);
+$valores_json = json_encode($total_historico);
 ?>
 
 <!DOCTYPE html>
@@ -36,6 +106,8 @@ $fecha_actual_formateada = date('d/m/Y');
     <title>Cronología de Pagos</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- ECharts JS -->
+    <script src="https://fastly.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
     <style>
         :root {
             --primary-color: #4a90e2;
@@ -258,6 +330,9 @@ $fecha_actual_formateada = date('d/m/Y');
 
                 </div>
             </form>
+            <div id="chart-container" style="width: 100%; height: 400px; margin-bottom: 2rem;">
+
+            </div>
 
             <!-- Tabla para desktop -->
             <div class="table-responsive desktop-table">
@@ -371,8 +446,75 @@ $fecha_actual_formateada = date('d/m/Y');
         </div>
     </div>
 
+
+
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"></script>
+
+    <script>
+        (function() {
+            var dom = document.getElementById('chart-container');
+            var myChart = echarts.init(dom, null, {
+                renderer: 'canvas',
+                useDirtyRect: false
+            });
+
+            // Pasar variables PHP a JavaScript
+            const meses = <?php echo $meses_json; ?>;
+            const name = <?php echo $meses_nombre; ?>;
+            const valores = <?php echo $valores_json; ?>;
+
+            // Preparar datos para el gráfico
+            var series = Object.keys(valores).map(function(categoria) {
+                var data = meses.map(function(mes) {
+                    return valores[categoria][mes] || 0; // Añadir 0 si no hay datos
+                });
+                return {
+                    name: categoria,
+                    type: 'line',
+                    // Eliminar o establecer stack en null para que no se apilen
+                    stack: null,
+                    data: data
+                };
+            });
+
+
+            var option = {
+                tooltip: {
+                    trigger: 'axis'
+                },
+                legend: {
+                    top: '-1%'
+                },
+                grid: {
+                    left: '3%',
+                    right: '8%',
+                    bottom: '1%',
+                    containLabel: true
+                },
+                toolbox: {
+                    feature: {
+                        magicType: {
+                            show: true,
+                            type: ['line', 'bar']
+                        }
+                    }
+                },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: name
+                },
+                yAxis: {
+                    type: 'value'
+                },
+                series: series // Usar las series preparadas
+            };
+
+            myChart.setOption(option);
+            window.addEventListener('resize', myChart.resize);
+        })();
+    </script>
 </body>
 
 </html>
