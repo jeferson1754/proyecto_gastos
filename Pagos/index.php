@@ -24,18 +24,27 @@ $stmt = $pdo->query("SELECT
 
 $fecha_actual_formateada = date('d/m/Y');
 
+$cuentas = $conexion->query("SELECT COUNT(DISTINCT Cuenta) AS total FROM pagos");
+$limite = $cuentas->fetch_assoc()['total'] * 30;
+
+
 
 $sql = "
-   SELECT 
-    p.Cuenta as categoria,
-    DATE_FORMAT(p.Fecha_Vencimiento,'%Y-%m') as mes,
-    p.Valor as total_categoria
-    FROM pagos p 
-    LEFT JOIN gastos g ON p.gasto_id = g.ID 
-    LEFT JOIN detalle d ON g.ID_Detalle = d.ID 
-    ORDER BY p.Estado DESC, 
-    p.Fecha_Vencimiento DESC 
-    LIMIT 50;";
+SELECT 
+    p.Cuenta AS categoria,
+    DATE_FORMAT(p.Fecha_Vencimiento, '%Y-%m') AS mes,
+    SUM(p.Valor) AS total_categoria
+FROM pagos p
+LEFT JOIN gastos g ON p.gasto_id = g.ID
+LEFT JOIN detalle d ON g.ID_Detalle = d.ID
+GROUP BY 
+    p.Cuenta,
+    DATE_FORMAT(p.Fecha_Vencimiento, '%Y-%m')
+ORDER BY 
+    mes DESC,
+    categoria ASC
+LIMIT $limite;
+";
 
 // Ejecutar la consulta
 $result = $conexion->query($sql);
