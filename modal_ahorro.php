@@ -55,7 +55,7 @@
                                         data-monto="<?php echo htmlspecialchars($ahorros_recurrente['monto']); ?>"
                                         data-categoria="<?php echo htmlspecialchars($ahorros_recurrente['categoria']); ?>">
                                         <div>
-                                            <?php echo htmlspecialchars($ahorros_recurrente['descripcion']); ?> - $<?php echo htmlspecialchars($gasto_recurrente['monto']); ?> (<?php echo $gasto_recurrente['cantidad_repeticiones']; ?> veces)
+                                            <?php echo htmlspecialchars($ahorros_recurrente['descripcion']); ?> - $<?php echo htmlspecialchars($ahorros_recurrente['monto']); ?> (<?php echo $ahorros_recurrente['cantidad_repeticiones']; ?> veces)
                                         </div>
                                         <button type="button" class="btn btn-secondary btn-sm" onclick="rellenarFormulario_ahorro(this)">Seleccionar</button>
                                     </li>

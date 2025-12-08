@@ -79,7 +79,7 @@ try {
     // Confirmar la transacción
     $pdo->commit();
 
-    if ($presupuesto_restante > $monto) {
+    if ($presupuesto_restante < $monto) {
         $stmt = $pdo->prepare("SELECT COUNT(*) AS total FROM alertas_presupuesto WHERE seccion = :seccion AND mes_alerta = :mes AND anio_alerta = :anio");
         $stmt->execute([
             ':seccion' => $categoria_padre,
