@@ -145,6 +145,14 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
                                 <i class="fa-solid fa-magnifying-glass"></i>
                             </button>
 
+                            <button type="button"
+                                class="btn btn-info align-items-center px-4 py-2 shadow-sm hover-lift ocultar"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalAgenteFinanciero" style="color:white;">
+                                <i class="bi bi-robot me-2"></i>
+                                Agente Financiero
+                            </button>
+
                             <!-- Botón Dashboard -->
                             <a href="./resumen.php"
                                 class="btn btn-outline-secondary d-inline-flex align-items-center px-4 py-2 shadow-sm hover-lift">
@@ -429,6 +437,98 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
         include('modal_detalle_gastos.php');
         include('modal_detalle_ocio.php');
         include('modal_detalle_ahorro.php');
+
+        // --- INICIO: GENERACIÓN DEL PROMPT DE ANÁLISIS ---
+
+        // Función auxiliar para generar las filas de subcategorías
+        function generar_filas_subcategorias($titulo_general, $categorias_array, $suma_total_modulo)
+        {
+            $filas = "";
+
+            if (!empty($categorias_array) && $suma_total_modulo > 0) {
+                foreach ($categorias_array as $detalle) {
+
+                    $valor_detalle = floatval($detalle['total_categoria']);
+                    $descripcion = htmlspecialchars(str_replace("|", "¦", $detalle['categoria']));
+                    $porcentaje = ($valor_detalle / $suma_total_modulo) * 100;
+
+                    $filas .= "| $titulo_general | $descripcion | $valor_detalle | " . number_format($porcentaje, 2) . "% |\n";
+                }
+            } else {
+                $filas .= "| $titulo_general | — | 0 | 0.00% |\n";
+            }
+            return $filas;
+        }
+
+        // 1. Datos del Mes Actual
+        $gasto_total_mes_actual = $total_gastos + $total_ocio + $total_ahorros;
+
+        $seccion1 = "
+        ### 1. Datos Clave del Mes Actual
+
+        | Métrica | Valor |
+        |--------|--------|
+        | **Ingreso Total del Mes (A)** | $total_ingresos |
+        | **Gasto Total del Mes (B)** | $gasto_total_mes_actual |
+        | **Balance del Mes (A - B)** | $balance_mes_actual |
+        ";
+
+        // 2. Regla 50/30/20
+        $seccion2 = "
+        ### 2. Cumplimiento de la Regla 50/30/20
+
+        | Categoría | Objetivo | Gasto Real | Diferencia |
+        |-----------|----------|------------|------------|
+        | **Necesarios (50%)** | $gastos | $total_gastos | $gastos_restante |
+        | **Ocio (30%)** | $ocio | $total_ocio | $ocio_restante |
+        | **Ahorro/Inv. (20%)** | $ahorro | $total_ahorros | $ahorros_restante |
+        ";
+
+        // 3. Histórico Mensual
+        $filas_historico = "| Mes | Ingresos | Egresos | Balance |\n|-----|----------|---------|---------|\n";
+        foreach ($datos_financieros as $item) {
+            $balance = $item['ingresos'] - $item['egresos'];
+            $filas_historico .= "| {$item['mes']} | {$item['ingresos']} | {$item['egresos']} | $balance |\n";
+        }
+
+        $seccion3 = "
+        ### 3. Histórico Mensual ($cantidad_meses_balance meses)
+
+        $filas_historico
+        ";
+
+        // 4. Subcategorías
+        $filas_distribucion = "| Categoría General | Subcategoría | Total | % |\n|------------------|--------------|-------|-------|\n";
+
+        $filas_distribucion .= generar_filas_subcategorias("gastos", $categorias_gastos, $total_gastos);
+        $filas_distribucion .= generar_filas_subcategorias("ocio", $categorias_ocio, $total_ocio);
+        $filas_distribucion .= generar_filas_subcategorias("ahorros", $categorias_ahorro, $total_ahorros);
+
+        $seccion4 = "
+        ### 4. Distribución de Egresos por Subcategoría
+
+        $filas_distribucion
+        ";
+
+        // Prompt completo
+        $prompt_analisis = "
+        **Rol:** Asesor Financiero IA  
+        **Objetivo:** Analizar mis finanzas considerando el mes actual y tendencias históricas.  
+
+        Genera:  
+        1. Resumen ejecutivo  
+        2. Diagnóstico del cumplimiento 50/30/20  
+        3. Análisis de tendencias  
+        4. 3 recomendaciones accionables para mejorar mi salud financiera  
+
+        ### Datos:
+        $seccion1
+        $seccion2
+        $seccion3
+        $seccion4
+        ";
+
+        include('modal_agente.php');
 
         ?>
 
