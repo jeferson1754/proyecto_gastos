@@ -15,6 +15,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $comprobante_url = $_POST['comprobante_url'];
         $tiempo_pago = $_POST['tiempo_pago'];
 
+        $stmt = $pdo->prepare("
+            SELECT 
+                g.ID_Categoria_Gastos,
+                g.ID_Detalle,
+                c.Categoria_Padre AS modulo
+            FROM gastos g
+            INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
+            WHERE g.ID = :gasto_id
+        ");
+
+        $stmt->execute([':gasto_id' => $gasto_id]);
+        $info = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $categoria_id = (int)$info['ID_Categoria_Gastos'];
+        $detalle_id   = (int)$info['ID_Detalle'];
+        $modulo       = (int)$info['modulo'];
+
         $fecha_pago_futuro = "0000-00-00 00:00:00";
 
         // Validaciones
@@ -30,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $fecha_siguiente_mes = ($mes_actual == 2)
             ? date('Y-m-d', strtotime($fecha . ' +28 days'))
             : date('Y-m-d', strtotime($fecha . ' +1 month'));
-
+        /* Para alternar entre dos cuentas específicas
         if ($cuenta == "Luz") {
             $otra_cuenta = "Agua";
         } else if ($cuenta == "Agua") {
@@ -38,12 +55,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } else {
             $otra_cuenta = $cuenta;
         }
+            */
+
+        $otra_cuenta = $cuenta;
 
         if ($tiempo_pago == 0 || $tiempo_pago != 1) {
             // Insertar el registro de pago para el próximo mes
-            $stmt_next = $pdo->prepare("INSERT INTO pagos (quien_paga, cuenta, valor, estado, fecha_vencimiento,Fecha_Pago, Vencimiento) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt_next->execute([$quien_paga, $otra_cuenta, $valor, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago]);
+            $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt_next->execute([$gasto_id, $quien_paga, $otra_cuenta, $valor, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago]);
 
             $mensaje = ["tipo" => "success", "texto" => "Pago registrado exitosamente y se programó el pago para el siguiente mes."];
         } else {
@@ -139,36 +159,56 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <label for="gasto_id" class="form-label fw-bold">
                         <i class="fas fa-file-invoice-dollar me-2"></i>Gasto
                     </label>
-                    <select class="form-select" id="gasto_id" name="gasto_id">
-                        <option value="">Seleccione un gasto...</option>
-                        <?php
-                        $stmt = $pdo->query("SELECT 
-                            gastos.ID, 
-                            detalle.Detalle, 
-                            gastos.Valor, 
-                            gastos.Fecha, 
-                            categorias_gastos.Nombre AS Categoria
-                        FROM 
-                            gastos
-                        INNER JOIN 
-                            detalle ON gastos.ID_Detalle = detalle.ID
-                        INNER JOIN 
-                            categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID
-                        WHERE 
-                            YEAR(gastos.Fecha) = YEAR(CURRENT_DATE()) AND 
-                            MONTH(gastos.Fecha) = MONTH(CURRENT_DATE()) AND 
-                            categorias_gastos.Categoria_Padre = 23 AND 
-                            categorias_gastos.Nombre NOT IN ('Comida','Familia', 'Compras')
-                        ORDER BY gastos.Fecha DESC");
 
-                        while ($gasto = $stmt->fetch()) {
-                            $valor_formateado = "$" . number_format($gasto['Valor'], 0, '', '.');
-                            $detalle_escapado = htmlspecialchars($gasto['Detalle'], ENT_QUOTES, 'UTF-8');
-                            $fecha_formateada = date('d/m/Y', strtotime($gasto['Fecha']));
-                            echo "<option value='{$gasto['ID']}'>{$fecha_formateada} - {$valor_formateado} - {$detalle_escapado}</option>";
-                        }
-                        ?>
+
+                    <?php
+                    $sql = "SELECT 
+                            MIN(g.ID) AS ID,
+                            d.Detalle AS Descripcion,
+                            g.ID_Categoria_Gastos,
+                            c.Nombre AS categoria,
+                            c.Categoria_Padre AS tipo
+                        FROM gastos g
+                        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
+                        INNER JOIN detalle d ON g.ID_Detalle = d.ID
+                        WHERE YEAR(g.Fecha) = YEAR(CURRENT_DATE())
+                        AND c.Categoria_Padre != 2
+                        AND c.Nombre NOT IN ('Comida', 'Familiar', 'Compras','Laboral','Mascotas','Prestamos','Transporte')
+                        GROUP BY d.Detalle
+                        ORDER BY categoria ASC;
+                        ";
+
+                    $stmt = $pdo->query($sql);
+                    $datos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                    function nombreModulo($modulo)
+                    {
+                        return match ($modulo) {
+                            23 => 'Gasto',
+                            24 => 'Ocio',
+                            default => 'Otro'
+                        };
+                    }
+
+
+                    ?>
+
+
+                    <select name="detalle_categoria" id="detalle_categoria" class="form-select">
+                        <option value="">Seleccione un gasto</option>
+                        <?php foreach ($datos as $fila): ?>
+                            <option
+                                value="<?= $fila['ID']; ?>"
+                                data-categoria="<?= htmlspecialchars($fila['ID_Categoria_Gastos']); ?>"
+                                data-modulo="<?= htmlspecialchars($fila['tipo']); ?>">
+                                <?= htmlspecialchars($fila['Descripcion']); ?>
+                                - <?= htmlspecialchars($fila['categoria']); ?>
+                                / <?= nombreModulo((int)$fila['tipo']); ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
+
+
                 </div>
 
                 <div class="row">
@@ -340,6 +380,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     e.target.value = formatPesoChile(value);
                 }
             });
+        });
+
+
+        document.getElementById('descripcion').addEventListener('input', function() {
+            const value = this.value;
+            const options = document.querySelectorAll('#datalist_descripciones option');
+
+            for (const option of options) {
+                if (option.value === value) {
+                    console.log('Categoría:', option.dataset.categoria);
+                    console.log('Tipo:', option.dataset.tipo);
+
+                    // Ejemplo:
+                    // document.getElementById('categoria').value = option.dataset.categoria;
+                }
+            }
         });
     </script>
 </body>

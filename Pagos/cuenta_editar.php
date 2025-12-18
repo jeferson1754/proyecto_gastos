@@ -7,9 +7,10 @@ $id = $_GET['id'] ?? null;
 
 // Obtener los datos del pago si el ID está presente
 if ($id) {
-    $sql = "SELECT p.*
+    $sql = "SELECT p.*, d.Detalle AS descripcion_gasto
             FROM pagos p
             LEFT JOIN gastos g ON p.gasto_id = g.ID 
+            LEFT JOIN detalle d ON g.ID_Detalle = d.ID
             WHERE p.ID = ?";
 
     // Verifica que la consulta se haya preparado correctamente
@@ -42,9 +43,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         $fecha_pago_futuro = "0000-00-00 00:00:00";
 
+        $stmt = $pdo->prepare("
+            SELECT 
+                g.ID_Categoria_Gastos,
+                g.ID_Detalle,
+                c.Categoria_Padre AS modulo
+            FROM gastos g
+            INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
+            WHERE g.ID = :gasto_id
+        ");
+
+        $stmt->execute([':gasto_id' => $gasto_id]);
+        $info = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $categoria_id = (int)$info['ID_Categoria_Gastos'];
+        $detalle_id   = (int)$info['ID_Detalle'];
+        $modulo       = (int)$info['modulo'];
+
+
         // Validaciones
         if (empty($quien_paga) || empty($cuenta) || empty($valor) || empty($estado) || empty($fecha_vencimiento)) {
             throw new Exception("Todos los campos son obligatorios");
+        }
+
+        if (empty($gasto_id)) {
+            throw new Exception("Favor ingrese un gasto válido");
         }
 
         if (!empty($comprobante_url)) {
@@ -74,6 +97,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt_vencimiento->bind_param('ii', $tiempo_pago, $id);
         $stmt_vencimiento->execute();
 
+        if ($estado == 'Pagado' && $estado_antiguo != 'Pagado') {
+            // Insertar el ingreso en la tabla de gastos
+            $stmt = $pdo->prepare("
+                INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha)
+                VALUES (:detalle_id, :categoria_id, :valor, :fecha)
+            ");
+            $stmt->execute([
+                ':detalle_id' => $detalle_id,
+                ':categoria_id' => $categoria_id,
+                ':valor' => $valor,
+                ':fecha' => $fecha
+            ]);
+        }
+
 
 
         if ($estado != $estado_antiguo) {
@@ -84,19 +121,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 ? date('Y-m-d', strtotime($fecha_vencimiento . ' +28 days'))
                 : date('Y-m-d', strtotime($fecha_vencimiento . ' +1 month'));
 
-            if ($cuenta == "Luz") {
-                $otra_cuenta = "Agua";
-            } else if ($cuenta == "Agua") {
-                $otra_cuenta = "Luz";
-            } else {
-                $otra_cuenta = $cuenta;
-            }
+            /* Para alternar entre dos cuentas específicas
+        if ($cuenta == "Luz") {
+            $otra_cuenta = "Agua";
+        } else if ($cuenta == "Agua") {
+            $otra_cuenta = "Luz";
+        } else {
+            $otra_cuenta = $cuenta;
+        }
+            */
+
+            $otra_cuenta = $cuenta;
 
             if ($tiempo_pago == 0) {
                 // Insertar el registro de pago para el próximo mes
-                $stmt_next = $pdo->prepare("INSERT INTO pagos (quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)");
-                $stmt_next->execute([$quien_paga, $otra_cuenta, $valor, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago]);
+                $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt_next->execute([$gasto_id, $quien_paga, $otra_cuenta, $valor, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago]);
 
                 $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se programó el pago para el siguiente mes."];
             } else if ($tiempo_pago > 1) {
@@ -114,9 +155,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 echo $total_cuentas . "<br>";
                 if ($total_cuentas < $tiempo_pago) {
 
-                    $stmt_next = $pdo->prepare("INSERT INTO pagos (quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?)");
-                    $stmt_next->execute([$quien_paga, $otra_cuenta, $valor, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago]);
+                    $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt_next->execute([$gasto_id, $quien_paga, $otra_cuenta, $valor, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago]);
 
                     $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se programó el pago para el siguiente mes."];
                 } else {
@@ -234,45 +275,64 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <i class="fas fa-file-invoice-dollar me-2"></i>Gasto
                     </label>
 
-                    <select class="form-select" id="gasto_id" name="gasto_id">
-                        <option value="">Seleccione un gasto...</option>
-                        <?php
-                        // Ejecutar la consulta
-                        $query = "SELECT 
-                gastos.ID, 
-                detalle.Detalle, 
-                gastos.Valor, 
-                gastos.Fecha, 
-                categorias_gastos.Nombre AS Categoria
-            FROM 
-                gastos
-            INNER JOIN 
-                detalle ON gastos.ID_Detalle = detalle.ID
-            INNER JOIN 
-                categorias_gastos ON gastos.ID_Categoria_Gastos = categorias_gastos.ID
-            WHERE 
-                YEAR(gastos.Fecha) = YEAR(CURRENT_DATE()) AND 
-                MONTH(gastos.Fecha) = MONTH(CURRENT_DATE()) AND
-                categorias_gastos.Categoria_Padre = 23 AND 
-                categorias_gastos.Nombre NOT IN ('Comida','Familia', 'Compras')
-            ORDER BY gastos.Fecha DESC";
+                    <?php
+                    $sql = "SELECT 
+                            MIN(g.ID) AS ID,
+                            d.Detalle AS Descripcion,
+                            g.ID_Categoria_Gastos,
+                            c.Nombre AS categoria,
+                            c.Categoria_Padre AS tipo
+                        FROM gastos g
+                        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
+                        INNER JOIN detalle d ON g.ID_Detalle = d.ID
+                        WHERE YEAR(g.Fecha) = YEAR(CURRENT_DATE())
+                        AND c.Categoria_Padre != 2
+                        AND c.Nombre NOT IN ('Comida', 'Familiar', 'Compras','Laboral','Mascotas','Prestamos','Transporte')
+                        GROUP BY d.Detalle
+                        ORDER BY categoria ASC;
+                        ";
 
-                        // Verificar si la consulta se ejecutó correctamente
-                        if ($stmt2 = $conexion->query($query)) {
-                            // Usar mysqli_fetch_assoc para obtener los resultados
-                            while ($gasto = $stmt2->fetch_assoc()) {
-                                $valor_formateado = "$" . number_format($gasto['Valor'], 0, '', '.');
-                                $detalle_escapado = htmlspecialchars($gasto['Detalle'], ENT_QUOTES, 'UTF-8');
-                                $fecha_formateada = date('d/m/Y', strtotime($gasto['Fecha']));
-                                $selected = ($gasto['ID'] == $resultado['gasto_id']) ? 'selected' : '';
-                                echo "<option value='{$gasto['ID']}' {$selected}>{$fecha_formateada} - {$valor_formateado} - {$detalle_escapado}</option>";
-                            }
-                        } else {
-                            // Si la consulta falla, mostrar un mensaje de error
-                            echo "Error en la consulta: " . $conexion->error;
-                        }
-                        ?>
+                    $stmt = $pdo->query($sql);
+                    $datos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                    function nombreModulo($modulo)
+                    {
+                        return match ($modulo) {
+                            23 => 'Gasto',
+                            24 => 'Ocio',
+                            default => 'Otro'
+                        };
+                    }
+                    $gastoSeleccionado = isset($resultado['gasto_id']) && is_numeric($resultado['gasto_id'])
+                        ? (int)$resultado['gasto_id']
+                        : 0;
+
+
+                    ?>
+
+
+                    <select name="gasto_id" id="gasto_id" class="form-select">
+
+                        <option value="" <?= $gastoSeleccionado === 0 ? 'selected' : '' ?>>
+                            Seleccione un gasto
+                        </option>
+
+                        <?php foreach ($datos as $fila): ?>
+                            <option
+                                value="<?= (int)$fila['ID']; ?>"
+                                data-categoria="<?= htmlspecialchars($fila['ID_Categoria_Gastos']); ?>"
+                                data-modulo="<?= htmlspecialchars($fila['tipo']); ?>"
+                                <?= $gastoSeleccionado === (int)$fila['ID'] ? 'selected' : '' ?>>
+
+                                <?= htmlspecialchars($fila['Descripcion']); ?>
+                                - <?= htmlspecialchars($fila['categoria']); ?>
+                                / <?= nombreModulo((int)$fila['tipo']); ?>
+                            </option>
+                        <?php endforeach; ?>
+
                     </select>
+
+
 
 
                 </div>
