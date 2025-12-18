@@ -8,6 +8,9 @@ $cantidad_meses_balance = isset($_GET['cantidad_meses']) ? $_GET['cantidad_meses
 
 $minRepeticiones = 5;
 
+$fecha_inicio = date('Y-m-01');
+
+$fecha_fin = date('Y-m-t');
 
 // Crear un arreglo para manejar las categorías y sus where correspondientes
 $modulos = [
@@ -438,6 +441,72 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
         include('modal_detalle_ocio.php');
         include('modal_detalle_ahorro.php');
 
+
+        $stmt_pagos_futuros = $pdo->prepare("
+            SELECT 
+                p.ID,
+                p.Cuenta,
+                p.Valor,
+                DATE_FORMAT(p.Fecha_Vencimiento, '%d/%m/%Y') AS Fecha_Vencimiento
+            FROM pagos p
+            WHERE p.Estado = 'Pendiente'
+            AND p.Fecha_Vencimiento > :fin_mes
+            ORDER BY p.Fecha_Vencimiento ASC
+            LIMIT 10
+        ");
+
+        $stmt_pagos_futuros->execute([
+            ':fin_mes' => $fecha_fin
+        ]);
+
+
+
+
+        $stmt_pagos_mes_actual = $pdo->prepare("
+            SELECT 
+                p.ID,
+                p.Cuenta,
+                p.Valor,
+                DATE_FORMAT(p.Fecha_Vencimiento, '%d/%m/%Y') AS Fecha_Vencimiento
+            FROM pagos p
+            WHERE p.Estado = 'Pendiente'
+            AND p.Fecha_Vencimiento BETWEEN :inicio_mes AND :fin_mes
+            ORDER BY p.Fecha_Vencimiento ASC
+        ");
+
+        $stmt_pagos_mes_actual->execute([
+            ':inicio_mes' => $fecha_inicio,
+            ':fin_mes'    => $fecha_fin
+        ]);
+
+
+        function generarTablaPagosMarkdown(array $pagos, bool $mostrar_total = true): string
+        {
+            if (empty($pagos)) {
+                return "| Sin pagos pendientes |  |  |\n";
+            }
+
+            $tabla  = "";
+            $total  = 0;
+
+            foreach ($pagos as $pago) {
+                $concepto     = htmlspecialchars($pago['Cuenta']);
+                $monto        = number_format($pago['Valor'], 0, ',', '.');
+                $vencimiento  = $pago['Fecha_Vencimiento'];
+
+                $tabla .= "| {$concepto} | {$monto} | {$vencimiento} |\n";
+                $total += $pago['Valor'];
+            }
+
+            if ($mostrar_total) {
+                $total_formateado = number_format($total, 0, ',', '.');
+                $tabla .= "| **TOTAL** | **{$total_formateado}** |  |\n";
+            }
+
+            return $tabla;
+        }
+
+
         // --- INICIO: GENERACIÓN DEL PROMPT DE ANÁLISIS ---
 
         // Función auxiliar para generar las filas de subcategorías
@@ -459,6 +528,18 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
             }
             return $filas;
         }
+
+        $pagos_mes_actual = $stmt_pagos_mes_actual->fetchAll(PDO::FETCH_ASSOC);
+
+        $tabla_pagos_pendientes = generarTablaPagosMarkdown($pagos_mes_actual);
+
+        $pagos_futuros = $stmt_pagos_futuros->fetchAll(PDO::FETCH_ASSOC);
+
+        $tabla_pagos_pendientes_futuros = generarTablaPagosMarkdown(
+            $pagos_futuros,
+            false // no mostrar total
+        );
+
 
         // 1. Datos del Mes Actual
         $gasto_total_mes_actual = $total_gastos + $total_ocio + $total_ahorros;
@@ -512,21 +593,105 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
 
         // Prompt completo
         $prompt_analisis = "
-        **Rol:** Asesor Financiero IA  
-        **Objetivo:** Analizar mis finanzas considerando el mes actual y tendencias históricas.  
+        **Rol:** Agente Financiero Personal Inteligente  
 
-        Genera:  
-        1. Resumen ejecutivo  
-        2. Diagnóstico del cumplimiento 50/30/20  
-        3. Análisis de tendencias  
-        4. 3 recomendaciones accionables para mejorar mi salud financiera  
+        **Perfil del Agente:**  
+        Eres un asesor financiero especializado en control de gastos personales, análisis de ahorro, proyección financiera y toma de decisiones responsables.  
+        Tu enfoque es práctico, conservador y orientado a estabilidad financiera a largo plazo.
 
-        ### Datos:
+        **Objetivo Principal:**  
+        Analizar mis finanzas actuales e históricas para:
+        - Evaluar mi salud financiera real
+        - Detectar riesgos y oportunidades
+        - Apoyar decisiones financieras importantes (gastos grandes, ajustes de ahorro, reducción de deudas)
+        - Analizar mi balance mensual y evolución de ahorros en el tiempo
+        - Considerar pagos pendientes del mes actual como compromisos obligatorios
+        
+        ---
+
+       ## 📌 Instrucciones de Análisis
+
+        Debes:
+        1. Considerar **datos del mes actual + histórico**
+        2. Evaluar cumplimiento de la **regla 50/30/20**
+        3. Analizar tendencias (mejora, estancamiento o deterioro)
+        4. Evaluar capacidad de ahorro y **liquidez real**
+        5. Detectar meses en déficit o riesgo financiero
+        6. Considerar **pagos pendientes del mes** como compromisos obligatorios
+        7. Emitir recomendaciones claras, prudentes y accionables
+
+        **Definición de riesgo a corto plazo:**  
+        Incapacidad de cubrir gastos y pagos obligatorios del mes sin recurrir a endeudamiento.
+
+        **Criterio de decisión:**  
+        Para gastos importantes, adoptar siempre un enfoque conservador, priorizando estabilidad financiera.
+
+        ---
+
+        ## 📊 Datos Financieros
+
         $seccion1
         $seccion2
         $seccion3
         $seccion4
+
+
+        ### 5. Pagos Pendientes del Mes Actual (OBLIGATORIOS)
+        | Concepto | Monto | Vencimiento |
+        |----------|-------|-------------|
+        $tabla_pagos_pendientes
+
+        ### 6. Compromisos Financieros Próximos (INFORMATIVO)
+        | Concepto | Monto | Vencimiento |
+        |----------|-------|-------------|
+        $tabla_pagos_pendientes_futuros
+
+
+        ---
+
+        Considera SOLO los pagos del mes actual para el balance y toma de decisiones inmediatas.  
+        Usa los pagos futuros solo para análisis de riesgo y planificación.
+
+        ---
+
+        ## 📤 Salida Esperada (OBLIGATORIA)
+
+        ### 1️⃣ Resumen Ejecutivo
+        - Estado financiero general (estable / en riesgo / saludable)
+        - Balance del mes actual
+        - Nivel de ahorro real
+
+        ### 2️⃣ Diagnóstico Financiero
+        - Evaluación del cumplimiento 50/30/20
+        - Análisis del peso de gastos fijos y ocio
+        - Impacto de pagos pendientes del mes
+
+        ### 3️⃣ Análisis Histórico y Tendencias
+        - Evolución de ingresos, egresos y ahorro
+        - Identificación de patrones positivos o negativos
+        - Comparación del mes actual con el promedio histórico
+
+        ### 4️⃣ Evaluación para Decisiones Importantes
+        - ¿Estoy en posición de asumir un gasto importante?
+        - ¿Es recomendable aumentar ahorro o reducir gastos?
+        - ¿Existe riesgo financiero a corto plazo?
+
+        ### 5️⃣ Recomendaciones Accionables (máx. 3)
+        Cada recomendación debe:
+        - Ser concreta
+        - Tener impacto financiero real
+        - Indicar qué acción tomar y por qué
+
+        ### 6️⃣ Alertas (si existen)
+        - Déficit financiero
+        - Ahorro insuficiente
+        - Pagos pendientes que comprometen el balance
+
+        **Tono:** Claro, directo y responsable.  
+        **Evitar:** Teoría innecesaria o lenguaje genérico.
         ";
+
+
 
         include('modal_agente.php');
 
