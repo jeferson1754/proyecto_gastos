@@ -434,7 +434,7 @@ $mes_anterior = date('Y-m', strtotime('-1 month'));
                                     $icon = '⏳';
                                     $class = 'bg-warning text-dark';
                                     $texto = "Vence en $dias_restantes días";
-                                } elseif ($dias_restantes <= 7) {
+                                } elseif ($dias_restantes < 7) {
                                     $icon = '📆';
                                     $class = 'bg-warning-subtle text-dark';
                                     $texto = 'Próximo a vencer';
@@ -454,7 +454,7 @@ $mes_anterior = date('Y-m', strtotime('-1 month'));
                             if ($pago['Estado'] === 'Pendiente') {
                                 if ($dias_restantes < 0) $color_fecha = 'red';
                                 elseif ($dias_restantes <= 5) $color_fecha = 'orange';
-                                elseif ($dias_restantes <= 7) $color_fecha = 'goldenrod';
+                                elseif ($dias_restantes < 7) $color_fecha = 'goldenrod';
                                 else $color_fecha = 'green';
                             }
                         ?>
@@ -527,7 +527,7 @@ $mes_anterior = date('Y-m', strtotime('-1 month'));
                         $icon = '⏳';
                         $class = 'bg-warning text-dark';
                         $texto = 'Vence en ' . $dias_restantes . ' días';
-                    } elseif ($dias_restantes <= 7) {
+                    } elseif ($dias_restantes < 7) {
                         $icon = '📆';
                         $class = 'bg-warning-subtle text-dark';
                         $texto = 'Próximo a vencer';
@@ -600,7 +600,7 @@ $mes_anterior = date('Y-m', strtotime('-1 month'));
                                         $color = 'red';           // vencido o 1 día
                                     } elseif ($dias_restantes <= 5) {
                                         $color = 'orange';        // 2 a 5 días
-                                    } elseif ($dias_restantes <= 7) {
+                                    } elseif ($dias_restantes < 7) {
                                         $color = 'goldenrod';     // 6 a 7 días
                                     } else {
                                         $color = 'green';         // más de 7 días
