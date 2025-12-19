@@ -107,6 +107,10 @@ foreach ($mes_historico as $mes) {
 $meses_json = json_encode($mes_historico);
 $meses_nombre = json_encode($meses_con_nombres);
 $valores_json = json_encode($total_historico);
+
+$mes_anterior = date('Y-m', strtotime('-1 month'));
+
+
 ?>
 
 <!DOCTYPE html>
@@ -362,95 +366,139 @@ $valores_json = json_encode($total_historico);
                         </tr>
                     </thead>
                     <tbody>
-                        <?php while ($pago = $stmt->fetch()):
-                            $estadoClass = strtolower($pago['Estado']) == 'pagado' ? 'estado-pagado' : 'estado-pendiente';
-                            $fecha_actual = DateTime::createFromFormat('d/m/Y', $fecha_actual_formateada);
-                            $fecha_pago   = DateTime::createFromFormat('d/m/Y', $pago['Fecha_Formateada']);
-                            $dias_restantes = (int)$fecha_actual->diff($fecha_pago)->format('%r%a');
+                        <?php
+                        // 1. Convertimos la consulta en un array para manejarlo fácilmente
+                        $pagos_array = $stmt->fetchAll();
+
+                        // 2. Buscamos el último pago marcado como 'Pagado' para cada cuenta (Referencia de comparación)
+                        $valores_referencia = [];
+                        $referencia_query = $pdo->query("SELECT Cuenta, Valor FROM pagos WHERE Estado = 'Pagado' ORDER BY Fecha_Vencimiento DESC");
+                        while ($ref = $referencia_query->fetch()) {
+                            if (!isset($valores_referencia[$ref['Cuenta']])) {
+                                $valores_referencia[$ref['Cuenta']] = (float)$ref['Valor'];
+                            }
+                        }
+
+                        // 3. Variable para controlar que la flecha solo salga en la primera fila de cada cuenta
+                        $ya_mostrado = [];
+                        $fecha_hoy = new DateTime();
+
+                        // 4. Empezamos el recorrido de la tabla
+                        foreach ($pagos_array as $pago):
+                            $cuenta = $pago['Cuenta'];
+                            $valor_actual = (float)$pago['Valor'];
+                            $flechita = '';
+                            $flechita_class = '';
+
+                            // --- LÓGICA DE LA FLECHA ---
+                            if (!isset($ya_mostrado[$cuenta])) {
+                                if (isset($valores_referencia[$cuenta])) {
+                                    $valor_anterior = $valores_referencia[$cuenta];
+
+                                    if ($valor_actual > $valor_anterior) {
+                                        // Subió: Flecha hacia arriba, color rojo (alerta de gasto)
+                                        $flechita = '<i class="fas fa-arrow-up small"></i>';
+                                        $flechita_class = 'text-danger';
+                                        $texto_flechita = 'Aumentó respecto al mes anterior';
+                                    } elseif ($valor_actual < $valor_anterior) {
+                                        // Bajó: Flecha hacia abajo, color verde (ahorro)
+                                        $flechita = '<i class="fas fa-arrow-down small"></i>';
+                                        $flechita_class = 'text-success';
+                                        $texto_flechita = 'Disminuyó respecto al mes anterior';
+                                    } else {
+                                        // Se mantuvo igual: Guion sutil o nada
+                                        $flechita = '<i class="fas fa-minus small" style="font-size: 0.7rem;"></i>';
+                                        $flechita_class = 'text-muted';
+                                        $texto_flechita = 'Se mantuvo igual respecto al mes anterior';
+                                    }
+                                }
+                                $ya_mostrado[$cuenta] = true;
+                            }
+
+                            // --- LÓGICA DE DÍAS RESTANTES ---
+                            // Asumimos que Fecha_Formateada viene en formato d/m/Y (ej: 25/12/2023)
+                            $fecha_venc = DateTime::createFromFormat('d/m/Y', $pago['Fecha_Formateada']);
+                            $dias_restantes = (int)$fecha_hoy->diff($fecha_venc)->format('%r%a');
+
+                            // --- CONFIGURACIÓN DE BADGE DE ESTADO ---
+                            if ($pago['Estado'] === 'Pagado') {
+                                $icon = '✓';
+                                $class = 'bg-success';
+                                $texto = 'Pagado';
+                            } elseif ($pago['Estado'] === 'Pendiente') {
+                                if ($dias_restantes < 0) {
+                                    $icon = '🚨';
+                                    $class = 'bg-danger';
+                                    $texto = 'Vencido';
+                                } elseif ($dias_restantes <= 5) {
+                                    $icon = '⏳';
+                                    $class = 'bg-warning text-dark';
+                                    $texto = "Vence en $dias_restantes días";
+                                } elseif ($dias_restantes <= 7) {
+                                    $icon = '📆';
+                                    $class = 'bg-warning-subtle text-dark';
+                                    $texto = 'Próximo a vencer';
+                                } else {
+                                    $icon = '📌';
+                                    $class = 'bg-success-subtle text-success';
+                                    $texto = 'Programado';
+                                }
+                            } else {
+                                $icon = '✕';
+                                $class = 'bg-secondary';
+                                $texto = $pago['Estado'];
+                            }
+
+                            // --- COLOR DE LA FECHA ---
+                            $color_fecha = 'black';
+                            if ($pago['Estado'] === 'Pendiente') {
+                                if ($dias_restantes < 0) $color_fecha = 'red';
+                                elseif ($dias_restantes <= 5) $color_fecha = 'orange';
+                                elseif ($dias_restantes <= 7) $color_fecha = 'goldenrod';
+                                else $color_fecha = 'green';
+                            }
                         ?>
                             <tr>
-                                <td><?php echo $pago['Cuenta']; ?></td>
-                                <td class="valor-cell">$<?php echo number_format($pago['Valor'], 0, '', '.'); ?></td>
-                                <td><?php echo $pago['quien_paga']; ?></td>
+                                <td><?= htmlspecialchars($pago['Cuenta']) ?></td>
+                                <td class="valor-cell" title="<?= $texto_flechita ?>">
+
+                                    <?php if ($flechita): ?>
+                                        <strong>$<?= number_format($pago['Valor'], 0, '', '.') ?></strong>
+                                        <span class="<?= $flechita_class ?> ms-1">
+                                            <?= $flechita ?>
+                                        </span>
+                                    <?php else: ?>
+                                        $<?= number_format($pago['Valor'], 0, '', '.') ?>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?= htmlspecialchars($pago['quien_paga']) ?></td>
                                 <td class="py-2">
-                                    <?php
-
-                                    // Configuración de estados
-                                    if ($pago['Estado'] === 'Pagado') {
-                                        $icon = '✓';
-                                        $class = 'bg-success';
-                                        $texto = 'Pagado';
-                                    } elseif ($pago['Estado'] === 'Pendiente') {
-                                        if ($dias_restantes < 1) {
-                                            $icon = '🚨';
-                                            $class = 'bg-danger';
-                                            $texto = 'Vencido';
-                                        } elseif ($dias_restantes <= 5) {
-                                            $icon = '⏳';
-                                            $class = 'bg-warning text-dark';
-                                            $texto = 'Vence en ' . $dias_restantes . ' días';
-                                        } elseif ($dias_restantes <= 7) {
-                                            $icon = '📆';
-                                            $class = 'bg-warning-subtle text-dark';
-                                            $texto = 'Próximo a vencer';
-                                        } else {
-                                            $icon = '📌';
-                                            $class = 'bg-success-subtle text-success';
-                                            $texto = 'Programado';
-                                        }
-                                    } else {
-                                        $icon = '✕';
-                                        $class = 'bg-secondary';
-                                        $texto = $pago['Estado'];
-                                    }
-                                    ?>
-
                                     <span class="badge <?= $class ?> px-3 py-2 rounded-pill">
                                         <?= $icon ?> <?= $texto ?>
                                     </span>
                                 </td>
                                 <td>
-                                    <?php if ($pago['comprobante'] == NULL): ?>
-                                        <span class="sin-comprobante">Sin Comprobante</span>
+                                    <?php if (empty($pago['comprobante'])): ?>
+                                        <span class="text-muted small">Sin Comprobante</span>
                                     <?php else: ?>
-                                        <a class="comprobante-link" href="<?php echo $pago['comprobante']; ?>" target="_blank">
-                                            <i class="fas fa-external-link-alt me-2"></i>Ver
+                                        <a class="btn btn-link btn-sm" href="<?= $pago['comprobante'] ?>" target="_blank">
+                                            <i class="fas fa-external-link-alt"></i> Ver
                                         </a>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php
-
-                                    $color = 'black';
-
-                                    if ($pago['Estado'] === 'Pendiente') {
-
-                                        if ($dias_restantes < 1) {
-                                            $color = 'red';           // vencido o 1 día
-                                        } elseif ($dias_restantes <= 5) {
-                                            $color = 'orange';        // 2 a 5 días
-                                        } elseif ($dias_restantes <= 7) {
-                                            $color = 'goldenrod';     // 6 a 7 días
-                                        } else {
-                                            $color = 'green';         // más de 7 días
-                                        }
-                                    }
-
-                                    echo "<span style='color:$color; font-weight:500;' title='Quedan $dias_restantes días'>{$pago['Fecha_Formateada']}</span>";
-                                    ?>
+                                    <span style="color: <?= $color_fecha ?>; font-weight: 500;" title="Quedan <?= $dias_restantes ?> días">
+                                        <?= $pago['Fecha_Formateada'] ?>
+                                    </span>
                                 </td>
-
+                                <td><?= $pago['Fecha_Pagado'] ?: '-' ?></td>
                                 <td>
-                                    <?php echo $pago['Fecha_Pagado']; ?>
-                                </td>
-
-                                <td>
-                                    <a href="./cuenta_editar.php?id=<?php echo $pago['ID']; ?>" id="<?php echo $pago['Cuenta']; ?>" class="<?php echo $pago['Estado']; ?> btn btn-warning btn-sm">
+                                    <a href="./cuenta_editar.php?id=<?= $pago['ID'] ?>" class="btn btn-warning btn-sm">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                 </td>
                             </tr>
-                        <?php endwhile; ?>
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
