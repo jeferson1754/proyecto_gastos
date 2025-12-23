@@ -417,9 +417,10 @@ $mes_anterior = date('Y-m', strtotime('-1 month'));
 
                             // --- LÓGICA DE DÍAS RESTANTES ---
                             // Asumimos que Fecha_Formateada viene en formato d/m/Y (ej: 25/12/2023)
-                            $fecha_venc = DateTime::createFromFormat('d/m/Y', $pago['Fecha_Formateada']);
-                            $dias_restantes = (int)$fecha_hoy->diff($fecha_venc)->format('%r%a');
-
+                            // 1. Creamos el objeto fecha
+                            $fecha_actual = DateTime::createFromFormat('d/m/Y', $fecha_actual_formateada);
+                            $fecha_pago   = DateTime::createFromFormat('d/m/Y', $pago['Fecha_Formateada']);
+                            $dias_restantes = (int)$fecha_actual->diff($fecha_pago)->format('%r%a');
                             // --- CONFIGURACIÓN DE BADGE DE ESTADO ---
                             if ($pago['Estado'] === 'Pagado') {
                                 $icon = '✓';
