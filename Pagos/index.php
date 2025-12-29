@@ -428,14 +428,20 @@ $mes_anterior = date('Y-m', strtotime('-1 month'));
                                 $texto = 'Pagado';
                             } elseif ($pago['Estado'] === 'Pendiente') {
                                 if ($dias_restantes < 0) {
+                                    // Ya pasó la fecha
                                     $icon = '🚨';
                                     $class = 'bg-danger';
                                     $texto = 'Vencido';
+                                } elseif ($dias_restantes === 0) {
+                                    // ES HOY: Cambiado a rojo y texto específico
+                                    $icon = '🔥';
+                                    $class = 'bg-danger';
+                                    $texto = 'Vence hoy';
                                 } elseif ($dias_restantes <= 5) {
                                     $icon = '⏳';
                                     $class = 'bg-warning text-dark';
                                     $texto = "Vence en $dias_restantes días";
-                                } elseif ($dias_restantes < 7) {
+                                } elseif ($dias_restantes <= 7) {
                                     $icon = '📆';
                                     $class = 'bg-warning-subtle text-dark';
                                     $texto = 'Próximo a vencer';
@@ -453,7 +459,7 @@ $mes_anterior = date('Y-m', strtotime('-1 month'));
                             // --- COLOR DE LA FECHA ---
                             $color_fecha = 'black';
                             if ($pago['Estado'] === 'Pendiente') {
-                                if ($dias_restantes < 0) $color_fecha = 'red';
+                                if ($dias_restantes < 0 || $dias_restantes == 0) $color_fecha = 'red';
                                 elseif ($dias_restantes <= 5) $color_fecha = 'orange';
                                 elseif ($dias_restantes < 7) $color_fecha = 'goldenrod';
                                 else $color_fecha = 'green';
@@ -520,15 +526,21 @@ $mes_anterior = date('Y-m', strtotime('-1 month'));
                     $class = 'bg-success';
                     $texto = 'Pagado';
                 } elseif ($pago['Estado'] === 'Pendiente') {
-                    if ($dias_restantes < 1) {
+                    if ($dias_restantes < 0) {
+                        // Ya pasó la fecha
                         $icon = '🚨';
                         $class = 'bg-danger';
                         $texto = 'Vencido';
+                    } elseif ($dias_restantes === 0) {
+                        // ES HOY: Cambiado a rojo y texto específico
+                        $icon = '🔥';
+                        $class = 'bg-danger';
+                        $texto = 'Vence hoy';
                     } elseif ($dias_restantes <= 5) {
                         $icon = '⏳';
                         $class = 'bg-warning text-dark';
-                        $texto = 'Vence en ' . $dias_restantes . ' días';
-                    } elseif ($dias_restantes < 7) {
+                        $texto = "Vence en $dias_restantes días";
+                    } elseif ($dias_restantes <= 7) {
                         $icon = '📆';
                         $class = 'bg-warning-subtle text-dark';
                         $texto = 'Próximo a vencer';
