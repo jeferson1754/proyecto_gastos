@@ -20,6 +20,9 @@ try {
     $monto = $_POST['monto'] ?? 0;
     $presupuesto_restante = $_POST['presupuesto'] ?? '';
 
+    // Si el checkbox no llega en el POST, asumimos que es 'externo'
+    $fuente_dinero = isset($_POST['fuente_dinero']) ? 'sistema' : 'externo';
+
     $fecha = $_POST['fecha'] ?? date('Y-m-d');
     $monto_formateado = formatearNumero($monto);
     $presupuesto_formateado = formatearNumero($presupuesto_restante);
@@ -66,14 +69,15 @@ try {
 
     // Insertar el ingreso en la tabla de gastos
     $stmt = $pdo->prepare("
-        INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha)
-        VALUES (:detalle_id, :categoria_id, :valor, :fecha)
+        INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha, Fuente_Dinero)
+        VALUES (:detalle_id, :categoria_id, :valor, :fecha, :fuente_dinero)
     ");
     $stmt->execute([
         ':detalle_id' => $detalle_id,
         ':categoria_id' => $categoria_id,
         ':valor' => $valor,
-        ':fecha' => $fecha
+        ':fecha' => $fecha,
+        ':fuente_dinero' => $fuente_dinero
     ]);
 
     // Confirmar la transacción

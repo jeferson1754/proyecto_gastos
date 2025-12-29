@@ -23,6 +23,8 @@ try {
     $monto_formateado = formatearNumero($monto);
     $presupuesto_formateado = formatearNumero($presupuesto_restante);
 
+    $fuente_dinero = isset($_POST['fuente_dinero']) ? 'sistema' : 'externo';
+
     $resta = $valor - $presupuesto_restante;
 
     $restante_presupuesto = formatearNumero($resta);
@@ -61,12 +63,17 @@ try {
     }
 
     // Insertar ingreso
-    $stmt = $pdo->prepare("INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha) VALUES (:detalle_id, :categoria_id, :valor, :fecha)");
+    // Insertar el ingreso en la tabla de gastos
+    $stmt = $pdo->prepare("
+        INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha, Fuente_Dinero)
+        VALUES (:detalle_id, :categoria_id, :valor, :fecha, :fuente_dinero)
+    ");
     $stmt->execute([
         ':detalle_id' => $detalle_id,
         ':categoria_id' => $categoria_id,
         ':valor' => $valor,
-        ':fecha' => $fecha
+        ':fecha' => $fecha,
+        ':fuente_dinero' => $fuente_dinero
     ]);
 
     if ($presupuesto_restante < $monto) {

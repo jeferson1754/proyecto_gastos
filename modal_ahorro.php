@@ -18,6 +18,9 @@
                                 <?php endforeach; ?>
                         </datalist>
                     </div>
+                    
+                    <?php include 'gasto_externo.php'; ?>
+
                     <div class="mb-3">
                         <label for="montoIngreso" class="form-label">Monto</label>
                         <input type="text" class="form-control valor_formateado" id="monto" name="monto" required>

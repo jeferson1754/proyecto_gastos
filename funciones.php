@@ -31,7 +31,7 @@ function obtener_datos_ultimos_meses($conexion, $meses)
                                     SUM(CASE WHEN categorias_gastos.Nombre != 'Ingresos' THEN gastos.Valor ELSE 0 END) AS total_egresos
                                 FROM gastos 
                                 INNER JOIN categorias_gastos ON categorias_gastos.ID = gastos.ID_Categoria_Gastos 
-                                WHERE MONTH(gastos.Fecha) = ? AND YEAR(gastos.Fecha) = ?
+                                WHERE MONTH(gastos.Fecha) = ? AND YEAR(gastos.Fecha) = ? AND Fuente_Dinero != 'Externo'
                             ");
 
     for ($i = $meses - 1; $i >= 0; $i--) {
