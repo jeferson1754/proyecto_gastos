@@ -22,9 +22,9 @@
                         }
 
                         .form-check-input:not(:checked) {
-                            background-color: #198754 !important;
+                            background-color: #6c757d !important;
                             /* Verde Externo */
-                            border-color: #198754 !important;
+                            border-color: #6c757d !important;
                             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='white'/%3e%3c/svg%3e") !important;
                         }
                     </style>
@@ -67,9 +67,9 @@
                                     ayuda.innerHTML = 'Este gasto será restado automáticamente de tu <strong>Balance Mensual</strong>.';
                                     boxAyuda.style.borderColor = '#0d6efd';
                                 } else {
-                                    label.innerHTML = '<i class="fas fa-wallet me-2 text-success"></i> Efectivo Externo';
+                                    label.innerHTML = '<i class="fas fa-wallet me-2 text-secondary"></i> Efectivo Externo';
                                     ayuda.innerHTML = 'Gasto <strong>Informativo</strong>: No afecta tus cuentas ni tu balance.';
-                                    boxAyuda.style.borderColor = '#198754';
+                                    boxAyuda.style.borderColor = '#6c757d';
                                 }
                             });
                         });
