@@ -287,9 +287,21 @@ $gasto_total_general = $total_gastos + $total_ocio + $total_ahorros;
                         <div class="detalles-container">
                             <ul class="list-group list-group-flush">
                                 <?php while ($detalle = mysqli_fetch_assoc($result_detalles_gastos)): ?>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <span><?= htmlspecialchars($detalle['Descripcion']) ?></span>
-                                        <span class="badge bg-warning rounded-pill">$<?= number_format($detalle['Valor'], 0, '', '.') ?></span>
+                                    <?php
+                                    // Validamos si es externo o sistema
+                                    $es_externo = (isset($detalle['fuente']) && $detalle['fuente'] === 'externo');
+                                    ?>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                        <div class="d-flex align-items-center">
+
+                                            <span class="text-truncate" style="max-width: 180px;">
+                                                <?= htmlspecialchars($detalle['Descripcion']) ?>
+                                            </span>
+                                        </div>
+
+                                        <span class="badge <?php echo $es_externo ? 'bg-secondary' : 'bg-warning'; ?> rounded-pill">
+                                            $<?= number_format($detalle['Valor'], 0, '', '.') ?>
+                                        </span>
                                     </li>
                                 <?php endwhile; ?>
                             </ul>
@@ -330,12 +342,25 @@ $gasto_total_general = $total_gastos + $total_ocio + $total_ahorros;
 
                             ?>
                         </div>
+
                         <div class="detalles-container ocio">
                             <ul class="list-group list-group-flush">
                                 <?php while ($detalle = mysqli_fetch_assoc($result_detalles_ocio)): ?>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <span><?= htmlspecialchars($detalle['Descripcion']) ?></span>
-                                        <span class="badge bg-success rounded-pill">$<?= number_format($detalle['Valor'], 0, '', '.') ?></span>
+                                    <?php
+                                    // Validamos si es externo o sistema
+                                    $es_externo = (isset($detalle['fuente']) && $detalle['fuente'] === 'externo');
+                                    ?>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                        <div class="d-flex align-items-center">
+
+                                            <span class="text-truncate" style="max-width: 180px;">
+                                                <?= htmlspecialchars($detalle['Descripcion']) ?>
+                                            </span>
+                                        </div>
+
+                                        <span class="badge <?php echo $es_externo ? 'bg-secondary' : 'bg-success'; ?> rounded-pill">
+                                            $<?= number_format($detalle['Valor'], 0, '', '.') ?>
+                                        </span>
                                     </li>
                                 <?php endwhile; ?>
                             </ul>
@@ -380,9 +405,21 @@ $gasto_total_general = $total_gastos + $total_ocio + $total_ahorros;
                         <div class="detalles-container ahorro">
                             <ul class="list-group list-group-flush ahorro">
                                 <?php while ($detalle = mysqli_fetch_assoc($result_detalles_ahorros)): ?>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <span><?= htmlspecialchars($detalle['Descripcion']) ?></span>
-                                        <span class="badge bg-info rounded-pill">$<?= number_format($detalle['Valor'], 0, '', '.') ?></span>
+                                    <?php
+                                    // Validamos si es externo o sistema
+                                    $es_externo = (isset($detalle['fuente']) && $detalle['fuente'] === 'externo');
+                                    ?>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                        <div class="d-flex align-items-center">
+
+                                            <span class="text-truncate" style="max-width: 180px;">
+                                                <?= htmlspecialchars($detalle['Descripcion']) ?>
+                                            </span>
+                                        </div>
+
+                                        <span class="badge <?php echo $es_externo ? 'bg-secondary' : 'bg-info'; ?> rounded-pill">
+                                            $<?= number_format($detalle['Valor'], 0, '', '.') ?>
+                                        </span>
                                     </li>
                                 <?php endwhile; ?>
                             </ul>
