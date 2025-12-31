@@ -28,18 +28,35 @@ foreach ($modulos as $nombre_categoria => $where_clause) {
 }
 
 // Acceder a los resultados de cada categoría
-$total_gastos = $resultados['Gastos']['total'];
+$total_gastos = $resultados['Gastos']['total_general'];
 $result_detalles_gastos = $resultados['Gastos']['detalles'];
-$anterior_total_gastos = $resultados['Gastos']['anterior_total'];
+$anterior_total_gastos = $resultados['Gastos']['anterior_sistema'];
 
-$total_ocio = $resultados['Ocio']['total'];
+$total_ocio = $resultados['Ocio']['total_general'];
 $result_detalles_ocio = $resultados['Ocio']['detalles'];
-$anterior_total_ocio = $resultados['Ocio']['anterior_total'];
+$anterior_total_ocio = $resultados['Ocio']['anterior_sistema'];
 
-$total_ahorros = $resultados['Ahorros']['total'];
+$total_ahorros = $resultados['Ahorros']['total_general'];
 $result_detalles_ahorros = $resultados['Ahorros']['detalles'];
-$anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
+$anterior_total_ahorros = $resultados['Ahorros']['anterior_sistema'];
 
+// --- ACCESO A RESULTADOS DE GASTOS ---
+$total_gastos_externo  = $resultados['Gastos']['total_externo']; // El informativo
+$total_gastos_real     = $resultados['Gastos']['total_sistema']; // La suma de ambos
+
+// --- ACCESO A RESULTADOS DE OCIO ---
+$total_ocio_externo    = $resultados['Ocio']['total_externo'];
+$total_ocio_real       = $resultados['Ocio']['total_sistema'];
+
+// --- ACCESO A RESULTADOS DE AHORROS ---
+$total_ahorros_externo = $resultados['Ahorros']['total_externo'];
+$total_ahorros_real    = $resultados['Ahorros']['total_sistema'];
+
+
+// --- TOTALES GLOBALES PARA EL PROMPT ---
+$total_sistema = $total_ahorros_real + $total_ocio_real + $total_ahorros_real;
+$total_externo = $total_gastos_externo + $total_ocio_externo + $total_ahorros_externo;
+$gasto_total_general = $total_gastos + $total_ocio + $total_ahorros;
 
 ?>
 <!DOCTYPE html>
@@ -544,15 +561,19 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
         // 1. Datos del Mes Actual
         $gasto_total_mes_actual = $total_gastos + $total_ocio + $total_ahorros;
 
+        // Modificación en el Prompt completo (Variables a insertar)
         $seccion1 = "
-        ### 1. Datos Clave del Mes Actual
+            ### 1. Datos Clave del Mes Actual
 
-        | Métrica | Valor |
-        |--------|--------|
-        | **Ingreso Total del Mes (A)** | $total_ingresos |
-        | **Gasto Total del Mes (B)** | $gasto_total_mes_actual |
-        | **Balance del Mes (A - B)** | $balance_mes_actual |
-        ";
+            | Métrica | Valor |
+            |--------|--------|
+            | **Ingreso Total del Mes (A)** | $total_ingresos |
+            | **Gasto del Sistema (B1 - Afecta liquidez)** | $total_sistema |
+            | **Gasto Externo (B2 - Informativo)** | $total_externo |
+            | **Gasto Total Real (B1 + B2)** | " . ($total_sistema + $total_externo) . " |
+            | **Balance de Liquidez (A - B1)** | $balance_mes_actual |
+            ";
+
 
         // 2. Regla 50/30/20
         $seccion2 = "
@@ -597,7 +618,7 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
 
         **Perfil del Agente:**  
         Eres un asesor financiero especializado en control de gastos personales, análisis de ahorro, proyección financiera y toma de decisiones responsables.  
-        Tu enfoque es práctico, conservador y orientado a estabilidad financiera a largo plazo.
+        Tu enfoque es práctico, conservador y orientado a estabilidad financiera a largo plazo.Tienes la capacidad de diferenciar entre gastos que afectan la liquidez de mis cuentas (Gastos de Sistema) y gastos realizados con fondos externos (Gastos Informativos), permitiéndote analizar mi nivel de consumo total sin distorsionar el saldo real de mis cuentas bancarias.
 
         **Objetivo Principal:**  
         Analizar mis finanzas actuales e históricas para:
@@ -619,6 +640,8 @@ $anterior_total_ahorros = $resultados['Ahorros']['anterior_total'];
         5. Detectar meses en déficit o riesgo financiero
         6. Considerar **pagos pendientes del mes** como compromisos obligatorios
         7. Emitir recomendaciones claras, prudentes y accionables
+        8. Diferenciación de Fondos: Debes identificar los gastos marcados como 'Externos'. Estos no deben restarse del balance de liquidez mensual, pero sí deben sumarse al calcular el cumplimiento de la regla 50/30/20, ya que representan un consumo real de recursos. 9. Análisis de Capacidad Real: Evalúa si el estilo de vida es sostenible basándote en el Ingreso Total vs. Gasto Total (incluyendo externo), pero emite alertas de riesgo solo basadas en el Balance del Sistema (liquidez).
+    
 
         **Definición de riesgo a corto plazo:**  
         Incapacidad de cubrir gastos y pagos obligatorios del mes sin recurrir a endeudamiento.

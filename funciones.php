@@ -61,14 +61,18 @@ function obtener_datos_ultimos_meses($conexion, $meses)
 //Funcion para sacar el total, los detalles y el total anterior de cada modulo
 function obtener_datos($conexion, $where, $current_month, $current_year, $previous_month, $previous_year)
 {
-    // SQL queries
-    $sql_total = "SELECT SUM(g.Valor) AS total
+    // SQL mejorado: Sumamos por separado sistema y externo en una sola pasada usando CASE
+    $sql_total = "SELECT 
+        SUM(CASE WHEN g.Fuente_Dinero != 'externo' OR g.Valor IS NULL THEN g.Valor ELSE 0 END) AS total_sistema,
+        SUM(CASE WHEN g.Fuente_Dinero = 'externo' THEN g.Valor ELSE 0 END) AS total_externo
     FROM gastos g
     INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
     WHERE (MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?)
     AND(" . $where . ")";
 
-    $sql_detalles = "SELECT d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha
+    // Detalles: Incluimos el Fuente_Dinero para que el prompt sepa el origen de cada fila
+    $sql_detalles = "SELECT d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha, 
+                    COALESCE(g.Fuente_Dinero, 'sistema') as fuente
     FROM gastos g
     INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
     INNER JOIN detalle d ON g.ID_Detalle = d.ID
@@ -76,37 +80,47 @@ function obtener_datos($conexion, $where, $current_month, $current_year, $previo
     AND(" . $where . ")
     ORDER BY g.Fecha DESC";
 
-    $sql_anterior = "SELECT SUM(g.Valor) AS total
+    // SQL Mes Anterior (también desglosado para comparar peras con peras)
+    $sql_anterior = "SELECT 
+        SUM(CASE WHEN g.Fuente_Dinero != 'externo' OR g.Valor IS NULL THEN g.Valor ELSE 0 END) AS total_sistema,
+        SUM(CASE WHEN g.Fuente_Dinero = 'externo' THEN g.Valor ELSE 0 END) AS total_externo
     FROM gastos g
     INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
     WHERE (MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?)
     AND(" . $where . ")";
 
-    // Consulta del total de gastos del mes actual
+    // Ejecución Total Mes Actual
     $stmt_total = mysqli_prepare($conexion, $sql_total);
     mysqli_stmt_bind_param($stmt_total, "ss", $current_month, $current_year);
     mysqli_stmt_execute($stmt_total);
-    $result_total = mysqli_stmt_get_result($stmt_total);
-    $total = mysqli_fetch_assoc($result_total)['total'] ?? 0;
+    $res_total = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_total));
 
-    // Consulta de los detalles de los gastos del mes actual
+    $total_sistema = $res_total['total_sistema'] ?? 0;
+    $total_externo = $res_total['total_externo'] ?? 0;
+
+    // Ejecución Detalles
     $stmt_detalles = mysqli_prepare($conexion, $sql_detalles);
     mysqli_stmt_bind_param($stmt_detalles, "ss", $current_month, $current_year);
     mysqli_stmt_execute($stmt_detalles);
     $result_detalles = mysqli_stmt_get_result($stmt_detalles);
 
-    // Consulta del total de gastos del mes anterior
+    // Ejecución Total Mes Anterior
     $stmt_anterior = mysqli_prepare($conexion, $sql_anterior);
     mysqli_stmt_bind_param($stmt_anterior, "ss", $previous_month, $previous_year);
     mysqli_stmt_execute($stmt_anterior);
-    $result_anterior = mysqli_stmt_get_result($stmt_anterior);
-    $anterior_total = mysqli_fetch_assoc($result_anterior)['total'] ?? 0;
+    $res_ant = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_anterior));
 
-    // Retornar los resultados en un array
+    $ant_sistema = $res_ant['total_sistema'] ?? 0;
+    $ant_externo = $res_ant['total_externo'] ?? 0;
+
+    // Retornar los resultados en un array estructurado
     return [
-        'total' => $total,
-        'detalles' => $result_detalles,
-        'anterior_total' => $anterior_total
+        'total_sistema'  => $total_sistema,
+        'total_externo'  => $total_externo,
+        'total_general'  => ($total_sistema + $total_externo),
+        'detalles'       => $result_detalles,
+        'anterior_sistema' => $ant_sistema,
+        'anterior_externo' => $ant_externo
     ];
 }
 
