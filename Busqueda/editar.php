@@ -368,6 +368,32 @@
                 transform: rotate(360deg);
             }
         }
+
+        /* Estilo para agrandar el switch */
+        .form-check-input-lg {
+            width: 3.5rem !important;
+            height: 1.75rem !important;
+            cursor: pointer;
+        }
+
+        .form-check-label-lg {
+            padding-top: 0.25rem;
+            margin-left: 0.75rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+
+        /* Colores dinámicos */
+        .switch-dinero:checked {
+            background-color: #0d6efd !important;
+            border-color: #0d6efd !important;
+        }
+
+        .switch-dinero:not(:checked) {
+            background-color: #6c757d !important;
+            border-color: #6c757d !important;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='white'/%3e%3c/svg%3e") !important;
+        }
     </style>
 </head>
 
@@ -382,7 +408,7 @@
     // Obtener datos del registro
     if ($id) {
         $sql = "SELECT g.ID, d.Detalle AS Descripcion, g.Valor, g.ID_Categoria_Gastos, 
-                       c.Nombre as categoria, g.Fecha, c.Categoria_Padre as tipo
+                       c.Nombre as categoria, g.Fecha, c.Categoria_Padre as tipo, g.Fuente_Dinero as metodo_pago
                 FROM gastos g
                 INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
                 INNER JOIN detalle d ON g.ID_Detalle = d.ID
@@ -404,6 +430,11 @@
         $nueva_categoria = $_POST['sub_categoria'];
         $nueva_descripcion = $_POST['descripcion'];
         $nueva_fecha = $_POST['fecha'];
+        // Si el switch está apagado, no se envía en el POST, por eso usamos isset
+        $fuente_dinero = isset($_POST['fuente_dinero']) ? 'sistema' : 'externo';
+
+        // Luego añade $fuente_dinero a tu consulta UPDATE de la tabla pagos o gastos
+        // Ejemplo: $stmt = $pdo->prepare("UPDATE pagos SET metodo_pago = ? WHERE gasto_id = ?");
 
         try {
             // Establecer la conexión a la base de datos
@@ -430,16 +461,18 @@
                         Valor = :nuevo_valor,
                         ID_Categoria_Gastos = :nueva_categoria,
                         ID_Detalle = :id_detalle,
-                        Fecha = :nueva_fecha
+                        Fecha = :nueva_fecha,
+                        fuente_dinero = :fuente_dinero
                         WHERE ID = :id";
 
             $stmtGasto = $pdo->prepare($sqlGasto);
-            
+
             $stmtGasto->execute([
                 ':nuevo_valor' => $nuevo_valor,
                 ':nueva_categoria' => $nueva_categoria,
                 ':id_detalle' => $id_detalle,
                 ':nueva_fecha' => $nueva_fecha,
+                ':fuente_dinero' => $fuente_dinero,
                 ':id' => $id
             ]);
             // Confirmar transacción
@@ -449,7 +482,7 @@
 
             // Recargar datos actualizados
             $stmt = $pdo->prepare("SELECT g.ID, d.Detalle AS Descripcion, g.Valor, g.ID_Categoria_Gastos, 
-                       c.Nombre as categoria, g.Fecha, c.Categoria_Padre as tipo
+                       c.Nombre as categoria, g.Fecha, c.Categoria_Padre as tipo, g.Fuente_Dinero as metodo_pago
                 FROM gastos g
                 INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
                 INNER JOIN detalle d ON g.ID_Detalle = d.ID
@@ -534,6 +567,19 @@
                                         required>
                                 </div>
                             </div>
+
+                            <div class="form-group">
+                                <label for="fecha" class="form-label">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    Fecha y Hora
+                                </label>
+                                <input type="datetime-local"
+                                    class="form-control"
+                                    id="fecha"
+                                    name="fecha"
+                                    value="<?php echo $resultado['Fecha'] ?? ''; ?>"
+                                    required>
+                            </div>
                         </div>
                     </div>
 
@@ -543,6 +589,62 @@
                                 <i class="fas fa-cogs"></i>
                                 Configuración
                             </div>
+
+                            <div class="form-section border-4 contenedor-fuente">
+                                <div class="section-title">
+                                    <i class="fas fa-exchange-alt"></i> Origen de los Fondos
+                                </div>
+
+                                <div class="form-check form-switch d-flex align-items-center">
+                                    <input class="form-check-input form-check-input-lg switch-dinero" type="checkbox" role="switch"
+                                        id="fuenteDineroSwitch" name="fuente_dinero" value="sistema"
+                                        <?php echo ($resultado['metodo_pago'] !== 'externo') ? 'checked' : ''; ?>>
+
+                                    <label class="form-check-label form-check-label-lg fw-semibold label-fuente" for="fuenteDineroSwitch">
+                                        <?php if ($resultado['metodo_pago'] !== 'externo'): ?>
+                                            <i class="fas fa-university me-2 text-primary"></i> Dinero del Sistema
+                                        <?php else: ?>
+                                            <i class="fas fa-wallet me-2 text-secondary"></i> Efectivo Externo
+                                        <?php endif; ?>
+                                    </label>
+                                </div>
+
+                                <div class="mt-3 p-2 rounded-2 bg-white border-start border-4 caja-ayuda"
+                                    style="border-color: <?php echo ($resultado['metodo_pago'] !== 'externo') ? '#0d6efd' : '#6c757d'; ?>;">
+                                    <small class="text-muted texto-ayuda">
+                                        <?php echo ($resultado['metodo_pago'] !== 'externo')
+                                            ? 'Este gasto será restado automáticamente de tu <strong>Balance Mensual</strong>.'
+                                            : 'Gasto <strong>Informativo</strong>: No afecta tus cuentas ni tu balance.'; ?>
+                                    </small>
+                                </div>
+                            </div>
+                            <script>
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    const switchDinero = document.getElementById('fuenteDineroSwitch');
+
+                                    if (switchDinero) {
+                                        switchDinero.addEventListener('change', function() {
+                                            // Buscamos los elementos dentro del contenedor para cambiarlos
+                                            const contenedor = this.closest('.contenedor-fuente');
+                                            const label = contenedor.querySelector('.label-fuente');
+                                            const ayuda = contenedor.querySelector('.texto-ayuda');
+                                            const boxAyuda = contenedor.querySelector('.caja-ayuda');
+
+                                            if (this.checked) {
+                                                // CAMBIO EN TIEMPO REAL A MODO SISTEMA
+                                                label.innerHTML = '<i class="fas fa-university me-2 text-primary"></i> Dinero del Sistema';
+                                                ayuda.innerHTML = 'Este gasto será restado automáticamente de tu <strong>Balance Mensual</strong>.';
+                                                boxAyuda.style.borderColor = '#0d6efd'; // Azul
+                                            } else {
+                                                // CAMBIO EN TIEMPO REAL A MODO EXTERNO
+                                                label.innerHTML = '<i class="fas fa-wallet me-2 text-secondary"></i> Efectivo Externo';
+                                                ayuda.innerHTML = 'Gasto <strong>Informativo</strong>: No afecta tus cuentas ni tu balance.';
+                                                boxAyuda.style.borderColor = '#6c757d'; // Gris
+                                            }
+                                        });
+                                    }
+                                });
+                            </script>
 
                             <div class="form-group">
                                 <label for="categoria" class="form-label">
@@ -586,18 +688,7 @@
                                 </select>
                             </div>
 
-                            <div class="form-group">
-                                <label for="fecha" class="form-label">
-                                    <i class="fas fa-calendar-alt"></i>
-                                    Fecha y Hora
-                                </label>
-                                <input type="datetime-local"
-                                    class="form-control"
-                                    id="fecha"
-                                    name="fecha"
-                                    value="<?php echo $resultado['Fecha'] ?? ''; ?>"
-                                    required>
-                            </div>
+
                         </div>
                     </div>
                 </div>
