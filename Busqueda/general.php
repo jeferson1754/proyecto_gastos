@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
     // Base de la consulta
-    $sql = "SELECT g.ID, d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha, c.Categoria_Padre as tipo
+    $sql = "SELECT g.ID, d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha, c.Categoria_Padre as tipo, g.fuente_dinero
             FROM gastos g
             INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
             INNER JOIN detalle d ON g.ID_Detalle = d.ID
@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $resultados = $stmt->get_result();
 } else {
     // Si no se realiza ninguna búsqueda, mostrar todo
-    $sql = "SELECT g.ID,d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha,c.Categoria_Padre as tipo
+    $sql = "SELECT g.ID,d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha,c.Categoria_Padre as tipo, g.fuente_dinero
     FROM gastos g
     INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
     INNER JOIN detalle d ON g.ID_Detalle = d.ID
@@ -464,6 +464,24 @@ $categorias = $conexion->query($sqlCategorias);
                 transform: rotate(360deg);
             }
         }
+
+        .fuente-externa-dot {
+            height: 10px;
+            width: 10px;
+            background-color: #6c757d;
+            /* Gris Slate recomendado */
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        .badge-externo {
+            background-color: #f8fafc;
+            color: #6c757d;
+            border: 1px solid #e2e8f0;
+            font-size: 0.65rem;
+            padding: 2px 6px;
+        }
     </style>
 </head>
 
@@ -604,26 +622,56 @@ $categorias = $conexion->query($sqlCategorias);
 
             <?php
             $total_registros = $resultados->num_rows;
-            $total_monto = 0;
+            $total_sistema = 0;  // Gasto real que afecta tus cuentas
+            $total_externo = 0;  // Gasto informativo (fuente externa)
             $temp_results = [];
 
-            // Calcular estadísticas
+            // Calcular estadísticas separadas
             while ($fila = $resultados->fetch_assoc()) {
                 $temp_results[] = $fila;
-                $total_monto += $fila['Valor'];
+
+                // Verificamos el método de pago (asegúrate de que el SQL traiga este campo)
+                if (isset($fila['fuente_dinero']) && $fila['fuente_dinero'] === 'externo') {
+                    $total_externo += $fila['Valor'];
+                } else {
+                    $total_sistema += $fila['Valor'];
+                }
             }
+            // El total general sigue siendo la suma de ambos para efectos de reporte
+            $total_monto_general = $total_sistema + $total_externo;
             ?>
 
-            <div class="table-stats">
-                <div class="stat-item">
-                    <i class="fas fa-list-ul"></i>
-                    <span class="stat-value"><?php echo $total_registros; ?></span>
-                    <span>registros encontrados</span>
+            <div class="table-stats d-flex justify-content-between align-items-center flex-wrap">
+                <div class="d-flex gap-4">
+                    <div class="stat-item">
+                        <i class="fas fa-list-ul text-secondary"></i>
+                        <span class="stat-value"><?php echo $total_registros; ?></span>
+                        <span class="text-muted">registros</span>
+                    </div>
+
+                    <div class="stat-item">
+                        <i class="fas fa-university text-primary"></i>
+                        <span>Sistema: </span>
+                        <span class="stat-value text-primary">
+                            <?php echo "$" . number_format($total_sistema, 0, '', '.'); ?>
+                        </span>
+                    </div>
+
+                    <?php if ($total_externo > 0): ?>
+                        <div class="stat-item">
+                            <i class="fas fa-wallet text-secondary"></i>
+                            <span>Externo: </span>
+                            <span class="stat-value text-secondary">
+                                <?php echo "$" . number_format($total_externo, 0, '', '.'); ?>
+                            </span>
+                        </div>
+                    <?php endif; ?>
                 </div>
-                <div class="stat-item">
-                    <i class="fas fa-calculator"></i>
-                    <span>Total: </span>
-                    <span class="stat-value"><?php echo "$" . number_format($total_monto, 0, '', '.'); ?></span>
+
+                <div class="stat-item ms-auto">
+                    <span class="stat-value text-secondary">
+                        Total General: <?php echo "$" . number_format($total_sistema + $total_externo, 0, '', '.'); ?>
+                    </span>
                 </div>
             </div>
 
@@ -654,6 +702,9 @@ $categorias = $conexion->query($sqlCategorias);
                                     24 => "ocio"
                                 ];
                                 $tipo_categoria = $tipos_clases[$fila['tipo']] ?? "gasto";
+
+                                // Nueva lógica para fuente de dinero
+                                $es_externo = (isset($fila['fuente_dinero']) && $fila['fuente_dinero'] === 'externo');
                             ?>
                                 <tr>
                                     <td class="description-cell">
@@ -675,7 +726,15 @@ $categorias = $conexion->query($sqlCategorias);
                                         </span>
                                     </td>
                                     <td class="value-cell">
-                                        <?php echo "$" . number_format($fila['Valor'], 0, '', '.'); ?>
+                                        <div class="d-flex flex-column">
+                                            <span><?php echo "$" . number_format($fila['Valor'], 0, '', '.'); ?></span>
+
+                                            <?php if ($es_externo): ?>
+                                                <span class="badge badge-externo w-fit-content">
+                                                    <span class="fuente-externa-dot"></span> EXTERNO
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                     <td class="date-cell">
                                         <i class="far fa-calendar-alt me-1"></i>
@@ -691,14 +750,34 @@ $categorias = $conexion->query($sqlCategorias);
                             <?php } ?>
 
                             <tr class="total-row">
-                                <td colspan="2" class="text-end">
-                                    <i class="fas fa-calculator me-2"></i>
-                                    <strong>Total General:</strong>
+                                <td colspan="2" class="text-end border-end">
+                                    <div class="d-flex flex-column align-items-end">
+                                        <small class="text-muted fw-normal">Resumen de Gastos:</small>
+                                        <span class="text-uppercase small fw-bold">Total General:</span>
+                                    </div>
                                 </td>
                                 <td class="total-amount">
-                                    <?php echo "$" . number_format($total_monto, 0, '', '.'); ?>
+                                    <div class="d-flex flex-column">
+                                        <span class="text-primary" title="Afecta Balance">
+                                            <i class="fas fa-university me-1" style="font-size: 0.8rem;"></i>
+                                            <?php echo "$" . number_format($total_sistema, 0, '', '.'); ?>
+                                        </span>
+
+                                        <?php if ($total_externo > 0): ?>
+                                            <span class="text-secondary small fw-normal" title="No afecta Balance">
+                                                <i class="fas fa-wallet me-1" style="font-size: 0.7rem;"></i>
+                                                <?php echo "$" . number_format($total_externo, 0, '', '.'); ?> (Ext)
+                                            </span>
+                                        <?php endif; ?>
+
+                                        <div class="border-top mt-1 pt-1" style="border-color: #dee2e6 !important;">
+                                            <span class="text-dark" style="font-size: 1.1rem;">
+                                                <?php echo "$" . number_format($total_monto_general, 0, '', '.'); ?>
+                                            </span>
+                                        </div>
+                                    </div>
                                 </td>
-                                <td colspan="2"></td>
+                                
                             </tr>
                         </tbody>
                     </table>
