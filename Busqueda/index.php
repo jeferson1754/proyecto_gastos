@@ -1,136 +1,263 @@
 <?php
 include('../bd.php');
 
-$categoria = isset($_GET['categoria']) ? $_GET['categoria'] : 'Gastos';
+// 1. Identificar el módulo actual
+$categoria_url = isset($_GET['categoria']) ? $_GET['categoria'] : 'Gastos';
 
-// Definir los parámetros según la categoría seleccionada
-switch ($categoria) {
+// Configuración por defecto según el módulo
+switch ($categoria_url) {
     case 'Ocio':
         $titulo = "Ocio";
-        $tipo = "success";
-        $nombre = "ocio";
+        $tipo_color = "success";
+        $id_padre_filtro = 24;
         break;
-
     case 'Ahorros':
         $titulo = "Ahorros";
-        $tipo = "info";
-        $nombre = "ahorro";
+        $tipo_color = "info";
+        $id_padre_filtro = 2;
         break;
-
     default:
         $titulo = "Gastos";
-        $tipo = "warning";
-        $nombre = "gastos";
+        $tipo_color = "warning";
+        $id_padre_filtro = 23;
         break;
 }
+
+// 2. Lógica de Búsqueda (Procesamiento de POST)
+$busqueda = $_POST['busqueda'] ?? '';
+$nombre = $_POST['nombre'] ?? '';
+$sub_categoria = $_POST['sub_categoria'] ?? '';
+$valorMin = $_POST['valorMin'] ?? '';
+$valorMax = $_POST['valorMax'] ?? '';
+$fechaInicio = $_POST['fechaInicio'] ?? '';
+$fechaFin = $_POST['fechaFin'] ?? '';
+
+// Limpiar valores monetarios para la consulta
+$valorMinNum = str_replace(['$', '.'], '', $valorMin);
+$valorMaxNum = str_replace(['$', '.'], '', $valorMax);
+
+// Base de la consulta: Filtramos por el Categoria_Padre del módulo actual
+$sql = "SELECT g.ID, d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha, 
+               c.Categoria_Padre as tipo, g.fuente_dinero
+        FROM gastos g
+        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
+        INNER JOIN detalle d ON g.ID_Detalle = d.ID
+        WHERE c.Categoria_Padre = ?";
+
+$params = [$id_padre_filtro];
+$types = 'i';
+
+// Filtros dinámicos
+if (!empty($busqueda)) {
+    $sql .= " AND (d.Detalle LIKE ? OR c.Nombre LIKE ?)";
+    $like = "%$busqueda%";
+    $params[] = $like;
+    $params[] = $like;
+    $types .= 'ss';
+}
+
+if (!empty($sub_categoria)) {
+    $sql .= " AND c.Nombre = ?";
+    $params[] = $sub_categoria;
+    $types .= 's';
+}
+
+if (!empty($nombre)) {
+    $sql .= " AND d.Detalle LIKE ?";
+    $params[] = "%$nombre%";
+    $types .= 's';
+}
+
+if (is_numeric($valorMinNum) && $valorMinNum > 0) {
+    $sql .= " AND g.Valor >= ?";
+    $params[] = (float)$valorMinNum;
+    $types .= 'd';
+}
+
+if (is_numeric($valorMaxNum) && $valorMaxNum > 0) {
+    $sql .= " AND g.Valor <= ?";
+    $params[] = (float)$valorMaxNum;
+    $types .= 'd';
+}
+
+if (!empty($fechaInicio)) {
+    $sql .= " AND g.Fecha >= ?";
+    $params[] = $fechaInicio;
+    $types .= 's';
+}
+
+if (!empty($fechaFin)) {
+    $sql .= " AND g.Fecha <= ?";
+    $params[] = $fechaFin;
+    $types .= 's';
+}
+
+$sql .= " ORDER BY g.Fecha DESC LIMIT 100";
+
+$stmt = $conexion->prepare($sql);
+$stmt->bind_param($types, ...$params);
+$stmt->execute();
+$resultados = $stmt->get_result();
+
+// Obtener categorías específicas del módulo para el select de filtros
+$sqlCat = "SELECT Nombre FROM categorias_gastos WHERE Categoria_Padre = ? ORDER BY Nombre";
+$stmtCat = $conexion->prepare($sqlCat);
+$stmtCat->bind_param('i', $id_padre_filtro);
+$stmtCat->execute();
+$resCategorias = $stmtCat->get_result();
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Búsqueda</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome para los íconos -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
-    <!-- jQuery completo -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <!-- Bootstrap JS -->
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <title>Buscador de <?= $titulo ?></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        #filtrosAvanzados {
-            display: none;
-            background-color: #f8f9fa;
-            border-radius: 5px;
-            padding: 20px;
-            margin-bottom: 20px;
+        :root {
+            --main-color: <?php echo ($tipo_color == 'success' ? '#198754' : ($tipo_color == 'info' ? '#0dcaf0' : '#ffc107')); ?>;
         }
 
-        .btn-filter {
-            margin-bottom: 20px;
+        .search-container {
+            background: #fff;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .category-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .category-ocio {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .category-ahorro {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .category-gasto {
+            background: #fff8e1;
+            color: #827717;
+        }
+
+        .badge-externo {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 0.7rem;
+        }
+
+        .fuente-externa-dot {
+            height: 8px;
+            width: 8px;
+            background-color: #6c757d;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px;
         }
     </style>
 </head>
 
-<body>
-    <div class="container mt-5">
-        <h2 class="mb-4">Búsqueda de <span class="text-<?php echo $tipo; ?>"><?php echo $titulo; ?></span></h2>
+<body class="bg-light py-5">
 
-        <form id="filtros">
-            <!-- Barra de búsqueda con ícono -->
-            <div class="row mb-4">
-                <div class="col-md-8 mb-3 mb-md-0">
-                    <div class="input-group">
-                        <input type="text" class="form-control" placeholder="Buscar..." id="buscar" name="query" aria-label="Buscar" aria-describedby="button-addon2">
-                        <div class="input-group-append">
-                            <button class="btn btn-outline-primary" type="button" id="button-addon2">
-                                <i class="fas fa-search"></i>
-                            </button>
+    <div class="container">
+        <div class="page-header mb-4">
+            <h2 class="fw-bold"><i class="fas fa-search me-2 text-<?= $tipo_color ?>"></i> Buscador de <?= $titulo ?></h2>
+        </div>
+
+        <div class="search-container mb-5">
+            <form method="POST">
+                <div class="row g-3">
+                    <div class="col-md-9">
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" name="busqueda" class="form-control border-start-0" placeholder="Buscar por descripción o categoría..." value="<?= htmlspecialchars($busqueda) ?>">
+                            <button type="submit" class="btn btn-<?= $tipo_color ?> px-4 text-white">Buscar</button>
                         </div>
                     </div>
+                    <div class="col-md-3">
+                        <button type="button" id="toggleFiltros" class="btn btn-outline-secondary btn-lg w-100">
+                            <i class="fas fa-filter me-2"></i>Filtros
+                        </button>
+                    </div>
                 </div>
-                <div class="col-md-4">
-                    <button type="button" class="btn btn-outline-secondary btn-block" id="toggleFiltros">
-                        <i class="fas fa-filter"></i> Filtros avanzados
-                    </button>
+
+                <div id="filtrosAvanzados" class="mt-4 p-4 border rounded-3 bg-white" style="display: none;">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Nombre/Detalle</label>
+                            <input type="text" name="nombre" class="form-control" value="<?= htmlspecialchars($nombre) ?>">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Categoría Específica</label>
+                            <select name="sub_categoria" class="form-select">
+                                <option value="">Todas</option>
+                                <?php while ($cat = $resCategorias->fetch_assoc()): ?>
+                                    <option value="<?= $cat['Nombre'] ?>" <?= ($sub_categoria == $cat['Nombre'] ? 'selected' : '') ?>>
+                                        <?= $cat['Nombre'] ?>
+                                    </option>
+                                <?php endwhile; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Desde ($)</label>
+                            <input type="text" name="valorMin" class="form-control valor_formateado" value="<?= htmlspecialchars($valorMin) ?>">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Hasta ($)</label>
+                            <input type="text" name="valorMax" class="form-control valor_formateado" value="<?= htmlspecialchars($valorMax) ?>">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Fecha Inicio</label>
+                            <input type="date" name="fechaInicio" class="form-control" value="<?= $fechaInicio ?>">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Fecha Fin</label>
+                            <input type="date" name="fechaFin" class="form-control" value="<?= $fechaFin ?>">
+                        </div>
+                    </div>
+                    <div class="text-end mt-3">
+                        <a href="index.php?categoria=<?= $categoria_url ?>" class="btn btn-light me-2">Limpiar</a>
+                        <button type="submit" class="btn btn-dark">Aplicar Filtros</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="table-responsive bg-white p-4 rounded-3 shadow-sm">
+            <?php
+            $total_sistema = 0;
+            $total_externo = 0;
+            $rows = [];
+            while ($f = $resultados->fetch_assoc()) {
+                $rows[] = $f;
+                if (($f['fuente_dinero'] ?? '') === 'externo') $total_externo += $f['Valor'];
+                else $total_sistema += $f['Valor'];
+            }
+            ?>
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="m-0">Resultados (<?= count($rows) ?>)</h4>
+                <div class="text-end">
+                    <div class="fw-bold text-primary">Sistema: $<?= number_format($total_sistema, 0, '', '.') ?></div>
+                    <?php if ($total_externo > 0): ?>
+                        <div class="small text-muted">Externo: $<?= number_format($total_externo, 0, '', '.') ?></div>
+                    <?php endif; ?>
                 </div>
             </div>
 
-
-
-            <!-- Filtros avanzados (inicialmente ocultos) -->
-            <div id="filtrosAvanzados">
-                <div class="form-row">
-                    <div class="form-group col-md-6">
-                        <label for="nombre">Nombre:</label>
-                        <input type="text" class="form-control" id="nombre" name="nombre">
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label for="categoria_gasto" class="form-label">Categoría del Gasto</label>
-                        <select class="form-control" id="sub_categoria" name="sub_categoria">
-                            <option value="">Todas las categorías</option>
-                            <?php foreach ($categorias[$nombre] as $categoria): ?>
-                                <option value="<?php echo htmlspecialchars($categoria['Nombre']); ?>">
-                                    <?php echo htmlspecialchars($categoria['Nombre']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group col-md-6">
-                        <label for="valorMin">Valor mínimo:</label>
-                        <input type="number" class="form-control" placeholder="$0" id="valorMin" name="valorMin">
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label for="valorMax">Valor máximo:</label>
-                        <input type="number" class="form-control" placeholder="$0" id="valorMax" name="valorMax">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group col-md-6">
-                        <label for="fechaInicio">Fecha inicio:</label>
-                        <input type="date" class="form-control" placeholder="dd-mm-aaaa" id="fechaInicio" name="fechaInicio">
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label for="fechaFin">Fecha fin:</label>
-                        <input type="date" class="form-control" placeholder="dd-mm-aaaa" id="fechaFin" name="fechaFin">
-                    </div>
-                </div>
-
-                <button type="submit" class="btn btn-primary mt-3">Aplicar filtros</button>
-                <button type="reset" class="btn btn-secondary mt-3 ml-2">Limpiar</button>
-            </div>
-
-
-        </form>
-
-        <h3 class="mt-5 mb-3">Resultados</h3>
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead class="table-<?php echo $tipo; ?>">
+            <table class="table align-middle">
+                <thead class="table-light">
                     <tr>
                         <th>Descripción</th>
                         <th>Categoría</th>
@@ -138,62 +265,52 @@ switch ($categoria) {
                         <th>Fecha</th>
                     </tr>
                 </thead>
-                <tbody id="resultados">
-                    <!-- Aquí se mostrarán los resultados -->
+                <tbody>
+                    <?php foreach ($rows as $fila):
+                        $clase_cat = ($fila['tipo'] == 24 ? 'ocio' : ($fila['tipo'] == 2 ? 'ahorro' : 'gasto'));
+                    ?>
+                        <tr>
+                            <td><strong><?= htmlspecialchars($fila['Descripcion']) ?></strong></td>
+                            <td><span class="category-badge category-<?= $clase_cat ?>"><?= htmlspecialchars($fila['categoria']) ?></span></td>
+                            <td>
+                                $<?= number_format($fila['Valor'], 0, '', '.') ?>
+                                <?php if (($fila['fuente_dinero'] ?? '') === 'externo'): ?>
+                                    <br><span class="badge badge-externo"><span class="fuente-externa-dot"></span>EXTERNO</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-muted"><?= date('d/m/Y', strtotime($fila['Fecha'])) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($rows)): ?>
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">No se encontraron registros</td>
+                        </tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
     </div>
 
     <script>
-        $(document).ready(function() {
-            // Función para cargar los resultados en la tabla
-            function cargarDatos() {
-                var formData = $('#filtros').serialize();
-                var categoria = '<?php echo $titulo; ?>';
+        // Toggle de filtros
+        document.getElementById('toggleFiltros').addEventListener('click', function() {
+            const f = document.getElementById('filtrosAvanzados');
+            f.style.display = f.style.display === 'none' ? 'block' : 'none';
+            this.innerHTML = f.style.display === 'none' ? '<i class="fas fa-filter me-2"></i>Filtros' : '<i class="fas fa-times me-2"></i>Cerrar';
+        });
 
-                // Añadir la categoría al objeto formData
-                formData += '&categoria=' + encodeURIComponent(categoria);
+        // Formato de moneda CLP
+        const formatCLP = (v) => {
+            v = v.replace(/\D/g, "");
+            return new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                maximumFractionDigits: 0
+            }).format(v);
+        }
 
-                $.ajax({
-                    url: 'buscar_gastos.php',
-                    type: 'POST',
-                    data: formData,
-                    success: function(response) {
-                        // Actualizar la tabla con los resultados
-                        $('#resultados').html(response);
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error:', error);
-                        // Mostrar un mensaje de error al usuario
-                        $('#resultados').html('<p class="text-danger">Error al cargar los datos. Por favor, intente de nuevo.</p>');
-                    }
-                });
-            }
-
-            // Asegurarse de que la categoría se actualice si cambia en el formulario
-            $('#categoria_gasto').on('change', function() {
-                categoria = $(this).val();
-            });
-
-            // Cargar todos los datos al cargar la página
-            cargarDatos();
-
-            // Mostrar/ocultar filtros avanzados
-            $('#toggleFiltros').click(function() {
-                $('#filtrosAvanzados').slideToggle();
-            });
-
-            // Filtrar al hacer clic en el botón "Aplicar filtros"
-            $('#filtros').on('submit', function(event) {
-                event.preventDefault(); // Evitar recarga de la página
-                cargarDatos(); // Enviar los datos del formulario
-            });
-
-            // Buscar mientras se escribe en el campo de búsqueda global
-            $('#buscar').on('input', function() {
-                cargarDatos(); // Enviar los datos del formulario
-            });
+        document.querySelectorAll('.valor_formateado').forEach(i => {
+            i.addEventListener('input', (e) => e.target.value = formatCLP(e.target.value));
         });
     </script>
 </body>
