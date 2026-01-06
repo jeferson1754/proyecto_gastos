@@ -98,6 +98,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt_vencimiento->execute();
 
         if ($estado == 'Pagado' && $estado_antiguo != 'Pagado') {
+
+            if (empty($categoria_id) || empty($detalle_id) || empty($modulo)) {
+                throw new Exception("No se pudo obtener la información del gasto asociado.");
+            }
             // Insertar el ingreso en la tabla de gastos
             $stmt = $pdo->prepare("
                 INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha)
@@ -285,7 +289,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         FROM gastos g
                         INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
                         INNER JOIN detalle d ON g.ID_Detalle = d.ID
-                        WHERE YEAR(g.Fecha) = YEAR(CURRENT_DATE())
                         AND c.Categoria_Padre != 2
                         AND c.Nombre NOT IN ('Comida', 'Familiar', 'Compras','Laboral','Mascotas','Prestamos','Transporte')
                         GROUP BY d.Detalle
