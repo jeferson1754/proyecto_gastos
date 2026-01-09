@@ -365,4 +365,5 @@
     margin-right: 8px;
 }
 .bg-sistema { background-color: #0d6efd; } /* Azul */
-.bg-externo { background-color: #6c757d; }  /* Gris */
+.bg-externo { background-color: #6c757d;
+border: none !important; }  /* Gris */

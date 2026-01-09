@@ -45,14 +45,11 @@
                                 <tr class="align-middle">
                                     <td class="ps-4">
                                         <div class="d-flex align-items-center">
-                                            <span class="dot-indicador <?= $es_externo ? 'bg-externo' : 'bg-sistema' ?> me-2"
-                                                style="height: 8px; width: 8px; border-radius: 50%; display: inline-block;"
-                                                title="<?= $es_externo ? 'Externo' : 'Sistema' ?>"></span>
                                             <span class="fw-medium"><?= htmlspecialchars($detalle['Descripcion']) ?></span>
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="category-badge category-gasto" style="font-size: 0.7rem;">
+                                        <span class="category-badge category-gasto <?= $es_externo ? 'bg-externo' : '' ?>" style="font-size: 0.7rem;">
                                             <i class="fas fa-file-invoice-dollar"></i>
                                             <?= htmlspecialchars($detalle['categoria']) ?>
                                         </span>
