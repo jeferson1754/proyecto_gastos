@@ -11,25 +11,6 @@ if (isset($_GET['id_deudor'])) {
 
 $valor = formatearMonto($_GET['monto']);
 
-function alerta($alertTitle, $alertText, $alertType, $redireccion)
-{
-
-    echo '
- <script>
-        Swal.fire({
-            title: "' . $alertTitle . '",
-            text: "' . $alertText . '",
-            html: "' . $alertText . '",
-            icon: "' . $alertType . '",
-            showCancelButton: false,
-            confirmButtonText: "OK",
-            closeOnConfirm: false
-        }).then(function() {
-          ' . $redireccion . '  ; // Redirigir a la página principal
-        });
-    </script>';
-}
-
 try {
     // Establecer la conexión a la base de datos con PDO
     $pdo = new PDO("mysql:host=$host;dbname=$database", $user, $password);

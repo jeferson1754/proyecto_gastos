@@ -742,4 +742,74 @@ function formatearNumero($numero, $decimales = 0, $sep_decimal = ',', $sep_miles
     // 3. Devolver el número formateado
     return number_format($valor_numerico, $decimales, $sep_decimal, $sep_miles);
 }
+
+function alerta2($alertTitle, $alertText, $alertType, $redireccion)
+{
+
+    echo '
+ <script>
+    Swal.fire({
+        title: "' . $alertTitle . '",
+        text: "' . $alertText . '",
+        html: "' . $alertText . '",
+        icon: "' . $alertType . '",
+        showCancelButton: true,
+        confirmButtonText: "OK",
+        cancelButtonText: "Cancelar",
+        closeOnConfirm: false,
+        reverseButtons: true
+    }).then(function(result) {
+        if (result.isConfirmed) {
+            // Redirigir a la función deseada
+            ' . $redireccion . ';
+        } else if (result.dismiss === Swal.DismissReason.cancel) {
+            // Redirigir a otra página
+            window.location.href = "index.php"; // Cambia esta URL por la que desees
+        }
+    });
+</script>';
+}
+
+function alerta($alertTitle, $alertText, $alertType, $redireccion)
+{
+
+    echo '
+ <script>
+        Swal.fire({
+            title: "' . $alertTitle . '",
+            text: "' . $alertText . '",
+            html: "' . $alertText . '",
+            icon: "' . $alertType . '",
+            showCancelButton: false,
+            confirmButtonText: "OK",
+            closeOnConfirm: false
+        }).then(function() {
+          ' . $redireccion . '  ; // Redirigir a la página principal
+        });
+    </script>';
+}
+
+
+function clasificarGasto($texto)
+{
+    $texto = mb_strtolower($texto); // Convertir a minúsculas para comparar mejor
+
+    // Lista de palabras que definen un Producto (cosas tangibles)
+    $palabras_productos = ['gas','comida de perro'];
+
+    // Lista de palabras que definen un Servicio (mano de obra/actividades)
+    $palabras_servicios = ['corte'];
+
+    // Buscar coincidencias para Servicios primero (suelen ser más específicos)
+    foreach ($palabras_servicios as $s) {
+        if (str_contains($texto, $s)) return "Servicio";
+    }
+
+    // Buscar coincidencias para Productos
+    foreach ($palabras_productos as $p) {
+        if (str_contains($texto, $p)) return "Producto";
+    }
+
+    return "Sin Clasificar"; // Valor por defecto
+}
 ?>

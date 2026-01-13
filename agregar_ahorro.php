@@ -6,32 +6,6 @@
 <?php
 include('bd.php'); // Conexión a la base de datos
 
-function alerta($alertTitle, $alertText, $alertType, $redireccion)
-{
-
-    echo '
- <script>
-    Swal.fire({
-        title: "' . $alertTitle . '",
-        text: "' . $alertText . '",
-        html: "' . $alertText . '",
-        icon: "' . $alertType . '",
-        showCancelButton: true,
-        confirmButtonText: "OK",
-        cancelButtonText: "Cancelar",
-        closeOnConfirm: false,
-        reverseButtons: true
-    }).then(function(result) {
-        if (result.isConfirmed) {
-            // Redirigir a la función deseada
-            ' . $redireccion . ';
-        } else if (result.dismiss === Swal.DismissReason.cancel) {
-            // Redirigir a otra página
-            window.location.href = "index.php"; // Cambia esta URL por la que desees
-        }
-    });
-</script>';
-}
 try {
     // Establecer la conexión a la base de datos
     $pdo = new PDO("mysql:host=$host;dbname=$database", $user, $password);
@@ -188,7 +162,7 @@ try {
         $alertType = 'info';
         $redireccion = "window.location='agregar_deuda.php?id_deudor=" . urlencode($id_deudor) . "&monto=" . urlencode($valor) . "';";
 
-        alerta($alertTitle, $alertText, $alertType, $redireccion);
+        alerta2($alertTitle, $alertText, $alertType, $redireccion);
         die();
     } else {
         // Redireccionar al usuario después de una inserción exitosa

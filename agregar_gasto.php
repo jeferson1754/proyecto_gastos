@@ -3,6 +3,7 @@
     <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </header>
 
+
 <?php
 include('bd.php'); // Conexión a la base de datos
 
@@ -126,6 +127,22 @@ try {
             exit;
         }
     }
+
+    $clasificion = clasificarGasto($descripcion_nombre);
+    echo $clasificion . "<br>";
+
+    if ($clasificion != "Sin Clasificar") {
+
+        $alertTitle = '¡Se detectó un ' . $clasificion . '!';
+        $alertText  = '¿Desea agregar ' . $descripcion_nombre . ' al gestor de tiempos?';
+        $alertType  = 'info';
+        $redireccion = "window.location='agregar_tiempo.php?nombre=" . urlencode($descripcion_nombre) .
+            "&tipo=" . urlencode($clasificion) .
+            "&fecha_inicio=" . urlencode($fecha) . "';";
+        alerta2($alertTitle, $alertText, $alertType, $redireccion);
+        die();
+    }
+
 
     // Redireccionar al usuario después de una inserción exitosa
     header("Location: index.php");
