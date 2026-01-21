@@ -58,6 +58,17 @@ $total_sistema = $total_ahorros_real + $total_ocio_real + $total_ahorros_real;
 $total_externo = $total_gastos_externo + $total_ocio_externo + $total_ahorros_externo;
 $gasto_total_general = $total_gastos + $total_ocio + $total_ahorros;
 
+// 1. Vencidos (de ayer hacia atrás)
+$sql_vencidos = "SELECT COUNT(*) FROM pagos WHERE Estado = 'Pendiente' AND Fecha_Vencimiento < :hoy";
+$stmt_vencidos = $pdo->prepare($sql_vencidos);
+$stmt_vencidos->execute([':hoy' => $fecha_actual]);
+$total_vencidos = $stmt_vencidos->fetchColumn();
+
+// 2. Vencen hoy
+$sql_hoy = "SELECT COUNT(*) FROM pagos WHERE Estado = 'Pendiente' AND Fecha_Vencimiento = :hoy";
+$stmt_hoy = $pdo->prepare($sql_hoy);
+$stmt_hoy->execute([':hoy' => $fecha_actual]);
+$total_hoy = $stmt_hoy->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -80,13 +91,33 @@ $gasto_total_general = $total_gastos + $total_ocio + $total_ahorros;
     <div class="container">
         <div class="row align-items-center mt-3">
             <div class="col-6">
-                <button type="button"
-                    class="btn btn-warning rounded-circle d-flex align-items-center justify-content-center shadow-sm hover-scale"
-                    onclick="window.location.href='./Pagos/'"
-                    style="width: 50px; height: 50px;">
+                <button type="button" class="btn btn-warning rounded-circle d-flex align-items-center justify-content-center shadow-sm hover-scale position-relative"
+                    onclick="window.location.href='./Pagos/'" style="width: 50px; height: 50px;">
+
                     <i class="fa-solid fa-wallet fs-5"></i>
+
+                    <?php if ($total_vencidos > 0 || $total_hoy > 0): ?>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark d-flex p-0 border border-light badge-pulse"
+                            style="overflow: hidden; line-height: 1.2;">
+
+                            <?php if ($total_vencidos > 0): ?>
+                                <span class="bg-danger px-2 py-1 text-white" title="Vencidos">
+                                    <?= $total_vencidos ?>
+                                </span>
+                            <?php endif; ?>
+
+                            <?php if ($total_hoy > 0): ?>
+                                <span class="bg-warning text-dark px-2 py-1" title="Vence hoy">
+                                    <?= $total_hoy ?>
+                                </span>
+                            <?php endif; ?>
+
+                        </span>
+                    <?php endif; ?>
+
                 </button>
             </div>
+
             <div class="col-6 text-end">
                 <h5 class="text-muted mb-0"><?php echo "$mes $current_year"; ?></h5>
             </div>

@@ -241,3 +241,44 @@ b.hover-lift {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
 }
 
+/* 1. Efecto Hover para el botón circular */
+.hover-scale {
+    transition: transform 0.2s ease;
+}
+
+.hover-scale:hover {
+    transform: scale(1.1);
+}
+
+/* 2. Animación para la Píldora Dual */
+.badge-pulse {
+    /* Mantenemos el centrado absoluto de Bootstrap */
+    transform: translate(-50%, -50%);
+    /* Sombra inicial */
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    animation: pulse-pill 2s infinite;
+}
+
+@keyframes pulse-pill {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    }
+    50% {
+        /* Un pulso sutil de tamaño sin mover el centro */
+        transform: translate(-50%, -50%) scale(1.05);
+    }
+    70% {
+        /* La sombra se expande (puedes usar un color rojizo o blanco) */
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+}
+
+/* Opcional: Si quieres que la parte roja brille más que la naranja */
+.bg-danger {
+    position: relative;
+    z-index: 1;
+}
