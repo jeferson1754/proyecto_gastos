@@ -92,6 +92,7 @@ $total_hoy = $stmt_hoy->fetchColumn();
         <div class="row align-items-center mt-3">
             <div class="col-6">
                 <button type="button" class="btn btn-warning rounded-circle d-flex align-items-center justify-content-center shadow-sm hover-scale position-relative"
+                title="Zona de Pagos"
                     onclick="window.location.href='./Pagos/'" style="width: 50px; height: 50px;">
 
                     <i class="fa-solid fa-wallet fs-5"></i>
