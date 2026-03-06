@@ -110,6 +110,7 @@ $valores_json = json_encode($total_historico);
 
 $mes_anterior = date('Y-m', strtotime('-1 month'));
 
+$total_pendiente_mes = 0; // Variable para acumular el total pendiente del mes actual
 
 ?>
 
@@ -380,6 +381,7 @@ $mes_anterior = date('Y-m', strtotime('-1 month'));
                         }
 
                         // 3. Variable para controlar que la flecha solo salga en la primera fila de cada cuenta
+                        $total_pendiente_mes = 0; // <--- NUEVA VARIABLE
                         $ya_mostrado = [];
                         $fecha_hoy = new DateTime();
 
@@ -413,6 +415,17 @@ $mes_anterior = date('Y-m', strtotime('-1 month'));
                                     }
                                 }
                                 $ya_mostrado[$cuenta] = true;
+                            }
+
+                            // --- NUEVA LÓGICA DE SUMA ---
+                            $fecha_obj = DateTime::createFromFormat('d/m/Y', $pago['Fecha_Formateada']);
+                            if (
+                                $pago['Estado'] === 'Pendiente' &&
+                                $fecha_obj->format('m') === $current_month &&
+                                $fecha_obj->format('Y') === $current_year
+                            ) {
+
+                                $total_pendiente_mes += (float)$pago['Valor'];
                             }
 
                             // --- LÓGICA DE DÍAS RESTANTES ---
@@ -648,6 +661,18 @@ $mes_anterior = date('Y-m', strtotime('-1 month'));
                 </div>
             <?php endwhile; ?>
         </div>
+
+        <?php if ($total_pendiente_mes > 0): ?>
+            <div class="alert alert-warning d-flex justify-content-between align-items-center shadow-sm mb-4">
+                <div>
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Total Pendiente (<?= $mes ?>):</strong>
+                </div>
+                <div class="h4 mb-0">
+                    $<?= number_format($total_pendiente_mes, 0, '', '.') ?>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 
 
