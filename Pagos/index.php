@@ -511,7 +511,7 @@ $total_pendiente_mes = 0; // Variable para acumular el total pendiente del mes a
                                         <?= $pago['Fecha_Formateada'] ?>
                                     </span>
                                 </td>
-                                <td><?= $pago['Fecha_Pagado'] ?: '-' ?></td>
+                                <td><?= ($pago['Fecha_Pagado'] && $pago['Fecha_Pagado'] != '00/00/0000 00:00') ? $pago['Fecha_Pagado'] : '<span class="text-muted">-</span>' ?></td>
                                 <td>
                                     <a href="./cuenta_editar.php?id=<?= $pago['ID'] ?>" class="btn btn-warning btn-sm">
                                         <i class="fas fa-edit"></i>
@@ -519,6 +519,29 @@ $total_pendiente_mes = 0; // Variable para acumular el total pendiente del mes a
                                 </td>
                             </tr>
                         <?php endforeach; ?>
+
+
+                        <?php
+                        // Definir el nombre del mes actual en español (opcional pero recomendado)
+                        $nombreMes = $meses[date('n') - 1];
+
+                        // Validamos si se debe mostrar el resumen
+                        if (isset($_GET['pendientes']) || isset($_GET['mesactual'])):
+                            if ($total_pendiente_mes > 0): ?>
+                                <div class="alert alert-warning d-flex justify-content-between align-items-center shadow-sm mb-4">
+                                    <div>
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <strong>Total Pendiente (<?= $nombreMes ?>):</strong>
+                                    </div>
+                                    <div class="h4 mb-0">
+                                        $<?= number_format($total_pendiente_mes, 0, '', '.') ?>
+                                    </div>
+                                </div>
+                        <?php
+                            endif;
+                        endif;
+                        ?>
+
                     </tbody>
                 </table>
             </div>
@@ -640,7 +663,9 @@ $total_pendiente_mes = 0; // Variable para acumular el total pendiente del mes a
 
                         <div class="mobile-card-item">
                             <span class="mobile-card-label"><i class="fas fa-money-check-alt me-2"></i>Fecha Pago</span>
-                            <span class="mobile-card-value"><?php echo $pago['Fecha_Pagado']; ?></span>
+                            <span class="mobile-card-value">
+                                <td><?= ($pago['Fecha_Pagado'] && $pago['Fecha_Pagado'] != '00/00/0000 00:00') ? $pago['Fecha_Pagado'] : '<span class="text-muted">-</span>' ?></td>
+                            </span>
                         </div>
                         <div class="mobile-card-item">
                             <span class="mobile-card-label"><i class="fas fa-file-alt me-2"></i>Comprobante</span>
@@ -662,17 +687,7 @@ $total_pendiente_mes = 0; // Variable para acumular el total pendiente del mes a
             <?php endwhile; ?>
         </div>
 
-        <?php if ($total_pendiente_mes > 0): ?>
-            <div class="alert alert-warning d-flex justify-content-between align-items-center shadow-sm mb-4">
-                <div>
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Total Pendiente (<?= $mes ?>):</strong>
-                </div>
-                <div class="h4 mb-0">
-                    $<?= number_format($total_pendiente_mes, 0, '', '.') ?>
-                </div>
-            </div>
-        <?php endif; ?>
+
     </div>
 
 
