@@ -3,10 +3,13 @@ include('../bd.php');
 
 if (isset($_GET['pendientes'])) {
     $where = "WHERE p.Estado ='Pendiente'";
+    $texto_filtro = "Distribución de Gastos (Pendientes)";
 } else if (isset($_GET['mesactual'])) {
     $where = "WHERE p.Estado ='Pendiente' AND MONTH(p.Fecha_Vencimiento) = MONTH(CURRENT_DATE) AND YEAR(p.Fecha_Vencimiento) = YEAR(CURRENT_DATE)";
+    $texto_filtro = "Distribución de Gastos (Mes Actual)";
 } else {
     $where = "";
+    $texto_filtro = "Distribución de Gastos";
 }
 
 // Obtener los pagos del mes actual con mejor formato de fecha
@@ -111,6 +114,25 @@ $valores_json = json_encode($total_historico);
 $mes_anterior = date('Y-m', strtotime('-1 month'));
 
 $total_pendiente_mes = 0; // Variable para acumular el total pendiente del mes actual
+
+// Consulta para el gráfico circular (Gastos de este mes por cuenta)
+$sql_grafico = "SELECT Cuenta, SUM(Valor) as total 
+                FROM pagos p
+                $where
+                GROUP BY Cuenta";
+
+
+$stmt_grafico = $pdo->query($sql_grafico);
+$datos_pie = $stmt_grafico->fetchAll(PDO::FETCH_ASSOC);
+
+// Formatear datos para ECharts
+$pie_data = [];
+foreach ($datos_pie as $row) {
+    $pie_data[] = [
+        'name' => $row['Cuenta'],
+        'value' => (int)$row['total']
+    ];
+}
 
 ?>
 
@@ -347,9 +369,35 @@ $total_pendiente_mes = 0; // Variable para acumular el total pendiente del mes a
 
                 </div>
             </form>
-            <div id="chart-container" style="width: 100%; height: 400px; margin-bottom: 2rem;">
 
+            <div class="card mb-4" style="border: none !important;">
+                <div class="card-header bg-white">
+                    <ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="historico-tab" data-bs-toggle="tab" data-bs-target="#historico" type="button" role="tab">
+                                <i class="fas fa-chart-line me-2"></i>Histórico
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="distribucion-tab" data-bs-toggle="tab" data-bs-target="#distribucion" type="button" role="tab">
+                                <i class="fas fa-chart-pie me-2"></i><?= $texto_filtro ?>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="myTabContent">
+                        <div class="tab-pane fade show active" id="historico" role="tabpanel">
+                            <div id="chart-container" style="width: 100%; height: 400px;"></div>
+                        </div>
+
+                        <div class="tab-pane fade" id="distribucion" role="tabpanel">
+                            <div id="pieChartGastos" style="width: 100%; height: 400px;"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
+
 
             <!-- Tabla para desktop -->
             <div class="table-responsive desktop-table">
@@ -758,6 +806,77 @@ $total_pendiente_mes = 0; // Variable para acumular el total pendiente del mes a
             myChart.setOption(option);
             window.addEventListener('resize', myChart.resize);
         })();
+    </script>
+    <script>
+        (function() {
+            var chartDom = document.getElementById('pieChartGastos');
+            var myChart = echarts.init(chartDom);
+            var option;
+
+            option = {
+                // Dentro de la configuración de 'option' para el gráfico circular
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function(params) {
+                        // params.value contiene el número puro
+                        // .toLocaleString('es-CL') le da el formato chileno
+                        let valorFormateado = '$' + params.value.toLocaleString('es-CL');
+                        return `${params.name}: <strong>${valorFormateado}</strong> (${params.percent}%)`;
+                    }
+                },
+                legend: {
+                    top: '-1%'
+                },
+                series: [{
+                    name: 'Gastos',
+                    type: 'pie',
+                    radius: ['40%', '70%'], // Estilo "Dona" para que se vea más moderno
+                    avoidLabelOverlap: false,
+                    itemStyle: {
+                        borderRadius: 10,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: false,
+                        position: 'center'
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: '18',
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: false
+                    },
+                    data: <?php echo json_encode($pie_data); ?> // Pasamos los datos de PHP a JS
+                }],
+                // Paleta de colores suaves y profesionales
+                color: ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4']
+            };
+
+            myChart.setOption(option);
+
+            // Hacer el gráfico responsivo
+            window.addEventListener('resize', function() {
+                myChart.resize();
+            });
+        })();
+    </script>
+    <script>
+        // Corregir tamaño de los gráficos al cambiar de pestaña
+        document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tabEl => {
+            tabEl.addEventListener('shown.bs.tab', function(event) {
+                // Redimensionar ambos gráficos para asegurar que se vean bien
+                var chartHistorico = echarts.getInstanceByDom(document.getElementById('chart-container'));
+                var chartPie = echarts.getInstanceByDom(document.getElementById('pieChartGastos'));
+
+                if (chartHistorico) chartHistorico.resize();
+                if (chartPie) chartPie.resize();
+            });
+        });
     </script>
 </body>
 
