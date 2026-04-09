@@ -23,6 +23,7 @@ function obtenerGastosDiarios($conexion)
             Fecha >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
             AND Fecha < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY)
             AND ID_Categoria_Gastos != 1
+            AND Fuente_Dinero != 'Externo'
         GROUP BY 
             DAYOFWEEK(Fecha) 
         ORDER BY 
@@ -75,6 +76,7 @@ function obtenerGastosSemanales($conexion)
         WHERE 
             Fecha >= CURDATE() - INTERVAL 8 WEEK 
             AND ID_Categoria_Gastos != 1
+            AND Fuente_Dinero != 'Externo'
         GROUP BY 
             anio, semana 
         ORDER BY anio DESC, semana DESC  
@@ -172,18 +174,23 @@ function obtenerDiferenciaPromedios($conexion)
 {
     // Consulta para obtener el promedio de gastos de la semana actual y de la semana anterior
     $sql = "
-        SELECT 
+    SELECT 
             SUM(CASE 
                     WHEN YEARWEEK(Fecha, 1) = YEARWEEK(CURDATE(), 1) 
-                    THEN Valor 
+                    AND fuente_dinero = 'sistema' THEN Valor 
                     ELSE 0 
                 END) AS promedio_gastos_actual,
             
             SUM(CASE 
                     WHEN YEARWEEK(Fecha, 1) = YEARWEEK(CURDATE() - INTERVAL 1 WEEK, 1) 
-                    THEN Valor 
+                    AND fuente_dinero = 'sistema' THEN Valor 
                     ELSE 0 
-                END) AS promedio_gastos_anterior
+                END) AS promedio_gastos_anterior,
+            SUM(CASE 
+                    WHEN YEARWEEK(Fecha, 1) = YEARWEEK(CURDATE(), 1) 
+                    AND fuente_dinero = 'externo' THEN Valor 
+                    ELSE 0 
+                END) AS total_externos_actual
         FROM gastos
         WHERE ID_Categoria_Gastos != 1
         AND (
@@ -199,6 +206,7 @@ function obtenerDiferenciaPromedios($conexion)
         $fila = $result->fetch_assoc();
         $promedio_gastos_actual = $fila['promedio_gastos_actual'] !== null ? $fila['promedio_gastos_actual'] : 0; // Retornar 0 si no hay gastos
         $promedio_gastos_anterior = $fila['promedio_gastos_anterior'] !== null ? $fila['promedio_gastos_anterior'] : 0; // Retornar 0 si no hay gastos
+        $total_externos_actual = (float)($fila['total_externos_actual'] ?? 0);
     } else {
         echo "Error en la consulta: " . $conexion->error;
         return;
@@ -220,6 +228,7 @@ function obtenerDiferenciaPromedios($conexion)
     return [
         'promedio_actual' => $promedio_gastos_actual,
         'promedio_anterior' => $promedio_gastos_anterior,
+        'total_externos' => $total_externos_actual,
         'diferencia' => $formato_diferencia,
         'color_diferencia' => $color_diferencia
     ];
@@ -230,6 +239,8 @@ if ($resultados_promedios) {
     $promedio_semanal = $resultados_promedios['promedio_actual'];
     $tendencia_semanal = $resultados_promedios['diferencia'];
     $color_tendencia_semanal = $resultados_promedios['color_diferencia'];
+    // Nueva variable lista para usar en tu HTML
+    $total_gastos_externos_semana = $resultados_promedios['total_externos'];
 }
 
 function obtenerDiferenciaGastosMeses($conexion)
@@ -248,6 +259,7 @@ function obtenerDiferenciaGastosMeses($conexion)
                 SELECT DATE_SUB(MAX(Fecha), INTERVAL 2 MONTH)
                 FROM gastos
             )
+            AND Fuente_Dinero != 'Externo'
         GROUP BY 
             anio, mes -- Agrupar por año y mes para manejar correctamente meses de años diferentes
         ORDER BY 
@@ -309,7 +321,7 @@ function obtenerIngresosMesActual($conexion)
 {
     // Consulta SQL para obtener el total de ingresos del mes actual
     $consulta = "
-    SELECT SUM(Valor) AS total_ingresos FROM gastos WHERE MONTH(Fecha) = MONTH(CURDATE()) AND YEAR(Fecha) = YEAR(CURDATE()) AND ID_Categoria_Gastos = 1;
+    SELECT SUM(Valor) AS total_ingresos FROM gastos WHERE MONTH(Fecha) = MONTH(CURDATE()) AND YEAR(Fecha) = YEAR(CURDATE()) AND ID_Categoria_Gastos = 1 AND Fuente_Dinero != 'Externo';
     ";
 
     // Ejecutar la consulta
@@ -378,6 +390,7 @@ function obtenerCategoriasGastos($conexion)
             YEAR(g.Fecha) = YEAR(CURDATE()) OR 
             (MONTH(g.Fecha) = 12 AND YEAR(g.Fecha) = YEAR(CURDATE()) - 1)
         )
+        AND Fuente_Dinero != 'Externo'
     GROUP BY 
         c.Nombre
         $ORDEN
@@ -445,6 +458,7 @@ function obtenerCategoriasGastosMes($conexion)
             categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
         WHERE 
             g.ID_Categoria_Gastos NOT IN (1, 2)
+            AND g.Fuente_Dinero != 'Externo'
         GROUP BY 
             c.Nombre
         $ORDEN
@@ -513,6 +527,7 @@ function obtenerCategoriasGastosAnuales($conexion)
             categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
         WHERE 
             g.ID_Categoria_Gastos NOT IN (1)
+            AND g.Fuente_Dinero != 'Externo'
         GROUP BY 
             c.Nombre
 $ORDEN
@@ -730,8 +745,15 @@ $categorias_gastos_anual = obtenerCategoriasGastosAnuales($conexion);
 
         <div class="stats-grid mb-8">
             <div class="card p-6">
-                <h3 class="text-gray-600 mb-2">Gasto Semanal</h3>
+                <h3 class="text-gray-600 mb-2">Gasto Semanal (Cuentas)</h3>
                 <p class="text-3xl font-bold"><?php echo '$' . number_format($promedio_semanal, 0, '', '.'); ?></p>
+
+                <?php if ($total_gastos_externos_semana > 0): ?>
+                    <p class="text-xs text-blue-500 mt-1">
+                        + $<?= number_format($total_gastos_externos_semana, 0, '', '.') ?> en gastos externos
+                    </p>
+                <?php endif; ?>
+
                 <span class="text-sm text-<?php echo $color_tendencia_semanal; ?>-500"><?php echo $tendencia_semanal; ?></span>
             </div>
             <div class="card p-6">
