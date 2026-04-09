@@ -40,6 +40,44 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $valor  = formatearMonto($_POST['valor']);
         $comprobante_url = $_POST['comprobante_url'];
         $tiempo_pago = $_POST['tiempo_pago'];
+        $metodo_pago = $_POST['metodo_pago'] ?? 'debito';
+
+        if ($metodo_pago === 'credito') {
+            // 1. Buscamos la fila de la Tarjeta de Crédito que esté pendiente
+            // Usamos fetch(PDO::FETCH_ASSOC) para obtener el ID y el Valor al mismo tiempo
+            $stmt_busqueda = $pdo->prepare("SELECT ID, Valor FROM `pagos` WHERE Cuenta = 'Tarjeta de Credito' AND Estado = 'Pendiente' LIMIT 1");
+            $stmt_busqueda->execute();
+            $cuenta_tarjeta = $stmt_busqueda->fetch(PDO::FETCH_ASSOC);
+
+            if ($cuenta_tarjeta) {
+                $credito_id = $cuenta_tarjeta['ID'];
+                $valor_actual_deuda = $cuenta_tarjeta['Valor'];
+
+                // 2. Calculamos el nuevo total (Deuda anterior + gasto actual)
+                $nuevo_valor_credito = $valor_actual_deuda + $valor;
+
+                // 3. Actualizamos el registro de la Tarjeta de Crédito
+                // IMPORTANTE: Verifica si usas $pdo o $conexion (mysqli). Aquí lo dejo con $pdo por consistencia:
+                $stmt_update = $pdo->prepare("UPDATE pagos SET Valor = ? WHERE ID = ?");
+                $resultado = $stmt_update->execute([$nuevo_valor_credito, $credito_id]);
+
+                if (!$resultado) {
+                    throw new Exception("Error al actualizar la deuda de la tarjeta.");
+                }
+
+                // OPCIONAL: Cambiar el origen del dinero a 'externo' para este gasto específico 
+                // para que no reste del balance del mes (según la lógica que hablamos antes)
+                $origen_dinero = 'externo';
+                $id_medio_pago = 2; // Guardamos el ID del pago de la tarjeta para referencia futura
+            } else {
+                // Si no existe un registro "Pendiente" para la tarjeta, podrías lanzarlo como error
+                // o crear uno nuevo automáticamente.
+                throw new Exception("No hay una cuenta de 'Tarjeta de Credito' pendiente para acumular la deuda.");
+            }
+        } else {
+            $origen_dinero = 'sistema';
+            $id_medio_pago = 1; // No es necesario guardar un ID de medio de pago para débito/efectivo
+        }
 
         $fecha_pago_futuro = "0000-00-00 00:00:00";
 
@@ -104,14 +142,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
             // Insertar el ingreso en la tabla de gastos
             $stmt = $pdo->prepare("
-                INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha)
-                VALUES (:detalle_id, :categoria_id, :valor, :fecha)
+                INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha, fuente_dinero,id_medio_pago)
+                VALUES (:detalle_id, :categoria_id, :valor, :fecha, :fuente_dinero, :id_medio_pago)
             ");
             $stmt->execute([
                 ':detalle_id' => $detalle_id,
                 ':categoria_id' => $categoria_id,
                 ':valor' => $valor,
-                ':fecha' => $fecha
+                ':fecha' => $fecha,
+                ':fuente_dinero' => $origen_dinero,
+                ':id_medio_pago' => $id_medio_pago
             ]);
         }
 
@@ -379,6 +419,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         required
                         value="$ <?php echo number_format($resultado['Valor'], 0, '', '.'); ?>">
                     <div class="invalid-feedback">Por favor ingrese un valor válido</div>
+                </div>
+
+                <div class="contenedor-logica-pago-especial mb-4">
+                    <div class="p-3 border rounded bg-light shadow-sm">
+                        <label class="form-label d-block fw-bold mb-3 text-uppercase small text-muted">
+                            ¿Cómo se realizó este pago?
+                        </label>
+
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <input type="radio" class="btn-check radio-metodo" name="metodo_pago" id="metodo_debito" value="debito" checked>
+                                <label class="btn btn-outline-primary w-100 p-3" for="metodo_debito">
+                                    <i class="fas fa-wallet d-block mb-1"></i> Débito / Efectivo
+                                </label>
+                            </div>
+                            <div class="col-6">
+                                <input type="radio" class="btn-check radio-metodo" name="metodo_pago" id="metodo_credito" value="credito">
+                                <label class="btn btn-outline-danger w-100 p-3" for="metodo_credito">
+                                    <i class="fas fa-credit-card d-block mb-1"></i> Tarjeta Crédito
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 p-2 rounded bg-white border-start border-4 caja-aviso" style="border-color: #0d6efd;">
+                            <small class="text-muted texto-aviso">
+                                El gasto se descontará de tu presupuesto mensual inmediatamente.
+                            </small>
+                        </div>
+                    </div>
                 </div>
 
 
