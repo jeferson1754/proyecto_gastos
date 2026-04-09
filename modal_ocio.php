@@ -2,7 +2,7 @@
 <div class="modal fade" id="modalOcio" tabindex="-1" aria-labelledby="modalOcioLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="agregar_ocio.php" method="POST">
+            <form action="agregar_ocio.php" method="POST" class="form-gasto-modal">
                 <div class="modal-header">
                     <h5 class="modal-title" id="modalOcioLabel">Añadir Ocio</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -27,7 +27,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="categoria" class="form-label">Categoría del Ocio</label>
-                        <input list="list_categorias_ocio" class="form-control" id="categoria_ocio" name="categoriaIngreso" required>
+                        <input list="list_categorias_ocio" class="form-control input-verificar" id="categoria_ocio" name="categoriaIngreso" required>
                         <datalist id="list_categorias_ocio">
                             <?php foreach ($categorias['ocio'] as $categoria3): ?>
                                 <option value="<?php echo htmlspecialchars($categoria3['Nombre']); ?>">

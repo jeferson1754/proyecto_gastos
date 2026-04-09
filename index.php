@@ -80,8 +80,10 @@ $total_hoy = $stmt_hoy->fetchColumn();
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <script src="https://fastly.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <title>Resumen Financiero</title>
     <link rel="stylesheet" href="styles.css?<?php echo time() ?>">
@@ -92,7 +94,7 @@ $total_hoy = $stmt_hoy->fetchColumn();
         <div class="row align-items-center mt-3">
             <div class="col-6">
                 <button type="button" class="btn btn-warning rounded-circle d-flex align-items-center justify-content-center shadow-sm hover-scale position-relative"
-                title="Zona de Pagos"
+                    title="Zona de Pagos"
                     onclick="window.location.href='./Pagos/'" style="width: 50px; height: 50px;">
 
                     <i class="fa-solid fa-wallet fs-5"></i>
@@ -1101,6 +1103,81 @@ $total_hoy = $stmt_hoy->fetchColumn();
                 let value = montoInput.value;
                 montoInput.value = formatPesoChile(value); // Aplicar el formato de peso chileno
             });
+        });
+
+        document.addEventListener('submit', function(e) {
+            // 1. Detectar si el formulario enviado es uno de nuestros modales de gastos
+            if (e.target.classList.contains('form-gasto-modal')) {
+                const form = e.target;
+                const inputCategoria = form.querySelector('.input-verificar');
+
+                // Si no hay input de categoría en este formulario, enviamos normal
+                if (!inputCategoria || !inputCategoria.value.trim()) return;
+
+                const nombreEscrito = inputCategoria.value.trim();
+                const datalist = inputCategoria.list; // Obtiene el datalist asociado a este input
+
+                // 2. Verificar si el nombre existe en las opciones de SU datalist
+                const existeEnLista = Array.from(datalist.options).some(opt => opt.value === nombreEscrito);
+
+                if (!existeEnLista) {
+                    e.preventDefault(); // Detener el envío para preguntar
+
+                    Swal.fire({
+                        title: '¿Nueva Categoría?',
+                        html: `La categoría "<b>${nombreEscrito}</b>" no existe en la lista.<br><br>¿Deseas crearla para este registro o prefieres corregir el nombre?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#28a745',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Sí, crear nueva',
+                        cancelButtonText: 'No, corregir',
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            form.classList.remove('form-gasto-modal');
+                            form.submit();
+                        } else {
+                            // --- MEJORA DE FOCUS AQUÍ ---
+                            setTimeout(() => { // Timeout para evitar conflictos con el cierre del modal de Swal
+                                inputCategoria.focus();
+                                inputCategoria.select();
+                                inputCategoria.style.borderColor = '#dc3545';
+                                inputCategoria.style.boxShadow = '0 0 0 0.25rem rgba(220, 53, 69, 0.25)';
+
+                                // Animación visual
+                                inputCategoria.animate([{
+                                        transform: 'scale(1)'
+                                    },
+                                    {
+                                        transform: 'scale(1.02)'
+                                    },
+                                    {
+                                        transform: 'scale(1)'
+                                    }
+                                ], {
+                                    duration: 200
+                                });
+                            }, 100);
+                        }
+                    });
+                }
+            }
+        });
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('.input-verificar')) {
+                const input = e.target;
+                const nombre = input.value.trim();
+                const existe = Array.from(input.list.options).some(opt => opt.value === nombre);
+
+                if (existe) {
+                    input.style.borderColor = '#198754'; // Verde Bootstrap
+                    input.style.boxShadow = '0 0 0 0.25rem rgba(25, 135, 84, 0.25)';
+                } else {
+                    input.style.borderColor = ''; // Reset
+                    input.style.boxShadow = '';
+                }
+            }
         });
     </script>
 

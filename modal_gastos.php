@@ -2,7 +2,7 @@
 <div class="modal fade" id="modalGastos" tabindex="-1" aria-labelledby="modalGastosLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="agregar_gasto.php" method="POST" id="formGastos">
+            <form action="agregar_gasto.php" method="POST" id="formGastos" class="form-gasto-modal">
                 <div class="modal-header">
                     <h5 class="modal-title" id="modalGastosLabel">Añadir Gasto</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -28,7 +28,7 @@
 
                     <div class="mb-3">
                         <label for="categoria" class="form-label">Categoría del Gasto</label>
-                        <input list="list_categorias_gasto" class="form-control" id="categoria_gasto" name="categoriaIngreso" required>
+                        <input list="list_categorias_gasto" class="form-control input-verificar" id="categoria_gasto" name="categoriaIngreso" required>
                         <datalist id="list_categorias_gasto">
                             <?php foreach ($categorias['gastos'] as $categoria1): ?>
                                 <option value="<?php echo htmlspecialchars($categoria1['Nombre']); ?>">
