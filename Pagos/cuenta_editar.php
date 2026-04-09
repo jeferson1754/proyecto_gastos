@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $gasto_id = $_POST['gasto_id'] ?? '';
         $quien_paga = $_POST['quien_paga'];
         $cuenta = $_POST['cuenta'];
-        $fecha = $_POST['fecha'];
+        $fecha = $_POST['fecha'] ?? $fecha_actual_hora_actual;
         $fecha_vencimiento = $_POST['fecha_vencimiento'];
         $estado = $_POST['estado'];
         $estado_antiguo = $_POST['estado_antiguo'];
@@ -78,8 +78,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $origen_dinero = 'sistema';
             $id_medio_pago = 1; // No es necesario guardar un ID de medio de pago para débito/efectivo
         }
-
-        $fecha_pago_futuro = "0000-00-00 00:00:00";
 
         $stmt = $pdo->prepare("
             SELECT 
@@ -153,7 +151,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 ':fuente_dinero' => $origen_dinero,
                 ':id_medio_pago' => $id_medio_pago
             ]);
-        }
+
+        } 
+
+        $fecha_pago_futuro = "0000-00-00 00:00:00";
+        
 
 
 
