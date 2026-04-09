@@ -147,6 +147,7 @@ foreach ($datos_pie as $row) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- ECharts JS -->
     <script src="https://fastly.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
             --primary-color: #4a90e2;
@@ -564,6 +565,16 @@ foreach ($datos_pie as $row) {
                                     <a href="./cuenta_editar.php?id=<?= $pago['ID'] ?>" class="btn btn-warning btn-sm">
                                         <i class="fas fa-edit"></i>
                                     </a>
+                                    <?php if ($pago['Estado'] == 'Pendiente'): ?>
+                                        <button type="button"
+                                            class="btn btn-sm btn-success btn-pagar-rapido"
+                                            data-id="<?= $pago['ID'] ?>"
+                                            data-monto="<?= number_format($pago['Valor'], 0, '', '.') ?>"
+                                            data-vencimiento="<?= $pago['Fecha_Formateada'] ?>"
+                                            data-cuenta="<?= htmlspecialchars($pago['Cuenta']) ?>">
+                                            <i class="fas fa-check-circle"></i> Pagar
+                                        </button>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -729,6 +740,16 @@ foreach ($datos_pie as $row) {
                             <a href="./cuenta_editar.php?id=<?php echo $pago['ID']; ?>" class="btn btn-warning btn-sm">
                                 <i class="fas fa-edit me-1"></i>Editar
                             </a>
+                            <?php if ($pago['Estado'] == 'Pendiente'): ?>
+                                <button type="button"
+                                    class="btn btn-sm btn-success btn-pagar-rapido ms-2"
+                                    data-id="<?= $pago['ID'] ?>"
+                                    data-monto="<?= number_format($pago['Valor'], 0, '', '.') ?>"
+                                    data-vencimiento="<?= $pago['Fecha_Formateada'] ?>"
+                                    data-cuenta="<?= htmlspecialchars($pago['Cuenta']) ?>">
+                                    <i class="fas fa-check-circle"></i> Pagar
+                                </button>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -877,6 +898,68 @@ foreach ($datos_pie as $row) {
                 if (chartPie) chartPie.resize();
             });
         });
+
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-pagar-rapido')) {
+                const btn = e.target.closest('.btn-pagar-rapido');
+                const id = btn.dataset.id;
+                const monto = btn.dataset.monto;
+                const vencimiento = btn.dataset.vencimiento;
+                const cuenta = btn.dataset.cuenta;
+
+                Swal.fire({
+                    title: '¿Confirmar Pago?',
+                    html: `
+                <div class="text-start mt-3">
+                    <p><strong>Cuenta:</strong> ${cuenta}</p>
+                    <p><strong>Monto:</strong> $${monto}</p>
+                    <p><strong>Vencimiento:</strong> ${vencimiento}</p>
+                    <hr>
+                    <label class="form-label">Método de Pago:</label>
+                    <select id="swal-metodo" class="form-select">
+                        <option value="debito">Débito / Efectivo</option>
+                        <option value="credito">Tarjeta de Crédito</option>
+                    </select>
+                </div>
+            `,
+                    icon: 'info',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sí, marcar como pagado',
+                    cancelButtonText: 'Cancelar',
+                    preConfirm: () => {
+                        return document.getElementById('swal-metodo').value;
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Enviar datos al servidor
+                        procesarPagoRapido(id, result.value);
+                    }
+                });
+            }
+        });
+
+        function procesarPagoRapido(id, metodo) {
+            const formData = new FormData();
+            formData.append('id', id);
+            formData.append('metodo_pago', metodo);
+
+            fetch('procesar_pago_rapido.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire('¡Pagado!', data.message, 'success').then(() => {
+                            location.reload(); // Recarga para ver los cambios
+                        });
+                    } else {
+                        Swal.fire('Error', data.message, 'error');
+                    }
+                });
+        }
     </script>
 </body>
 
