@@ -381,7 +381,7 @@ $categorias = $conexion->query($sqlCategorias);
                                     </td>
                                     <td class="date-cell">
                                         <i class="far fa-calendar-alt me-1"></i>
-                                        <?php echo date('d/m/Y', strtotime($fila['Fecha'])); ?>
+                                        <?php echo date('d/m/Y H:i', strtotime($fila['Fecha'])); ?>
                                     </td>
                                     <td>
                                         <a href="./editar.php?id=<?php echo $fila['ID']; ?>" class="btn-edit-modern">
