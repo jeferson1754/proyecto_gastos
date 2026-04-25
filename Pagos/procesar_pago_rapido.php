@@ -18,22 +18,12 @@ try {
     // Iniciar Transacción
     $pdo->beginTransaction();
 
-    // 2. Lógica de Tarjeta de Crédito (Si aplica)
-    if ($metodo_pago === 'credito') {
-        $stmt_tc = $pdo->prepare("SELECT ID, Valor FROM pagos WHERE Cuenta = 'Tarjeta de Credito' AND Estado = 'Pendiente' LIMIT 1");
-        $stmt_tc->execute();
-        $cuenta_tc = $stmt_tc->fetch();
+    $configuracionPago = procesarLogicaMetodoPago($pdo, $pago['Valor'], $metodo_pago);
+    
 
-        if ($cuenta_tc) {
-            $nuevo_valor = $cuenta_tc['Valor'] + $pago['Valor'];
-            $pdo->prepare("UPDATE pagos SET Valor = ? WHERE ID = ?")->execute([$nuevo_valor, $cuenta_tc['ID']]);
-        }
-        $origen_dinero = 'externo';
-        $id_medio_pago = 2;
-    } else {
-        $origen_dinero = 'sistema';
-        $id_medio_pago = 1;
-    }
+    // Ahora usas los valores retornados
+    $origen_dinero = $configuracionPago['origen'];
+    $id_medio_pago = $configuracionPago['id_medio'];
 
     $stmt = $pdo->prepare("
             SELECT 

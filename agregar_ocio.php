@@ -35,6 +35,12 @@ try {
         throw new Exception('Todos los campos son requeridos.');
     }
 
+    // Iniciar una transacción para asegurarse de que todas las consultas se ejecutan correctamente
+    $pdo->beginTransaction();
+
+    //Procesar metodo de pago Tarjeta de Credito y sumarlo en pagos pendientes
+    $configuracionPago = procesarLogicaMetodoPago($pdo, $valor, $medio_pago);
+
     // Obtener o crear categoría
     $stmt = $pdo->prepare("SELECT ID FROM categorias_gastos WHERE Nombre = :nombre AND Categoria_Padre = :categoria_padre");
     $stmt->execute([':nombre' => $categoria_nombre, ':categoria_padre' => $categoria_padre]);

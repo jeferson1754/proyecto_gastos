@@ -795,7 +795,7 @@ function clasificarGasto($texto)
     $texto = mb_strtolower($texto); // Convertir a minúsculas para comparar mejor
 
     // Lista de palabras que definen un Producto (cosas tangibles)
-    $palabras_productos = ['gas','comida de perro'];
+    $palabras_productos = ['gas', 'comida de perro'];
 
     // Lista de palabras que definen un Servicio (mano de obra/actividades)
     $palabras_servicios = ['corte'];
@@ -811,5 +811,39 @@ function clasificarGasto($texto)
     }
 
     return "Sin Clasificar"; // Valor por defecto
+}
+
+function procesarLogicaMetodoPago($pdo, $valor_pago, $metodo)
+{
+    $resultado = [
+        'origen' => 'sistema',
+        'id_medio' => 1
+    ];
+
+    // Convertimos valor a número puro (por si viene con puntos o comas de la máscara JS)
+    $valor_limpio = (float) str_replace(['.', ','], ['', '.'], $valor_pago);
+
+    // Comparamos de forma flexible (==) o verificamos ambos tipos
+    if ($metodo === 'credito' || $metodo == 2) {
+
+        // 1. Buscar la cuenta de Tarjeta de Crédito pendiente
+        $stmt_tc = $pdo->prepare("SELECT ID, Valor FROM pagos WHERE Cuenta = 'Tarjeta de Credito' AND Estado = 'Pendiente' LIMIT 1");
+        $stmt_tc->execute();
+        $cuenta_tc = $stmt_tc->fetch(PDO::FETCH_ASSOC);
+
+        if ($cuenta_tc) {
+            // 2. Sumar el valor del gasto actual a la deuda acumulada
+            $nuevo_valor = (float)$cuenta_tc['Valor'] + $valor_limpio;
+
+            $update = $pdo->prepare("UPDATE pagos SET Valor = ? WHERE ID = ?");
+            $update->execute([$nuevo_valor, $cuenta_tc['ID']]);
+        }
+
+        // 3. Ajustar valores de retorno para crédito
+        $resultado['origen'] = 'externo';
+        $resultado['id_medio'] = 2;
+    }
+
+    return $resultado;
 }
 ?>

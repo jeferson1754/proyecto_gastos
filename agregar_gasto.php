@@ -41,6 +41,9 @@ try {
     // Iniciar una transacción para asegurarse de que todas las consultas se ejecutan correctamente
     $pdo->beginTransaction();
 
+    //Procesar metodo de pago Tarjeta de Credito y sumarlo en pagos pendientes
+    $configuracionPago = procesarLogicaMetodoPago($pdo, $valor, $medio_pago);
+
     // Obtener o crear categoría
     $stmt = $pdo->prepare("SELECT ID FROM categorias_gastos WHERE Nombre = :nombre AND Categoria_Padre = :categoria_padre ");
     $stmt->execute([':nombre' => $categoria_nombre, ':categoria_padre' => $categoria_padre]);
@@ -69,7 +72,7 @@ try {
         $detalle_id = $pdo->lastInsertId();
     }
 
-  
+
     $stmt = $pdo->prepare("
         INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha, Fuente_Dinero, id_medio_pago)
         VALUES (:detalle_id, :categoria_id, :valor, :fecha, :fuente_dinero, :medio_pago)
