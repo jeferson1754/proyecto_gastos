@@ -38,7 +38,7 @@ $valorMaxNum = str_replace(['$', '.'], '', $valorMax);
 
 // Base de la consulta: Filtramos por el Categoria_Padre del módulo actual
 $sql = "SELECT g.ID, d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha, 
-               c.Categoria_Padre as tipo, g.fuente_dinero
+               c.Categoria_Padre as tipo, g.fuente_dinero, g.id_medio_pago
         FROM gastos g
         INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
         INNER JOIN detalle d ON g.ID_Detalle = d.ID
@@ -165,6 +165,47 @@ $resCategorias = $stmtCat->get_result();
             display: inline-block;
             margin-right: 4px;
         }
+
+        /* Estilo base para los badges de medio de pago */
+        .badge-medio {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Colores diferenciadores */
+        .medio-debito {
+            background-color: #e3f2fd;
+            color: #0d47a1;
+            border: 1px solid #bbdefb;
+        }
+
+        .medio-credito {
+            background-color: #fff3e0;
+            color: #e65100;
+            border: 1px solid #ffe0b2;
+        }
+
+        .medio-efectivo {
+            background-color: #e8f5e9;
+            color: #1b5e20;
+            border: 1px solid #c8e6c9;
+        }
+
+        .medio-otro {
+            background-color: #f5f5f5;
+            color: #616161;
+        }
+
+        /* Ajuste para la celda de descripción */
+        .description-cell {
+            vertical-align: middle;
+        }
     </style>
 </head>
 
@@ -268,9 +309,25 @@ $resCategorias = $stmtCat->get_result();
                 <tbody>
                     <?php foreach ($rows as $fila):
                         $clase_cat = ($fila['tipo'] == 24 ? 'ocio' : ($fila['tipo'] == 2 ? 'ahorro' : 'gasto'));
+
+                        $medios_pago = [
+                            1 => ['label' => 'Débito', 'clase' => 'medio-debito', 'icon' => 'fas fa-university'],
+                            2 => ['label' => 'Crédito', 'clase' => 'medio-credito', 'icon' => 'fas fa-credit-card'],
+                            3 => ['label' => 'Efectivo', 'clase' => 'medio-efectivo', 'icon' => 'fas fa-money-bill-wave']
+                        ];
+
+                        // Si no tienes el ID, puedes usar el nombre directamente
+                        $medio = $medios_pago[$fila['id_medio_pago']] ?? ['label' => 'Otro', 'clase' => 'medio-otro', 'icon' => 'fas fa-wallet'];
                     ?>
                         <tr>
-                            <td><strong><?= htmlspecialchars($fila['Descripcion']) ?></strong></td>
+                            <td class="description-cell">
+                                <span class="description-text"><?php echo htmlspecialchars($fila['Descripcion']); ?></span>
+                                <div class="mt-1">
+                                    <span class="badge-medio <?php echo $medio['clase']; ?>">
+                                        <i class="<?php echo $medio['icon']; ?> me-1"></i> <?php echo $medio['label']; ?>
+                                    </span>
+                                </div>
+                            </td>
                             <td><span class="category-badge category-<?= $clase_cat ?>"><?= htmlspecialchars($fila['categoria']) ?></span></td>
                             <td>
                                 $<?= number_format($fila['Valor'], 0, '', '.') ?>
