@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
     // Base de la consulta
-    $sql = "SELECT g.ID, d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha, c.Categoria_Padre as tipo, g.fuente_dinero
+    $sql = "SELECT g.ID, d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha, c.Categoria_Padre as tipo, g.fuente_dinero, g.id_medio_pago
             FROM gastos g
             INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
             INNER JOIN detalle d ON g.ID_Detalle = d.ID
@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $resultados = $stmt->get_result();
 } else {
     // Si no se realiza ninguna búsqueda, mostrar todo
-    $sql = "SELECT g.ID,d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha,c.Categoria_Padre as tipo, g.fuente_dinero
+    $sql = "SELECT g.ID,d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha,c.Categoria_Padre as tipo, g.fuente_dinero, g.id_medio_pago
     FROM gastos g
     INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
     INNER JOIN detalle d ON g.ID_Detalle = d.ID
@@ -267,6 +267,9 @@ $categorias = $conexion->query($sqlCategorias);
             $total_registros = $resultados->num_rows;
             $total_sistema = 0;  // Gasto real que afecta tus cuentas
             $total_externo = 0;  // Gasto informativo (fuente externa)
+            $total_debito = 0;
+            $total_credito = 0;
+            $total_efectivo = 0;
             $temp_results = [];
 
             // Calcular estadísticas separadas
@@ -279,6 +282,10 @@ $categorias = $conexion->query($sqlCategorias);
                 } else {
                     $total_sistema += $fila['Valor'];
                 }
+
+                if ($fila['id_medio_pago'] == 1) $total_debito += $fila['Valor'];
+                if ($fila['id_medio_pago'] == 2) $total_credito += $fila['Valor'];
+                if ($fila['id_medio_pago'] == 3) $total_efectivo += $fila['Valor'];
             }
             // El total general sigue siendo la suma de ambos para efectos de reporte
             $total_monto_general = $total_sistema + $total_externo;
@@ -348,12 +355,26 @@ $categorias = $conexion->query($sqlCategorias);
 
                                 // Nueva lógica para fuente de dinero
                                 $es_externo = (isset($fila['fuente_dinero']) && $fila['fuente_dinero'] === 'externo');
+
+                                // --- NUEVA LÓGICA PARA MEDIO DE PAGO ---
+                                // Asumimos que $fila['id_medio_pago'] viene de tu BD
+                                $medios_pago = [
+                                    1 => ['label' => 'Débito', 'clase' => 'medio-debito', 'icon' => 'fas fa-university'],
+                                    2 => ['label' => 'Crédito', 'clase' => 'medio-credito', 'icon' => 'fas fa-credit-card'],
+                                    3 => ['label' => 'Efectivo', 'clase' => 'medio-efectivo', 'icon' => 'fas fa-money-bill-wave']
+                                ];
+
+                                // Si no tienes el ID, puedes usar el nombre directamente
+                                $medio = $medios_pago[$fila['id_medio_pago']] ?? ['label' => 'Otro', 'clase' => 'medio-otro', 'icon' => 'fas fa-wallet'];
                             ?>
                                 <tr>
                                     <td class="description-cell">
-                                        <span class="description-text" title="<?php echo htmlspecialchars($fila['Descripcion']); ?>">
-                                            <?php echo htmlspecialchars($fila['Descripcion']); ?>
-                                        </span>
+                                        <span class="description-text"><?php echo htmlspecialchars($fila['Descripcion']); ?></span>
+                                        <div class="mt-1">
+                                            <span class="badge-medio <?php echo $medio['clase']; ?>">
+                                                <i class="<?php echo $medio['icon']; ?> me-1"></i> <?php echo $medio['label']; ?>
+                                            </span>
+                                        </div>
                                     </td>
                                     <td>
                                         <span class="category-badge category-<?php echo $tipo_categoria; ?>">
@@ -370,7 +391,7 @@ $categorias = $conexion->query($sqlCategorias);
                                     </td>
                                     <td class="value-cell">
                                         <div class="d-flex flex-column">
-                                            <span><?php echo "$" . number_format($fila['Valor'], 0, '', '.'); ?></span>
+                                            <span class="fw-bold"><?php echo "$" . number_format($fila['Valor'], 0, '', '.'); ?></span>
 
                                             <?php if ($es_externo): ?>
                                                 <span class="badge badge-externo w-fit-content">
@@ -392,35 +413,57 @@ $categorias = $conexion->query($sqlCategorias);
                                 </tr>
                             <?php } ?>
 
-                            <tr class="total-row">
+                            <tr class="total-row bg-light">
                                 <td colspan="2" class="text-end border-end">
                                     <div class="d-flex flex-column align-items-end">
-                                        <small class="text-muted fw-normal">Resumen de Gastos:</small>
-                                        <span class="text-uppercase small fw-bold">Total General:</span>
+                                        <small class="text-muted fw-normal">Resumen por Medio de Pago:</small>
+                                        <div class="d-flex gap-3 mt-1">
+                                            <div class="text-center">
+                                                <small class="d-block text-uppercase" style="font-size: 0.6rem; color: #0d47a1;">Débito</small>
+                                                <span class="badge medio-debito" style="font-size: 0.85rem;">
+                                                    $<?php echo number_format($total_debito, 0, '', '.'); ?>
+                                                </span>
+                                            </div>
+                                            <div class="text-center">
+                                                <small class="d-block text-uppercase" style="font-size: 0.6rem; color: #e65100;">Crédito</small>
+                                                <span class="badge medio-credito" style="font-size: 0.85rem;">
+                                                    $<?php echo number_format($total_credito, 0, '', '.'); ?>
+                                                </span>
+                                            </div>
+                                            <div class="text-center">
+                                                <small class="d-block text-uppercase" style="font-size: 0.6rem; color: #1b5e20;">Efectivo</small>
+                                                <span class="badge medio-efectivo" style="font-size: 0.85rem;">
+                                                    $<?php echo number_format($total_efectivo, 0, '', '.'); ?>
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </td>
-                                <td class="total-amount">
-                                    <div class="d-flex flex-column">
-                                        <span class="text-primary" title="Afecta Balance">
+
+                                <td class="total-amount bg-white">
+                                    <div class="d-flex flex-column align-items-end">
+                                        <small class="text-uppercase small fw-bold text-muted">Total General:</small>
+
+                                        <span class="text-primary fw-bold" title="Dinero del Sistema">
                                             <i class="fas fa-university me-1" style="font-size: 0.8rem;"></i>
                                             <?php echo "$" . number_format($total_sistema, 0, '', '.'); ?>
                                         </span>
 
                                         <?php if ($total_externo > 0): ?>
-                                            <span class="text-secondary small fw-normal" title="No afecta Balance">
-                                                <i class="fas fa-wallet me-1" style="font-size: 0.7rem;"></i>
-                                                <?php echo "$" . number_format($total_externo, 0, '', '.'); ?> (Ext)
+                                            <span class="text-secondary small fw-normal" title="Gastos Externos (Crédito/Otros)">
+                                                <i class="fas fa-external-link-alt me-1" style="font-size: 0.7rem;"></i>
+                                                <?php echo "$" . number_format($total_externo, 0, '', '.'); ?>
                                             </span>
                                         <?php endif; ?>
 
-                                        <div class="border-top mt-1 pt-1" style="border-color: #dee2e6 !important;">
-                                            <span class="text-dark" style="font-size: 1.1rem;">
+                                        <div class="border-top mt-1 pt-1 w-100 text-end" style="border-color: #dee2e6 !important;">
+                                            <span class="text-dark fw-bolder" style="font-size: 1.2rem;">
                                                 <?php echo "$" . number_format($total_monto_general, 0, '', '.'); ?>
                                             </span>
                                         </div>
                                     </div>
                                 </td>
-
+                                <td colspan="2" class="bg-light"></td>
                             </tr>
                         </tbody>
                     </table>
