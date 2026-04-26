@@ -1,7 +1,7 @@
 /* Global Styles */
 
-:root{
-    --gasto:  #FFC107;
+:root {
+    --gasto: #FFC107;
     --ahorro: #0DCAF0;
     --ocio: #198754;
 }
@@ -155,7 +155,7 @@ body {
 }
 
 .table-responsive.ahorro {
-    scrollbar-color:var(--ahorro) #f1f1f1;
+    scrollbar-color: var(--ahorro) #f1f1f1;
 }
 
 .category-icon {
@@ -208,7 +208,7 @@ iframe {
     height: 1120px;
 }
 
-.ocultar{
+.ocultar {
     display: inline-flex;
 }
 
@@ -217,13 +217,13 @@ iframe {
         width: auto;
     }
 
-    .ocultar{
+    .ocultar {
         display: none;
     }
 }
 
-a{
-    color:white;
+a {
+    color: white;
     text-decoration: none;
 }
 
@@ -231,7 +231,8 @@ a{
     position: relative;
     height: 400px;
     margin-bottom: 10px;
-}                            
+}
+
 b.hover-lift {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -263,14 +264,17 @@ b.hover-lift {
     0% {
         box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
     }
+
     50% {
         /* Un pulso sutil de tamaño sin mover el centro */
         transform: translate(-50%, -50%) scale(1.05);
     }
+
     70% {
         /* La sombra se expande (puedes usar un color rojizo o blanco) */
         box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
     }
+
     100% {
         transform: translate(-50%, -50%) scale(1);
         box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
@@ -282,3 +286,28 @@ b.hover-lift {
     position: relative;
     z-index: 1;
 }
+
+/* Colores consistentes */
+.medio-debito {
+    background-color: #e3f2fd;
+    color: #0d47a1;
+    border: 1px solid #bbdefb;
+}
+
+.medio-credito {
+    background-color: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ffe0b2;
+}
+
+.medio-efectivo {
+    background-color: #e8f5e9;
+    color: #1b5e20;
+    border: 1px solid #c8e6c9;
+}
+
+/* Efecto hover en la fila para mejor legibilidad */
+tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+

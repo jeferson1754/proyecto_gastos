@@ -72,7 +72,7 @@ function obtener_datos($conexion, $where, $current_month, $current_year, $previo
 
     // Detalles: Incluimos el Fuente_Dinero para que el prompt sepa el origen de cada fila
     $sql_detalles = "SELECT d.Detalle AS Descripcion, g.Valor, c.Nombre as categoria, g.Fecha, 
-                    COALESCE(g.Fuente_Dinero, 'sistema') as fuente
+                    COALESCE(g.Fuente_Dinero, 'sistema') as fuente, g.id_medio_pago
     FROM gastos g
     INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
     INNER JOIN detalle d ON g.ID_Detalle = d.ID

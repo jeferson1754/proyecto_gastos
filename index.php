@@ -69,6 +69,12 @@ $sql_hoy = "SELECT COUNT(*) FROM pagos WHERE Estado = 'Pendiente' AND Fecha_Venc
 $stmt_hoy = $pdo->prepare($sql_hoy);
 $stmt_hoy->execute([':hoy' => $fecha_actual]);
 $total_hoy = $stmt_hoy->fetchColumn();
+
+$iconos_medio = [
+    1 => ['icon' => 'fa-university', 'color' => '#0d47a1'], // Débito
+    2 => ['icon' => 'fa-credit-card', 'color' => '#e65100'], // Crédito
+    3 => ['icon' => 'fa-money-bill-wave', 'color' => '#1b5e20'] // Efectivo
+];
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -320,13 +326,15 @@ $total_hoy = $stmt_hoy->fetchColumn();
 
                         <div class="detalles-container">
                             <ul class="list-group list-group-flush">
-                                <?php while ($detalle = mysqli_fetch_assoc($result_detalles_gastos)): ?>
-                                    <?php
-                                    // Validamos si es externo o sistema
+                                <?php while ($detalle = mysqli_fetch_assoc($result_detalles_gastos)):
                                     $es_externo = (isset($detalle['fuente']) && $detalle['fuente'] === 'externo');
-                                    ?>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
-                                        <div class="d-flex align-items-center">
+
+                                    // Mapeo ultra compacto de iconos por medio de pago
+                                    $medio = $iconos_medio[$detalle['id_medio_pago']] ?? ['icon' => 'fa-wallet', 'color' => '#6c757d'];
+                                ?>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2 border-light">
+                                        <div class="d-flex align-items-center overflow-hidden">
+                                            <i class="fas <?= $medio['icon'] ?> me-2" style="font-size: 0.75rem; color: <?= $medio['color'] ?>;" title="Medio de pago"></i>
 
                                             <span class="text-truncate" style="max-width: 180px;">
                                                 <?= htmlspecialchars($detalle['Descripcion']) ?>
@@ -383,9 +391,12 @@ $total_hoy = $stmt_hoy->fetchColumn();
                                     <?php
                                     // Validamos si es externo o sistema
                                     $es_externo = (isset($detalle['fuente']) && $detalle['fuente'] === 'externo');
+                                    $medio = $iconos_medio[$detalle['id_medio_pago']] ?? ['icon' => 'fa-wallet', 'color' => '#6c757d'];
                                     ?>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
-                                        <div class="d-flex align-items-center">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2 border-light">
+                                        <div class="d-flex align-items-center overflow-hidden">
+                                            <i class="fas <?= $medio['icon'] ?> me-2" style="font-size: 0.75rem; color: <?= $medio['color'] ?>;" title="Medio de pago"></i>
+
 
                                             <span class="text-truncate" style="max-width: 180px;">
                                                 <?= htmlspecialchars($detalle['Descripcion']) ?>
@@ -442,9 +453,12 @@ $total_hoy = $stmt_hoy->fetchColumn();
                                     <?php
                                     // Validamos si es externo o sistema
                                     $es_externo = (isset($detalle['fuente']) && $detalle['fuente'] === 'externo');
+                                    $medio = $iconos_medio[$detalle['id_medio_pago']] ?? ['icon' => 'fa-wallet', 'color' => '#6c757d'];
                                     ?>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
-                                        <div class="d-flex align-items-center">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2 border-light">
+                                        <div class="d-flex align-items-center overflow-hidden">
+                                            <i class="fas <?= $medio['icon'] ?> me-2" style="font-size: 0.75rem; color: <?= $medio['color'] ?>;" title="Medio de pago"></i>
+
 
                                             <span class="text-truncate" style="max-width: 180px;">
                                                 <?= htmlspecialchars($detalle['Descripcion']) ?>
