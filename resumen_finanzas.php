@@ -138,6 +138,68 @@ function obtenerDatos($conexion, $id_categoria, $fecha)
 }
 
 
+function obtenerMayorGastoPorMedio($conexion, $id_categoria, $fecha)
+{
+    // Preparar la consulta SQL con parámetros
+    $consulta = "
+SELECT 
+    g.Valor as Monto, 
+    g.Fecha as Dia, 
+    cg.Nombre as Categoria, 
+    d.Detalle 
+FROM gastos g
+JOIN categorias_gastos cg ON g.ID_Categoria_Gastos = cg.ID
+    JOIN 
+            detalle d ON g.ID_Detalle = d.ID 
+WHERE g.id_medio_pago = ? 
+AND DATE_FORMAT(g.Fecha, '%Y-%m') = ?
+  AND cg.Nombre != 'Ingresos'
+ORDER BY g.Valor DESC 
+LIMIT 1
+    ";
+
+    // Preparar la declaración SQL
+    if ($stmt = $conexion->prepare($consulta)) {
+        // Vincular los parámetros a la declaración
+        $stmt->bind_param('is', $id_categoria, $fecha);
+
+        // Ejecutar la consulta
+        if ($stmt->execute()) {
+            // Obtener el resultado
+            $resultado = $stmt->get_result();
+
+            // Verificar si hay resultados
+            if ($resultado->num_rows > 0) {
+                // Crear un array para almacenar los datos
+                $datos = array();
+
+                // Recorrer los resultados y almacenarlos en el array
+                while ($fila = $resultado->fetch_assoc()) {
+                    $datos[] = $fila;
+                }
+
+                // Devolver los datos
+                return $datos;
+            } else {
+                // Si no hay resultados, devolver un array vacío
+                return array();
+            }
+        } else {
+            // Error al ejecutar la consulta
+            return array('error' => 'Error en la ejecución de la consulta.');
+        }
+
+        // Cerrar la declaración
+        $stmt->close();
+    } else {
+        // Error al preparar la consulta
+        return array('error' => 'Error al preparar la consulta.');
+    }
+}
+
+
+
+
 function obtener_top_categorias($conexion, $meses)
 {
     // Consulta para obtener las 5 categorías con más gastos
@@ -693,6 +755,93 @@ function formatMonth($number_mes)
                                                                 <p class="mt-3 mb-0 text-secondary small">
                                                                     <i class="fas fa-info-circle me-1"></i>
                                                                     <?php echo $fila['Detalle']; ?>
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                            <?php
+                                                endforeach;
+                                            endforeach;
+                                            ?>
+                                        </div>
+
+                                        <div class="row g-3 mt-4">
+                                            <?php
+                                            // 1. Definir los medios de pago
+                                            $medios_pago = [
+                                                [
+                                                    'id' => 1,
+                                                    'clase' => 'bg-primary', // Azul para Débito
+                                                    'icono' => 'fa-university',
+                                                    'titulo' => 'Mayor Gasto Débito',
+                                                    'descripcion' => 'Compra más alta con saldo directo'
+                                                ],
+                                                [
+                                                    'id' => 2,
+                                                    'clase' => 'bg-warning', // Naranja/Amarillo para Crédito
+                                                    'icono' => 'fa-credit-card',
+                                                    'titulo' => 'Mayor Gasto Crédito',
+                                                    'descripcion' => 'Uso más elevado de línea de crédito'
+                                                ],
+                                                [
+                                                    'id' => 3,
+                                                    'clase' => 'bg-success', // Verde para Efectivo
+                                                    'icono' => 'fa-money-bill-wave',
+                                                    'titulo' => 'Mayor Gasto Efectivo',
+                                                    'descripcion' => 'Mayor salida de dinero físico'
+                                                ]
+                                            ];
+
+                                            // 2. Obtener el total general de egresos para el porcentaje
+                                            // (Ajusta esta variable según tu lógica de dashboard
+
+                                            foreach ($medios_pago as $mp):
+                                                // Llamamos a una función que busque el gasto MÁXIMO de ese ID en el mes
+                                                // SELECT * FROM gastos WHERE id_medio_pago = $mp['id'] ORDER BY Valor DESC LIMIT 1
+                                                $gasto_top = obtenerMayorGastoPorMedio($conexion, $mp['id'], $formatted_mes);
+
+                                                foreach ($gasto_top as $fila2):
+                                                    // Calcular porcentaje
+                                                    $porcentaje = ($totales_egresos > 0) ? ($fila2['Monto'] / $totales_egresos) * 100 : 0;
+                                            ?>
+
+                                                    <div class="col-md-4">
+                                                        <div class="card h-100 border-0 shadow-sm overflow-hidden">
+                                                            <div class="card-header <?php echo $mp['clase']; ?> text-white py-3 d-flex justify-content-between align-items-center">
+                                                                <h5 class="card-title mb-0">
+                                                                    <i class="fas <?php echo $mp['icono']; ?> me-2"></i>
+                                                                    <?php echo $mp['titulo']; ?>
+                                                                </h5>
+                                                                <span class="badge bg-white text-dark"><?php echo number_format($porcentaje, 1); ?>%</span>
+                                                            </div>
+
+                                                            <div class="card-body">
+
+                                                                <div class="d-flex align-items-baseline">
+                                                                    <h3 class="mb-3 text-dark fw-bold">$<?php echo number_format($fila2['Monto'], 0, '', '.'); ?></h3>
+                                                                    <small class="ms-2 text-muted">del total mensual</small>
+                                                                </div>
+
+                                                                <div class="progress mb-3" style="height: 6px;">
+                                                                    <div class="progress-bar <?php echo $mp['clase']; ?>" role="progressbar"
+                                                                        style="width: <?php echo $porcentaje; ?>%"
+                                                                        aria-valuenow="<?php echo $porcentaje; ?>" aria-valuemin="0" aria-valuemax="100">
+                                                                    </div>
+                                                                </div>
+
+                                                                <div class="d-flex align-items-center text-secondary">
+                                                                    <div class="me-3">
+                                                                        <i class="far fa-calendar-alt me-1"></i>
+                                                                        <span>Día: <?php echo date("d-m-Y h:i A", strtotime($fila2['Dia']));  ?></span>
+                                                                    </div>
+                                                                    <div>
+                                                                        <i class="fas fa-tag me-1"></i>
+                                                                        <span><?php echo $fila2['Categoria']; ?></span>
+                                                                    </div>
+                                                                </div>
+                                                                <p class="mt-3 mb-0 text-secondary small">
+                                                                    <i class="fas fa-info-circle me-1"></i>
+                                                                    <?php echo $fila2['Detalle']; ?>
                                                                 </p>
                                                             </div>
                                                         </div>

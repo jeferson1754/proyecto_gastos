@@ -569,6 +569,35 @@ $ORDEN
 
 $categorias_gastos_anual = obtenerCategoriasGastosAnuales($conexion);
 
+// Obtener totales por medio de pago para el mes actual
+$sql_medios = "SELECT 
+    id_medio_pago, 
+    SUM(Valor) as total 
+    FROM gastos 
+ 	WHERE MONTH(Fecha) = MONTH(CURDATE()) AND YEAR(Fecha) = YEAR(CURDATE()) 
+      AND 
+            ID_Categoria_Gastos NOT IN (1, 2)
+    GROUP BY id_medio_pago;";
+
+$stmt_medios = $pdo->query($sql_medios);
+$datos_medios = $stmt_medios->fetchAll(PDO::FETCH_ASSOC);
+
+// Mapeo para nombres y colores consistentes
+$nombres_medios = [1 => 'Débito', 2 => 'Crédito', 3 => 'Efectivo'];
+$colores_medios = [1 => '#0d47a1', 2 => '#e65100', 3 => '#1b5e20'];
+
+$pie_medios_data = [];
+$colores_finales = [];
+
+foreach ($datos_medios as $row) {
+    $id = $row['id_medio_pago'];
+    $nombre = $nombres_medios[$id] ?? 'Otro';
+    $pie_medios_data[] = [
+        'name' => $nombre,
+        'value' => (int)$row['total']
+    ];
+    $colores_finales[] = $colores_medios[$id] ?? '#6c757d';
+}
 ?>
 
 <!DOCTYPE html>
@@ -771,6 +800,16 @@ $categorias_gastos_anual = obtenerCategoriasGastosAnuales($conexion);
                 <span class="text-sm text-gray-500"><?php echo $porcentaje_presupuesto . '% del presupuesto'; ?></span>
             </div>
         </div>
+
+        <div class="stats-grid mb-8">
+            <div class="card p-6">
+                <h3 class="text-gray-600 text-center mb-2">Medios de Pagos en el Mes</h3>
+                <div class="relative" style="height: 350px;">
+                    <canvas id="chartMediosPago"></canvas>
+                </div>
+            </div>
+        </div>
+
 
         <div class="grid md:grid-cols-2 gap-4 mb-8">
 
@@ -1055,6 +1094,76 @@ $categorias_gastos_anual = obtenerCategoriasGastosAnuales($conexion);
                 }
             }
         });
+
+        (function() {
+            const ctx = document.getElementById('chartMediosPago').getContext('2d');
+
+            // Datos provenientes de PHP
+            const dataMedios = <?php echo json_encode($pie_medios_data); ?>;
+            const colores = <?php echo json_encode($colores_finales); ?>;
+
+            const myChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: dataMedios.map(item => item.name),
+                    datasets: [{
+                        data: dataMedios.map(item => item.value),
+                        backgroundColor: colores,
+                        hoverOffset: 15,
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%', // Grosor del donut
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12,
+                                    family: "'Inter', sans-serif"
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    let value = context.parsed;
+                                    let total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    let percentage = ((value * 100) / total).toFixed(1);
+
+                                    // Formato moneda chilena
+                                    let formattedValue = new Intl.NumberFormat('es-CL', {
+                                        style: 'currency',
+                                        currency: 'CLP',
+                                        maximumFractionDigits: 0
+                                    }).format(value);
+
+                                    return ` ${label}: ${formattedValue} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Manejar el redimensionamiento si estás usando tabs de Bootstrap o Tailwind
+            // Chart.js se redimensiona automáticamente si el contenedor cambia de tamaño,
+            // pero si usas tabs, puedes forzar el update así:
+            const tabEl = document.querySelector('#medios-tab');
+            if (tabEl) {
+                tabEl.addEventListener('shown.bs.tab', () => {
+                    myChart.resize();
+                });
+            }
+        })();
     </script>
 </body>
 
