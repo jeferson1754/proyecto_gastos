@@ -34,10 +34,7 @@ try {
     if (empty($descripcion_nombre) || empty($categoria_nombre) || empty($valor)) {
         throw new Exception('Todos los campos son requeridos.');
     }
-
-    // Iniciar una transacción para asegurarse de que todas las consultas se ejecutan correctamente
-    $pdo->beginTransaction();
-
+    
     //Procesar metodo de pago Tarjeta de Credito y sumarlo en pagos pendientes
     $configuracionPago = procesarLogicaMetodoPago($pdo, $valor, $medio_pago);
 
