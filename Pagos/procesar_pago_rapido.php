@@ -19,7 +19,7 @@ try {
     $pdo->beginTransaction();
 
     $configuracionPago = procesarLogicaMetodoPago($pdo, $pago['Valor'], $metodo_pago);
-    
+
 
     // Ahora usas los valores retornados
     $origen_dinero = $configuracionPago['origen'];
@@ -80,9 +80,9 @@ try {
 
     if ($tiempo_pago == 0) {
         // Insertar el registro de pago para el próximo mes
-        $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id, cuenta, valor, estado, fecha_vencimiento, Vencimiento) 
-                VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt_next->execute([$pago['gasto_id'], $pago['Cuenta'], $pago['Valor'], 'Pendiente', $fecha_siguiente_mes, $tiempo_pago]);
+        $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id,quien_paga, cuenta, valor, estado, fecha_vencimiento, Vencimiento) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt_next->execute([$pago['gasto_id'], $pago['quien_paga'], $pago['Cuenta'], $pago['Valor'], 'Pendiente', $fecha_siguiente_mes, $tiempo_pago]);
 
         $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se programó el pago para el siguiente mes."];
     } else if ($tiempo_pago > 1) {
@@ -100,9 +100,9 @@ try {
         echo $total_cuentas . "<br>";
         if ($total_cuentas < $tiempo_pago) {
 
-            $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id, cuenta, valor, estado, fecha_vencimiento, Vencimiento) 
-                VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt_next->execute([$pago['gasto_id'], $pago['Cuenta'], $pago['Valor'], 'Pendiente', $fecha_siguiente_mes, $tiempo_pago]);
+            $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id,quien_paga, cuenta, valor, estado, fecha_vencimiento, Vencimiento) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt_next->execute([$pago['gasto_id'], $pago['quien_paga'], $pago['Cuenta'], $pago['Valor'], 'Pendiente', $fecha_siguiente_mes, $tiempo_pago]);
 
             $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se programó el pago para el siguiente mes."];
         } else {
