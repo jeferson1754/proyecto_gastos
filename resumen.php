@@ -1103,54 +1103,73 @@ foreach ($datos_medios as $row) {
             const colores = <?php echo json_encode($colores_finales); ?>;
 
             const myChart = new Chart(ctx, {
-                type: 'doughnut',
+                type: 'bar',
                 data: {
                     labels: dataMedios.map(item => item.name),
                     datasets: [{
-                        data: dataMedios.map(item => item.value),
+
+                        data: dataMedios.map(x => x.value),
+
                         backgroundColor: colores,
-                        hoverOffset: 15,
-                        borderWidth: 2,
-                        borderColor: '#ffffff',
-                        borderRadius: 5
+
+                        borderRadius: 8,
+
+                        barThickness: 24
+
                     }]
                 },
                 options: {
+
+                    indexAxis: 'y',
+
                     responsive: true,
+
                     maintainAspectRatio: false,
-                    cutout: '75%', // Grosor del donut
+
                     plugins: {
+
                         legend: {
-                            position: 'bottom',
-                            labels: {
-                                padding: 20,
-                                usePointStyle: true,
-                                font: {
-                                    size: 12,
-                                    family: "'Inter', sans-serif"
-                                }
-                            }
+                            display: false
                         },
+
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
-                                    let label = context.label || '';
-                                    let value = context.parsed;
-                                    let total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    let percentage = ((value * 100) / total).toFixed(1);
+                                label: function(ctx) {
 
-                                    // Formato moneda chilena
-                                    let formattedValue = new Intl.NumberFormat('es-CL', {
-                                        style: 'currency',
-                                        currency: 'CLP',
-                                        maximumFractionDigits: 0
-                                    }).format(value);
+                                    return new Intl.NumberFormat(
+                                        'es-CL', {
+                                            style: 'currency',
+                                            currency: 'CLP',
+                                            maximumFractionDigits: 0
+                                        }
+                                    ).format(ctx.raw);
 
-                                    return ` ${label}: ${formattedValue} (${percentage}%)`;
                                 }
                             }
                         }
+
+                    },
+
+                    scales: {
+
+                        x: {
+
+                            ticks: {
+                                callback: function(value) {
+
+                                    return new Intl.NumberFormat(
+                                        'es-CL', {
+                                            notation: 'compact'
+                                        }
+                                    ).format(value);
+
+                                }
+                            }
+
+                        }
+
                     }
+
                 }
             });
 
