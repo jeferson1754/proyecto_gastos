@@ -16,24 +16,48 @@ try {
     $pdo = new PDO("mysql:host=$host;dbname=$database", $user, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Obtener datos del formulario con validación básica
     $id_detalle = 1;
 
-    // Iniciar una transacción para asegurarse de que todas las consultas se ejecutan correctamente
+    // Iniciar transacción
     $pdo->beginTransaction();
 
-    // Insertar el ingreso en la tabla de deudas
+    // Verificar si ya existe una deuda igual en los últimos 10 segundos
     $stmt = $pdo->prepare("
-        INSERT INTO deudas (ID_Deudor, ID_Detalle, Monto, Fecha_Deuda)
-        VALUES (:id_deudor, :id_detalle, :valor, :fecha)
-    ");
+    SELECT ID
+    FROM deudas
+    WHERE ID_Deudor = :id_deudor
+      AND ID_Detalle = :id_detalle
+      AND Monto = :valor
+      AND Fecha_Deuda >= DATE_SUB(NOW(), INTERVAL 10 SECOND)
+    LIMIT 1
+");
 
     $stmt->execute([
         ':id_deudor' => $id_deudor,
         ':id_detalle' => $id_detalle,
-        ':valor' => $valor,
-        ':fecha' => $fecha_actual_hora_actual
+        ':valor'      => $valor
     ]);
+
+    if ($stmt->fetch()) {
+
+
+    } else {
+
+        // Insertar el ingreso en la tabla de deudas
+        $stmt = $pdo->prepare("
+        INSERT INTO deudas
+        (ID_Deudor, ID_Detalle, Monto, Fecha_Deuda)
+        VALUES
+        (:id_deudor, :id_detalle, :valor, :fecha)
+    ");
+
+        $stmt->execute([
+            ':id_deudor' => $id_deudor,
+            ':id_detalle' => $id_detalle,
+            ':valor' => $valor,
+            ':fecha' => $fecha_actual_hora_actual
+        ]);
+    }
 
     // Actualizar el total de deuda para todos los deudores
     $stmt_update = $pdo->prepare("
