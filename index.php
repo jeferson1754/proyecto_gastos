@@ -58,17 +58,25 @@ $total_sistema = $total_ahorros_real + $total_ocio_real + $total_ahorros_real;
 $total_externo = $total_gastos_externo + $total_ocio_externo + $total_ahorros_externo;
 $gasto_total_general = $total_gastos + $total_ocio + $total_ahorros;
 
-// 1. Vencidos (de ayer hacia atrás)
-$sql_vencidos = "SELECT COUNT(*) FROM pagos WHERE Estado = 'Pendiente' AND Fecha_Vencimiento < :hoy";
-$stmt_vencidos = $pdo->prepare($sql_vencidos);
-$stmt_vencidos->execute([':hoy' => $fecha_actual]);
-$total_vencidos = $stmt_vencidos->fetchColumn();
+// Usamos una sola consulta con SUM(CASE WHEN...) para calcular los 3 contadores a la vez
+$sql_alertas = "
+    SELECT 
+        SUM(CASE WHEN Fecha_Vencimiento < :hoy THEN 1 ELSE 0 END) as vencidos,
+        SUM(CASE WHEN Fecha_Vencimiento = :hoy THEN 1 ELSE 0 END) as hoy,
+        SUM(CASE WHEN Fecha_Vencimiento = DATE_ADD(:hoy, INTERVAL 1 DAY) THEN 1 ELSE 0 END) as manana
+    FROM pagos 
+    WHERE Estado = 'Pendiente'
+";
 
-// 2. Vencen hoy
-$sql_hoy = "SELECT COUNT(*) FROM pagos WHERE Estado = 'Pendiente' AND Fecha_Vencimiento = :hoy";
-$stmt_hoy = $pdo->prepare($sql_hoy);
-$stmt_hoy->execute([':hoy' => $fecha_actual]);
-$total_hoy = $stmt_hoy->fetchColumn();
+$stmt_alertas = $pdo->prepare($sql_alertas);
+// Usamos la misma variable :hoy para mantener la consistencia del servidor
+$stmt_alertas->execute([':hoy' => $fecha_actual]);
+$alertas = $stmt_alertas->fetch(PDO::FETCH_ASSOC);
+
+// Forzamos a que sean enteros (si no hay registros, el SUM devuelve NULL, así que los dejamos en 0)
+$total_vencidos = (int)($alertas['vencidos'] ?? 0);
+$total_hoy      = (int)($alertas['hoy'] ?? 0);
+$total_manana   = (int)($alertas['manana'] ?? 0);
 
 $iconos_medio = [
     1 => ['icon' => 'fa-university', 'color' => '#0d47a1'], // Débito
@@ -105,19 +113,25 @@ $iconos_medio = [
 
                     <i class="fa-solid fa-wallet fs-5"></i>
 
-                    <?php if ($total_vencidos > 0 || $total_hoy > 0): ?>
+                    <?php if ($total_vencidos > 0 || $total_hoy > 0 || $total_manana > 0): ?>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark d-flex p-0 border border-light badge-pulse"
                             style="overflow: hidden; line-height: 1.2;">
 
                             <?php if ($total_vencidos > 0): ?>
-                                <span class="bg-danger px-2 py-1 text-white" title="Vencidos">
+                                <span class="bg-danger px-2 py-1 text-white fw-bold" title="Vencidos">
                                     <?= $total_vencidos ?>
                                 </span>
                             <?php endif; ?>
 
                             <?php if ($total_hoy > 0): ?>
-                                <span class="bg-warning text-dark px-2 py-1" title="Vence hoy">
+                                <span class="bg-warning text-dark px-2 py-1 fw-bold border-start border-light" style="background-color: #ff5722 !important; color: white !important;" title="Vence hoy">
                                     <?= $total_hoy ?>
+                                </span>
+                            <?php endif; ?>
+
+                            <?php if ($total_manana > 0): ?>
+                                <span class="bg-warning text-dark px-2 py-1 fw-bold border-start border-light" title="Vence mañana">
+                                    <?= $total_manana ?>
                                 </span>
                             <?php endif; ?>
 

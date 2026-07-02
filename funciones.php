@@ -846,4 +846,79 @@ function procesarLogicaMetodoPago($pdo, $valor_pago, $metodo)
 
     return $resultado;
 }
+
+function obtenerConfiguracionGasto(array $pago): array
+{
+    // 1. Calcular fechas y días restantes automáticamente
+    $fecha_actual   = new DateTime(); // Toma la fecha de hoy
+    $fecha_pago     = DateTime::createFromFormat('d/m/Y', $pago['Fecha_Formateada']);
+
+    // Si la fecha del pago está mal formateada o vacía, evitamos que rompa el script
+    if (!$fecha_pago) {
+        return [
+            'icon'           => '✕',
+            'class'          => 'bg-secondary',
+            'texto'          => 'Sin fecha',
+            'color_fecha'    => 'black',
+            'dias_restantes' => 0
+        ];
+    }
+
+    // resetear horas para que el cálculo de días de la diferencia sea exacto
+    $fecha_actual->setTime(0, 0, 0);
+    $fecha_pago->setTime(0, 0, 0);
+
+    $dias_restantes = (int)$fecha_actual->diff($fecha_pago)->format('%r%a');
+
+    // 2. Inicializar variables por defecto
+    $icon        = '✕';
+    $class       = 'bg-secondary';
+    $texto       = $pago['Estado'];
+    $color_fecha = 'black';
+
+    // 3. --- CONFIGURACIÓN DE BADGE Y COLORES ---
+    if ($pago['Estado'] === 'Pagado') {
+        $icon  = '✓';
+        $class = 'bg-success';
+        $texto = 'Pagado';
+    } elseif ($pago['Estado'] === 'Pendiente') {
+
+        if ($dias_restantes < 0) {
+            $icon        = '🚨';
+            $class       = 'bg-danger';
+            $texto       = 'Vencido';
+            $color_fecha = 'red';
+        } elseif ($dias_restantes === 0) {
+            $icon        = '🔥';
+            $class       = 'bg-danger';
+            $texto       = 'Vence hoy';
+            $color_fecha = 'red';
+        } elseif ($dias_restantes <= 5) {
+            $icon        = '⏳';
+            $class       = 'bg-warning text-dark';
+            $texto       = "Vence en $dias_restantes días";
+            $color_fecha = 'orange';
+        } elseif ($dias_restantes <= 7) {
+            $icon        = '📆';
+            $class       = 'bg-warning-subtle text-dark';
+            $texto       = 'Próximo a vencer';
+            $color_fecha = 'goldenrod';
+        } else {
+            $icon        = '📌';
+            $class       = 'bg-success-subtle text-success';
+            $texto       = 'Programado';
+            $color_fecha = 'green';
+        }
+    }
+
+    // Retornamos todos los valores listos para usar en el HTML
+    return [
+        'icon'           => $icon,
+        'class'          => $class,
+        'texto'          => $texto,
+        'color_fecha'    => $color_fecha,
+        'dias_restantes' => $dias_restantes
+    ];
+}
+
 ?>

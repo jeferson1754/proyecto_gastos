@@ -480,56 +480,11 @@ foreach ($datos_pie as $row) {
                             // --- LÓGICA DE DÍAS RESTANTES ---
                             // Asumimos que Fecha_Formateada viene en formato d/m/Y (ej: 25/12/2023)
                             // 1. Creamos el objeto fecha
-                            $fecha_actual = DateTime::createFromFormat('d/m/Y', $fecha_actual_formateada);
-                            $fecha_pago   = DateTime::createFromFormat('d/m/Y', $pago['Fecha_Formateada']);
-                            $dias_restantes = (int)$fecha_actual->diff($fecha_pago)->format('%r%a');
-                            // --- CONFIGURACIÓN DE BADGE DE ESTADO ---
-                            if ($pago['Estado'] === 'Pagado') {
-                                $icon = '✓';
-                                $class = 'bg-success';
-                                $texto = 'Pagado';
-                            } elseif ($pago['Estado'] === 'Pendiente') {
-                                if ($dias_restantes < 0) {
-                                    // Ya pasó la fecha
-                                    $icon = '🚨';
-                                    $class = 'bg-danger';
-                                    $texto = 'Vencido';
-                                } elseif ($dias_restantes === 0) {
-                                    // ES HOY: Cambiado a rojo y texto específico
-                                    $icon = '🔥';
-                                    $class = 'bg-danger';
-                                    $texto = 'Vence hoy';
-                                } elseif ($dias_restantes <= 5) {
-                                    $icon = '⏳';
-                                    $class = 'bg-warning text-dark';
-                                    $texto = "Vence en $dias_restantes días";
-                                } elseif ($dias_restantes <= 7) {
-                                    $icon = '📆';
-                                    $class = 'bg-warning-subtle text-dark';
-                                    $texto = 'Próximo a vencer';
-                                } else {
-                                    $icon = '📌';
-                                    $class = 'bg-success-subtle text-success';
-                                    $texto = 'Programado';
-                                }
-                            } else {
-                                $icon = '✕';
-                                $class = 'bg-secondary';
-                                $texto = $pago['Estado'];
-                            }
-
-                            // --- COLOR DE LA FECHA ---
-                            $color_fecha = 'black';
-                            if ($pago['Estado'] === 'Pendiente') {
-                                if ($dias_restantes < 0 || $dias_restantes == 0) $color_fecha = 'red';
-                                elseif ($dias_restantes <= 5) $color_fecha = 'orange';
-                                elseif ($dias_restantes < 7) $color_fecha = 'goldenrod';
-                                else $color_fecha = 'green';
-                            }
+                            $config = obtenerConfiguracionGasto($pago);
                         ?>
                             <tr>
                                 <td><?= htmlspecialchars($pago['Cuenta']) ?></td>
-                                <td class="valor-cell" title="<?= $texto_flechita ?>">
+                                <td class="valor-cell" title="<?= $config['texto'] ?>">
 
                                     <?php if ($flechita): ?>
                                         <strong>$<?= number_format($pago['Valor'], 0, '', '.') ?></strong>
@@ -542,8 +497,8 @@ foreach ($datos_pie as $row) {
                                 </td>
                                 <td><?= htmlspecialchars($pago['quien_paga']) ?></td>
                                 <td class="py-2">
-                                    <span class="badge <?= $class ?> px-3 py-2 rounded-pill">
-                                        <?= $icon ?> <?= $texto ?>
+                                    <span class="badge <?= $config['class'] ?> px-3 py-2 rounded-pill">
+                                        <?= $config['icon'] ?> <?= $config['texto'] ?>
                                     </span>
                                 </td>
                                 <td>
@@ -556,7 +511,7 @@ foreach ($datos_pie as $row) {
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <span style="color: <?= $color_fecha ?>; font-weight: 500;" title="Quedan <?= $dias_restantes ?> días">
+                                    <span style="color: <?= $config['color_fecha'] ?>; font-weight: 500;" title="Quedan <?= $config['dias_restantes'] ?> días">
                                         <?= $pago['Fecha_Formateada'] ?>
                                     </span>
                                 </td>
@@ -616,39 +571,7 @@ foreach ($datos_pie as $row) {
                 $dias_restantes = (int)$fecha_actual->diff($fecha_pago)->format('%r%a');
 
                 // Configuración de estados
-                if ($pago['Estado'] === 'Pagado') {
-                    $icon = '✓';
-                    $class = 'bg-success';
-                    $texto = 'Pagado';
-                } elseif ($pago['Estado'] === 'Pendiente') {
-                    if ($dias_restantes < 0) {
-                        // Ya pasó la fecha
-                        $icon = '🚨';
-                        $class = 'bg-danger';
-                        $texto = 'Vencido';
-                    } elseif ($dias_restantes === 0) {
-                        // ES HOY: Cambiado a rojo y texto específico
-                        $icon = '🔥';
-                        $class = 'bg-danger';
-                        $texto = 'Vence hoy';
-                    } elseif ($dias_restantes <= 5) {
-                        $icon = '⏳';
-                        $class = 'bg-warning text-dark';
-                        $texto = "Vence en $dias_restantes días";
-                    } elseif ($dias_restantes <= 7) {
-                        $icon = '📆';
-                        $class = 'bg-warning-subtle text-dark';
-                        $texto = 'Próximo a vencer';
-                    } else {
-                        $icon = '📌';
-                        $class = 'bg-success-subtle text-success';
-                        $texto = 'Programado';
-                    }
-                } else {
-                    $icon = '✕';
-                    $class = 'bg-secondary';
-                    $texto = $pago['Estado'];
-                }
+                $config = obtenerConfiguracionGasto($pago);
 
 
 
@@ -678,8 +601,8 @@ foreach ($datos_pie as $row) {
                             <span><?php echo htmlspecialchars($pago['Cuenta']); ?></span>
                         </div>
 
-                        <span class="badge estado-badge <?php echo $class; ?>">
-                            <?php echo $icon . ' ' . $texto; ?>
+                        <span class="badge estado-badge <?php echo $config['class']; ?>">
+                            <?php echo $config['icon'] . ' ' . $config['texto']; ?>
                         </span>
                     </div>
 
@@ -700,22 +623,9 @@ foreach ($datos_pie as $row) {
                             <span class="mobile-card-value">
                                 <?php
 
-                                $color = 'black';
+                                $config = obtenerConfiguracionGasto($pago);
 
-                                if ($pago['Estado'] === 'Pendiente') {
-
-                                    if ($dias_restantes < 1) {
-                                        $color = 'red';           // vencido o 1 día
-                                    } elseif ($dias_restantes <= 5) {
-                                        $color = 'orange';        // 2 a 5 días
-                                    } elseif ($dias_restantes < 7) {
-                                        $color = 'goldenrod';     // 6 a 7 días
-                                    } else {
-                                        $color = 'green';         // más de 7 días
-                                    }
-                                }
-
-                                echo "<span style='color:$color; font-weight:500;' title='Quedan $dias_restantes días'>{$pago['Fecha_Formateada']}</span>";
+                                echo "<span style='color:{$config['color_fecha']}; font-weight:500;' title='Quedan {$dias_restantes} días'>{$pago['Fecha_Formateada']}</span>";
                                 ?>
                             </span>
                         </div>
