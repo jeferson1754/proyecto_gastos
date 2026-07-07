@@ -54,7 +54,7 @@ $total_ahorros_real    = $resultados['Ahorros']['total_sistema'];
 
 
 // --- TOTALES GLOBALES PARA EL PROMPT ---
-$total_sistema = $total_ahorros_real + $total_ocio_real + $total_ahorros_real;
+$total_sistema = $total_gastos_real + $total_ocio_real + $total_ahorros_real;
 $total_externo = $total_gastos_externo + $total_ocio_externo + $total_ahorros_externo;
 $gasto_total_general = $total_gastos + $total_ocio + $total_ahorros;
 
@@ -261,7 +261,7 @@ $iconos_medio = [
                         <?php
                         // Uso para Gastos
                         echo mostrarBarraProgreso(
-                            $total_gastos,  // Variable de tu código original
+                            $total_gastos_real,  // Variable de tu código original
                             $gastos        // Variable de tu código original que representa el 50%
                         );
                         ?>
@@ -281,7 +281,7 @@ $iconos_medio = [
                         <?php
                         // Uso para Gastos
                         echo mostrarBarraProgreso(
-                            $total_ocio,  // Variable de tu código original
+                            $total_ocio_real,  // Variable de tu código original
                             $ocio        // Variable de tu código original que representa el 50%
                         );
                         ?>
@@ -300,7 +300,7 @@ $iconos_medio = [
                         <?php
                         // Uso para Ahorro
                         echo mostrarBarraProgreso(
-                            $total_ahorros, // Variable de tu código original
+                            $total_ahorros_real, // Variable de tu código original
                             $ahorro        // Variable de tu código original que representa el 20%
                         );
                         ?>
@@ -313,6 +313,10 @@ $iconos_medio = [
         $gastos_restante = $gastos - $total_gastos;
         $ocio_restante = $ocio - $total_ocio;
         $ahorros_restante = $ahorro - $total_ahorros;
+
+        $color_gastos_detalles = obtenerColor($gastos, $total_gastos);
+        $color_ocio_detalles = obtenerColor($ocio, $total_ocio);
+        $color_ahorros_detalles = obtenerColor($ahorro, $total_ahorros);
 
         ?>
 
@@ -327,15 +331,16 @@ $iconos_medio = [
                         <h4 class="card-title text-center mb-4">Gastos y Cuentas</h4>
 
 
-                        <div class="alert alert-warning">
-                            Valor Actual:
-                            <?php
-
-                            $color_gastos_detalles = obtenerColor($gastos, $total_gastos);
-
-                            echo "<i class=" . $color_gastos_detalles . ">$ " . number_format($total_gastos, 0, '', '.') . "</i>";
-
-                            ?>
+                        <div class="p-2 rounded bg-warning-subtle text-warning-emphasis d-flex w-100 justify-content-between align-items-center border border-warning-subtle shadow-sm mb-3">
+                            <span class="fw-semibold">Valor Actual:</span>
+                            <span class="<?= $color_gastos_detalles ?> fw-bold">
+                                $<?= number_format($total_gastos_real, 0, '', '.') ?>
+                                <?php if ($total_gastos_externo > 0): ?>
+                                    <span class="text-muted fw-normal ms-1" style="font-size: 0.85em;">
+                                        (Ext: $<?= number_format($total_gastos_externo, 0, '', '.') ?>)
+                                    </span>
+                                <?php endif; ?>
+                            </span>
                         </div>
 
                         <div class="detalles-container">
@@ -388,15 +393,17 @@ $iconos_medio = [
                             <i class="fas fa-utensils"></i>
                         </div>
                         <h4 class="card-title text-center mb-4">Ocio</h4>
-                        <div class="alert alert-success">
-                            Valor Actual:
-                            <?php
 
-                            $color_ocio_detalle = obtenerColor($ocio, $total_ocio);
-
-                            echo "<i class=" . $color_ocio_detalle . ">$ " . number_format($total_ocio, 0, '', '.') . "</i>";
-
-                            ?>
+                        <div class="p-2 rounded bg-success-subtle text-success-emphasis d-flex w-100 justify-content-between align-items-center border border-success-subtle shadow-sm mb-3">
+                            <span class="fw-semibold">Valor Actual:</span>
+                            <span class="<?= $color_ocio_detalles ?> fw-bold">
+                                $<?= number_format($total_ocio_real, 0, '', '.') ?>
+                                <?php if ($total_ocio_externo > 0): ?>
+                                    <span class="text-muted fw-normal ms-1" style="font-size: 0.85em;">
+                                        (Ext: $<?= number_format($total_ocio_externo, 0, '', '.') ?>)
+                                    </span>
+                                <?php endif; ?>
+                            </span>
                         </div>
 
                         <div class="detalles-container ocio">
@@ -450,17 +457,18 @@ $iconos_medio = [
                         </div>
                         <h4 class="card-title text-center mb-4">Ahorro e Inversión</h4>
 
-                        <div class="alert alert-info">
-                            Valor Actual:
-                            <?php
-
-                            $color_ahorro_detalle = obtenerColor($ahorro, $total_ahorros);
-
-
-                            echo "<i class=" . $color_ahorro_detalle . ">$ " . number_format($total_ahorros, 0, '', '.') . "</i>";
-
-                            ?>
+                        <div class="p-2 rounded bg-info-subtle text-info-emphasis d-flex w-100 justify-content-between align-items-center border border-info-subtle shadow-sm mb-3">
+                            <span class="fw-semibold">Valor Actual:</span>
+                            <span class="<?= $color_ahorros_detalles ?> fw-bold">
+                                $<?= number_format($total_ahorros_real, 0, '', '.') ?>
+                                <?php if ($total_ahorros_externo > 0): ?>
+                                    <span class="text-muted fw-normal ms-1" style="font-size: 0.85em;">
+                                        (Ext: $<?= number_format($total_ahorros_externo, 0, '', '.') ?>)
+                                    </span>
+                                <?php endif; ?>
+                            </span>
                         </div>
+
                         <div class="detalles-container ahorro">
                             <ul class="list-group list-group-flush ahorro">
                                 <?php while ($detalle = mysqli_fetch_assoc($result_detalles_ahorros)): ?>
