@@ -528,33 +528,35 @@ $ORDEN
 $categorias_gastos_anual = obtenerCategoriasGastosAnuales($conexion);
 
 // Obtener totales por medio de pago para el mes actual
+// Obtener totales (propios y externos) por medio de pago para el mes actual
 $sql_medios = "SELECT 
-    id_medio_pago, 
-    SUM(Valor) as total 
+        id_medio_pago, 
+        SUM(CASE WHEN Fuente_Dinero != 'Externo' THEN Valor ELSE 0 END) as total_propio,
+        SUM(CASE WHEN Fuente_Dinero = 'Externo' THEN Valor ELSE 0 END) as total_externo
     FROM gastos 
- 	WHERE MONTH(Fecha) = MONTH(CURDATE()) AND YEAR(Fecha) = YEAR(CURDATE()) 
-      AND 
-            ID_Categoria_Gastos NOT IN (1, 2)
+    WHERE MONTH(Fecha) = MONTH(CURDATE()) AND YEAR(Fecha) = YEAR(CURDATE()) 
+      AND ID_Categoria_Gastos NOT IN (1, 2)
     GROUP BY id_medio_pago;";
 
 $stmt_medios = $pdo->query($sql_medios);
 $datos_medios = $stmt_medios->fetchAll(PDO::FETCH_ASSOC);
 
-// Mapeo para nombres y colores consistentes
+// Mapeo consistente de nombres y colores base (propios)
 $nombres_medios = [1 => 'Débito', 2 => 'Crédito', 3 => 'Efectivo'];
-$colores_medios = [1 => '#0d47a1', 2 => '#e65100', 3 => '#1b5e20'];
+$colores_medios = [1 => 'rgba(13, 71, 161, 0.75)', 2 => 'rgba(230, 81, 0, 0.75)', 3 => 'rgba(27, 94, 32, 0.75)'];
 
 $pie_medios_data = [];
-$colores_finales = [];
 
 foreach ($datos_medios as $row) {
     $id = $row['id_medio_pago'];
     $nombre = $nombres_medios[$id] ?? 'Otro';
+
     $pie_medios_data[] = [
         'name' => $nombre,
-        'value' => (int)$row['total']
+        'propio' => (int)$row['total_propio'],
+        'externo' => (int)$row['total_externo'],
+        'color' => $colores_medios[$id] ?? 'rgba(108, 117, 125, 0.75)'
     ];
-    $colores_finales[] = $colores_medios[$id] ?? '#6c757d';
 }
 ?>
 
@@ -780,15 +782,13 @@ foreach ($datos_medios as $row) {
                 </div>
             </div>
         </div>
-        <div class="stats-grid mb-8">
-            <div class="card p-6">
-                <h3 class="text-gray-600 text-center mb-2">Medios de Pagos en el Mes</h3>
-                <div class="relative" style="height: 350px;">
-                    <canvas id="chartMediosPago"></canvas>
-                </div>
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-8">
+            <div class="mb-4">
+                <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Distribución por Medios de Pago</h3>
+            </div>
+            <div class="relative" style="height: 240px;"> <canvas id="chartMediosPago"></canvas>
             </div>
         </div>
-
 
         <div class="grid md:grid-cols-2 gap-4 mb-8">
 
@@ -1160,84 +1160,101 @@ foreach ($datos_medios as $row) {
         (function() {
             const ctx = document.getElementById('chartMediosPago').getContext('2d');
 
-            // Datos provenientes de PHP
+            // Datos estructurados desde PHP
             const dataMedios = <?php echo json_encode($pie_medios_data); ?>;
-            const colores = <?php echo json_encode($colores_finales); ?>;
 
             const myChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: dataMedios.map(item => item.name),
                     datasets: [{
-
-                        data: dataMedios.map(x => x.value),
-
-                        backgroundColor: colores,
-
-                        borderRadius: 8,
-
-                        barThickness: 24
-
-                    }]
+                            label: 'Gasto Propio',
+                            data: dataMedios.map(item => item.propio),
+                            backgroundColor: dataMedios.map(item => item.color),
+                            borderRadius: 6,
+                            barThickness: 20
+                        },
+                        {
+                            label: 'Gasto Externo',
+                            data: dataMedios.map(item => item.externo),
+                            backgroundColor: 'rgba(173, 181, 189, 0.7)', // Gris neutro y plano para lo ajeno
+                            borderRadius: 6,
+                            barThickness: 20
+                        }
+                    ]
                 },
                 options: {
-
-                    indexAxis: 'y',
-
+                    indexAxis: 'y', // Fuerza el diseño horizontal
                     responsive: true,
-
                     maintainAspectRatio: false,
-
                     plugins: {
-
                         legend: {
-                            display: false
+                            display: true, // Activamos una leyenda sutil superior
+                            position: 'top',
+                            labels: {
+                                boxWidth: 10,
+                                font: {
+                                    size: 11
+                                }
+                            }
                         },
-
                         tooltip: {
+                            mode: 'index', // Muestra propio, externo y total al mismo tiempo en el tooltip
+                            intersect: false,
                             callbacks: {
-                                label: function(ctx) {
-
-                                    return new Intl.NumberFormat(
-                                        'es-CL', {
-                                            style: 'currency',
-                                            currency: 'CLP',
-                                            maximumFractionDigits: 0
-                                        }
-                                    ).format(ctx.raw);
-
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    let value = context.raw || 0;
+                                    return label + ': ' + new Intl.NumberFormat('es-CL', {
+                                        style: 'currency',
+                                        currency: 'CLP',
+                                        maximumFractionDigits: 0
+                                    }).format(value);
+                                },
+                                footer: function(tooltipItems) {
+                                    let total = 0;
+                                    tooltipItems.forEach(item => total += item.raw);
+                                    return 'Total: ' + new Intl.NumberFormat('es-CL', {
+                                        style: 'currency',
+                                        currency: 'CLP',
+                                        maximumFractionDigits: 0
+                                    }).format(total);
                                 }
                             }
                         }
-
                     },
-
                     scales: {
-
                         x: {
-
+                            stacked: true, // Apila los conjuntos en el eje X
                             ticks: {
-                                callback: function(value) {
-
-                                    return new Intl.NumberFormat(
-                                        'es-CL', {
-                                            notation: 'compact'
-                                        }
-                                    ).format(value);
-
+                                font: {
+                                    size: 11
+                                },
+                                callback: value => new Intl.NumberFormat('es-CL', {
+                                    notation: 'compact'
+                                }).format(value)
+                            },
+                            grid: {
+                                display: false
+                            } // Remueve líneas verticales molestas para un diseño más limpio
+                        },
+                        y: {
+                            stacked: true, // Apila los conjuntos en el eje Y
+                            ticks: {
+                                font: {
+                                    size: 12,
+                                    weight: '500'
                                 }
+                            },
+                            grid: {
+                                display: false
                             }
-
                         }
-
                     }
-
                 }
             });
 
-            // Manejar el redimensionamiento si estás usando tabs de Bootstrap o Tailwind
-            // Chart.js se redimensiona automáticamente si el contenedor cambia de tamaño,
-            // pero si usas tabs, puedes forzar el update así:
+            // Manejo de redimensionamiento por pestañas
             const tabEl = document.querySelector('#medios-tab');
             if (tabEl) {
                 tabEl.addEventListener('shown.bs.tab', () => {
