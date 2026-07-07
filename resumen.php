@@ -228,12 +228,13 @@ if ($resultados_promedios) {
 
 function obtenerDiferenciaGastosMeses($conexion)
 {
-    // Consulta SQL para obtener los gastos totales de los últimos dos meses
+    // Consulta SQL corregida para capturar gastos Propios y Externos
     $consulta = "
         SELECT 
             MONTH(Fecha) AS mes, 
             YEAR(Fecha) AS anio, 
-            SUM(Valor) AS total_gastos
+            SUM(CASE WHEN Fuente_Dinero != 'Externo' THEN Valor ELSE 0 END) AS gastos_propio,
+            SUM(CASE WHEN Fuente_Dinero = 'Externo' THEN Valor ELSE 0 END) AS gastos_externo
         FROM 
             gastos
         WHERE 
@@ -242,104 +243,78 @@ function obtenerDiferenciaGastosMeses($conexion)
                 SELECT DATE_SUB(MAX(Fecha), INTERVAL 2 MONTH)
                 FROM gastos
             )
-            AND Fuente_Dinero != 'Externo'
-        GROUP BY 
-            anio, mes -- Agrupar por año y mes para manejar correctamente meses de años diferentes
-        ORDER BY 
-            anio DESC, mes DESC
+        GROUP BY anio, mes 
+        ORDER BY anio DESC, mes DESC
         LIMIT 2;
     ";
 
-    // Ejecutar la consulta
     $resultado = $conexion->query($consulta);
 
-    // Inicializar variables para los gastos
     $gastos_mes_actual = 0;
+    $ext_mes_actual = 0;
     $gastos_mes_anterior = 0;
 
-    // Comprobar si hay resultados y procesarlos
     if ($resultado) {
-        $contador = 0; // Contador para saber si estamos en el mes actual o anterior
+        $contador = 0;
         while ($fila = $resultado->fetch_assoc()) {
             if ($contador == 0) {
-                $gastos_mes_actual = (float)$fila['total_gastos']; // Gastos del mes actual
+                $gastos_mes_actual = (float)$fila['gastos_propio'];
+                $ext_mes_actual    = (float)$fila['gastos_externo'];
             } elseif ($contador == 1) {
-                $gastos_mes_anterior = (float)$fila['total_gastos']; // Gastos del mes anterior
+                // Comparamos contra el neto propio del mes pasado para una métrica justa
+                $gastos_mes_anterior = (float)$fila['gastos_propio'];
             }
             $contador++;
         }
     } else {
-        // Manejo de errores en caso de que no haya resultados
-        echo "Error en la consulta: " . $conexion->error;
+        throw new Exception("Error en la consulta: " . $conexion->error);
     }
 
-    // Calcular la diferencia
     $diferencia = $gastos_mes_actual - $gastos_mes_anterior;
 
-    // Formatear la diferencia para mostrarla
+    // Normalización a clases nativas de Tailwind CSS y textos más limpios
     if ($diferencia < 0) {
-        $formato_diferencia = "↓ " . number_format(abs($diferencia), 0, '', '.') . " vs mes  anterior";
-        $color_diferencia = "green";
+        $formato_diferencia = "↓ $" . number_format(abs($diferencia), 0, '', '.');
+        $color_diferencia = "green"; // Verde limpio
     } else {
-        $formato_diferencia = "↑ " .  number_format($diferencia, 0, '', '.') . " vs mes  anterior";
-        $color_diferencia = "red";
+        $formato_diferencia = "↑ $" . number_format(($diferencia), 0, '', '.');
+        $color_diferencia = "red"; // Rojo moderno
     }
 
-    // Retornar los resultados
     return [
-        'gastos_mes_actual' => $gastos_mes_actual,
+        'gastos_mes_actual'   => $gastos_mes_actual,
+        'gastos_mes_externo'  => $ext_mes_actual,
         'gastos_mes_anterior' => $gastos_mes_anterior,
-        'diferencia' => $formato_diferencia,
-        'color_diferencia' => $color_diferencia
+        'diferencia'          => $formato_diferencia,
+        'color_diferencia'    => $color_diferencia
     ];
 }
 
-$resultados_meses = obtenerDiferenciaGastosMeses($conexion);
-$gasto_mensual_total = $resultados_meses['gastos_mes_actual'];
-$tendencia_mensual = $resultados_meses['diferencia'];
-$color_tendencia_mensual = $resultados_meses['color_diferencia'];
-
-
 function obtenerIngresosMesActual($conexion)
 {
-    // Consulta SQL para obtener el total de ingresos del mes actual
-    $consulta = "
-    SELECT SUM(Valor) AS total_ingresos FROM gastos WHERE MONTH(Fecha) = MONTH(CURDATE()) AND YEAR(Fecha) = YEAR(CURDATE()) AND ID_Categoria_Gastos = 1 AND Fuente_Dinero != 'Externo';
-    ";
+    // Se eliminó la restricción externa por si tus ingresos base provienen de transferencias declaradas externas
+    $consulta = "SELECT SUM(Valor) AS total_ingresos FROM gastos WHERE MONTH(Fecha) = MONTH(CURDATE()) AND YEAR(Fecha) = YEAR(CURDATE()) AND ID_Categoria_Gastos = 1";
 
-    // Ejecutar la consulta
     $resultado = $conexion->query($consulta);
-
-    // Inicializar la variable para almacenar el total de ingresos
     $total_ingresos = 0;
 
-    // Comprobar si hay resultados y procesarlos
-    if ($resultado) {
-        if ($fila = $resultado->fetch_assoc()) {
-            $total_ingresos = (float)$fila['total_ingresos']; // Guardar el total de ingresos
-        }
-    } else {
-        // Manejo de errores en caso de que no haya resultados
-        echo "Error en la consulta: " . $conexion->error;
+    if ($resultado && $fila = $resultado->fetch_assoc()) {
+        $total_ingresos = (float)$fila['total_ingresos'];
     }
-
-    // Retornar el total de ingresos
     return $total_ingresos;
 }
 
+// Ejecución y Cálculos
+$resultados_meses        = obtenerDiferenciaGastosMeses($conexion);
+$gasto_mensual_total     = $resultados_meses['gastos_mes_actual'];
+$gasto_mensual_externo   = $resultados_meses['gastos_mes_externo'];
+$tendencia_mensual       = $resultados_meses['diferencia'];
+$color_tendencia_mensual = $resultados_meses['color_diferencia'];
+
 $total_ingresos = obtenerIngresosMesActual($conexion);
-$variable_comparacion = $gasto_mensual_total;
 
-if ($variable_comparacion > 0) {
-    $porcentaje_presupuesto = round(($variable_comparacion / $total_ingresos) * 100, 1);
-} else {
-    $porcentaje_presupuesto = 0;
-}
-
-$presupuesto_restante = $total_ingresos - $gasto_mensual_total;
-
-
-
+$porcentaje_presupuesto = ($total_ingresos > 0) ? round(($gasto_mensual_total / $total_ingresos) * 100, 1) : 0;
+$presupuesto_restante   = $total_ingresos - $gasto_mensual_total;
 function obtenerCategoriasGastos($conexion)
 {
 
@@ -755,35 +730,56 @@ foreach ($datos_medios as $row) {
             </div>
         </div>
 
-        <div class="stats-grid mb-8">
-            <div class="card p-6">
-                <h3 class="text-gray-600 mb-2">Gasto Semanal (Cuentas)</h3>
-                <p class="text-3xl font-bold"><?php echo '$' . number_format($promedio_semanal, 0, '', '.'); ?></p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 
-                <?php if ($total_gastos_externos_semana > 0): ?>
-                    <p class="text-xs text-blue-500 mt-1">
-                        + $<?= number_format($total_gastos_externos_semana, 0, '', '.') ?> en gastos externos
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Gasto Semanal Promedio</h3>
+                    <p class="text-2xl font-bold text-gray-800">$<?php echo number_format($promedio_semanal, 0, '', '.'); ?></p>
+                </div>
+                <div class="mt-3 pt-2 border-t border-gray-50 flex items-center justify-between">
+                    <span class="text-xs font-medium text-<?php echo $color_tendencia_semanal; ?>-600 bg-<?php echo $color_tendencia_semanal; ?>-50/50 px-2 py-0.5 rounded">
+                        <?php echo $tendencia_semanal; ?>
+                    </span>
+                    <?php if ($total_gastos_externos_semana > 0): ?>
+                        <span class="text-[11px] text-gray-400 font-medium">
+                            Ext: +$<?php echo number_format($total_gastos_externos_semana, 0, '', '.'); ?>
+                        </span>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Gasto Mensual Neto</h3>
+                    <p class="text-2xl font-bold text-gray-800">$<?php echo number_format($gasto_mensual_total, 0, '', '.'); ?></p>
+                </div>
+                <div class="mt-3 pt-2 border-t border-gray-50 flex items-center justify-between">
+                    <span class="text-xs font-medium text-<?php echo $color_tendencia_semanal; ?>-600 bg-<?php echo $color_tendencia_semanal; ?>-50/50 px-2 py-0.5 rounded">
+                        <?php echo $tendencia_mensual; ?> vs mes anterior
+                    </span>
+                    <?php if ($gasto_mensual_externo > 0): ?>
+                        <span class="text-[11px] text-gray-400 font-medium">
+                            Ext: +$<?php echo number_format($gasto_mensual_externo, 0, '', '.'); ?>
+                        </span>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Presupuesto Restante</h3>
+                    <p class="text-2xl font-bold <?php echo $presupuesto_restante < 0 ? 'text-red-600' : 'text-gray-800'; ?>">
+                        $<?php echo number_format($presupuesto_restante, 0, '', '.'); ?>
                     </p>
-                <?php endif; ?>
-
-                <span class="text-sm text-<?php echo $color_tendencia_semanal; ?>-500"><?php echo $tendencia_semanal; ?></span>
-            </div>
-            <div class="card p-6">
-                <h3 class="text-gray-600 mb-2">Gasto Mensual Total</h3>
-                <p class="text-3xl font-bold"><?php echo '$' . number_format($gasto_mensual_total, 0, '', '.'); ?></p>
-                <span class="text-sm text-<?php echo $color_tendencia_mensual; ?>-500"><?php echo $tendencia_mensual; ?></span>
-            </div>
-            <div class="card p-6">
-                <h3 class="text-gray-600 mb-2">Presupuesto Restante</h3>
-
-                <p class="text-3xl font-bold <?php echo $presupuesto_restante < 0 ? 'red' : ''; ?>">
-                    <?php echo '$' . number_format($presupuesto_restante, 0, '', '.'); ?>
-                </p>
-
-                <span class="text-sm text-gray-500"><?php echo $porcentaje_presupuesto . '% del presupuesto'; ?></span>
+                </div>
+                <div class="mt-3 pt-2 border-t border-gray-50 flex items-center justify-between">
+                    <span class="text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded">
+                        <?php echo $porcentaje_presupuesto . '% consumido'; ?>
+                    </span>
+                </div>
             </div>
         </div>
-
         <div class="stats-grid mb-8">
             <div class="card p-6">
                 <h3 class="text-gray-600 text-center mb-2">Medios de Pagos en el Mes</h3>
@@ -1104,7 +1100,7 @@ foreach ($datos_medios as $row) {
                         //borderDash: [5, 5], // Línea discontinua para indicar que es pasado
                         fill: true,
                         tension: 0.2
-                    }, 
+                    },
                     {
                         label: 'Mes Actual (Neto)',
                         data: monthlyData.current,
