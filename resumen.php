@@ -4,7 +4,8 @@ include('bd.php');
 
 function obtenerGastosDiarios($conexion)
 {
-    // Consulta SQL para obtener los gastos por día de la semana
+    // Consulta SQL mejorada: removemos "Fuente_Dinero != 'Externo'" para capturarlos, 
+    // y los dividimos usando SUM(CASE WHEN...)
     $dias = "
         SELECT 
             CASE 
@@ -16,67 +17,60 @@ function obtenerGastosDiarios($conexion)
                 WHEN DAYOFWEEK(Fecha) = 7 THEN 'Sábado'
                 WHEN DAYOFWEEK(Fecha) = 1 THEN 'Domingo'
             END AS nombre_dia, 
-            SUM(Valor) AS total_gastos 
+            SUM(CASE WHEN Fuente_Dinero != 'Externo' THEN Valor ELSE 0 END) AS gastos_propio,
+            SUM(CASE WHEN Fuente_Dinero = 'Externo' THEN Valor ELSE 0 END) AS gastos_externo
         FROM 
             gastos 
         WHERE 
             Fecha >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
             AND Fecha < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY)
             AND ID_Categoria_Gastos != 1
-            AND Fuente_Dinero != 'Externo'
         GROUP BY 
             DAYOFWEEK(Fecha) 
         ORDER BY 
             FIELD(nombre_dia, 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo');
     ";
 
-
-    // Ejecutar la consulta
     $datos_dias = $conexion->query($dias);
 
-    // Arrays para almacenar etiquetas y gastos
     $labels_semanales = [];
-    $gastos_semanales = [];
+    $gastos_propio    = [];
+    $gastos_externo   = [];
 
-    // Recorrer los resultados de la consulta
     while ($fila = $datos_dias->fetch_assoc()) {
-        $labels_semanales[] = $fila['nombre_dia'];     // Guardar el nombre del día
-        $gastos_semanales[] = (float)$fila['total_gastos'];  // Guardar el total de gastos
+        $labels_semanales[] = $fila['nombre_dia'];
+        $gastos_propio[]    = (float)$fila['gastos_propio'];
+        $gastos_externo[]   = (float)$fila['gastos_externo'];
     }
 
-    // Convertir los arrays a formato JSON para usar en JavaScript
-    $labels_semanales_json = json_encode($labels_semanales);
-    $gastos_semanales_json = json_encode($gastos_semanales);
-
-    // Retornar los resultados
+    // Retornamos los datos serializados listos para JavaScript
     return [
-        'labels' => $labels_semanales_json,
-        'gastos' => $gastos_semanales_json
+        'labels'  => json_encode($labels_semanales),
+        'propio'  => json_encode($gastos_propio),
+        'externo' => json_encode($gastos_externo)
     ];
 }
-
+// Ejecución y asignación de variables
 $resultados_dias = obtenerGastosDiarios($conexion);
-if ($resultados_dias) {
-    $labels_semanales = $resultados_dias['labels'];
-    $gastos_semanales = $resultados_dias['gastos'];
-}
+$labels_semanales = $resultados_dias['labels'] ?? '[]';
+$gastos_propio    = $resultados_dias['propio'] ?? '[]';
+$gastos_externo   = $resultados_dias['externo'] ?? '[]';
 
 function obtenerGastosSemanales($conexion)
 {
-
-    // Consulta SQL para obtener los gastos semanales de las últimas 8 semanas
+    // Consulta SQL mejorada para capturar el total neto propio y el total externo de cada semana
     $consulta = "
         SELECT 
             MIN(Fecha) AS Fecha, 
             YEAR(Fecha) AS anio,
             WEEK(Fecha, 1) AS semana, 
-            SUM(Valor) AS total_gastos
+            SUM(CASE WHEN Fuente_Dinero != 'Externo' THEN Valor ELSE 0 END) AS gastos_propio,
+            SUM(CASE WHEN Fuente_Dinero = 'Externo' THEN Valor ELSE 0 END) AS gastos_externo
         FROM 
             gastos
         WHERE 
             Fecha >= CURDATE() - INTERVAL 8 WEEK 
             AND ID_Categoria_Gastos != 1
-            AND Fuente_Dinero != 'Externo'
         GROUP BY 
             anio, semana 
         ORDER BY anio DESC, semana DESC  
@@ -84,91 +78,80 @@ function obtenerGastosSemanales($conexion)
     ";
 
     // Obtener el número de la semana actual
-    $semana_actual = date('W'); // Número de semana (de 1 a 52)
-
-    // Calcular la semana actual menos 4
+    $semana_actual = date('W');
     $semana_menos_4 = $semana_actual - 4;
 
-    // Ajustar si la semana menos 4 es menor que 1 (por si es principio de año)
     if ($semana_menos_4 < 1) {
-        // Ajustar para evitar números negativos
-        $semana_menos_4 += 52; // O 53, según la lógica que necesites
+        $semana_menos_4 += 52;
     }
 
     $resultados = $conexion->query($consulta);
-    // Inicializar arreglos para almacenar los gastos y etiquetas
+
+    // Inicializar arreglos para clasificar la data
     $gastos_semanales_actual = [];
     $gastos_semanales_anterior = [];
+    $externo_semanales_actual = [];
+    $externo_semanales_anterior = [];
     $labels_mensuales = [];
 
-    // Contadores para verificar el número de semanas en cada grupo
     $contador_actual = 0;
     $contador_anterior = 0;
 
     // Procesar los resultados de la consulta
     while ($fila = $resultados->fetch_assoc()) {
-        // Generar la etiqueta de la semana
         $etiqueta_semana = "Semana " . $fila['semana'];
         $labels_mensuales[] = $etiqueta_semana;
 
-        // Clasificar según si la semana es mayor que $semana_menos_4
+        // Clasificar según el periodo (Mes Actual vs Mes Anterior)
         if ((int)$fila['semana'] > $semana_menos_4) {
-            $gastos_semanales_actual[] = (float)$fila['total_gastos'];
+            $gastos_semanales_actual[]  = (float)$fila['gastos_propio'];
+            $externo_semanales_actual[] = (float)$fila['gastos_externo'];
             $contador_actual++;
         } else {
-            $gastos_semanales_anterior[] = (float)$fila['total_gastos'];
+            $gastos_semanales_anterior[]  = (float)$fila['gastos_propio'];
+            $externo_semanales_anterior[] = (float)$fila['gastos_externo'];
             $contador_anterior++;
         }
     }
 
-    // Asegurarse de que cada grupo tenga al menos 4 semanas, completando con 0 si es necesario
+    // Rellenar con ceros si faltan semanas para completar los bloques de 4
     if ($contador_actual < 4) {
-        $gastos_semanales_actual = array_pad($gastos_semanales_actual, 4, 0);
+        $gastos_semanales_actual  = array_pad($gastos_semanales_actual, 4, 0);
+        $externo_semanales_actual = array_pad($externo_semanales_actual, 4, 0);
     }
     if ($contador_anterior < 4) {
-        $gastos_semanales_anterior = array_pad($gastos_semanales_anterior, 4, 0);
+        $gastos_semanales_anterior  = array_pad($gastos_semanales_anterior, 4, 0);
+        $externo_semanales_anterior = array_pad($externo_semanales_anterior, 4, 0);
     }
 
-    // Invertir los arreglos para obtener el orden cronológico (de la semana más antigua a la más reciente)
-    $gastos_actual_invertidos = array_reverse($gastos_semanales_actual);
+    // Invertir los arreglos para orden cronológico correcto
+    $gastos_actual_invertidos   = array_reverse($gastos_semanales_actual);
     $gastos_anterior_invertidos = array_reverse($gastos_semanales_anterior);
+    $externo_actual_invertidos  = array_reverse($externo_semanales_actual);
+    $externo_anterior_invertidos = array_reverse($externo_semanales_anterior);
 
-    /*
-    // Reacomodar los elementos según el formato deseado
-    // Se extraen 2 semanas de cada grupo para formar el arreglo final
-    $gastos_semanales_actual_final = array_merge(
-        array_slice($gastos_actual_invertidos, 2),         // Últimas 2 semanas del grupo "actual"
-        array_slice($gastos_anterior_invertidos, -2)        // Últimas 2 semanas del grupo "anterior"
-    );
-    $gastos_semanales_anterior_final = array_merge(
-        array_slice($gastos_anterior_invertidos, 0, -2),    // Primeras semanas del grupo "anterior"
-        array_slice($gastos_actual_invertidos, 0, 2)        // Primeras 2 semanas del grupo "actual"
-    );
-
-    // Eliminar cualquier valor cero sobrante en el arreglo de gastos anteriores y reindexar
-    $gastos_semanales_anterior_final = array_values(array_filter($gastos_semanales_anterior_final, function ($value) {
-        return $value !== 0;
-    }));
-    */
-
-    // Procesar las etiquetas: invertir el arreglo y extraer el subconjunto deseado
+    // Ajustar etiquetas semanales
     $labels_final = array_slice(array_reverse($labels_mensuales), 4, 8);
 
-    // Retornar los resultados finales
+    // Si tu gráfica actual usa el bloque "actual" como base de etiquetas de 4 puntos,
+    // puedes usar $externo_actual_invertidos para la línea de gastos externos.
     return [
         'gastos_semanales_actual'   => $gastos_actual_invertidos,
         'gastos_semanales_anterior' => $gastos_anterior_invertidos,
+        'externo_semanales_actual'  => $externo_actual_invertidos,
+        'externo_semanales_anterior' => $externo_anterior_invertidos,
         'labels_mensuales'          => $labels_final
     ];
 }
 
+// Asignación de variables lista para inyectar al JSON de JavaScript
 $resultados_gastos = obtenerGastosSemanales($conexion);
 if ($resultados_gastos) {
-    $gastos_semanales_actual = json_encode($resultados_gastos['gastos_semanales_actual']);
+    $gastos_semanales_actual   = json_encode($resultados_gastos['gastos_semanales_actual']);
     $gastos_semanales_anterior = json_encode($resultados_gastos['gastos_semanales_anterior']);
-    $labels_mensuales = json_encode($resultados_gastos['labels_mensuales']);
+    $gastos_semanales_externo  = json_encode($resultados_gastos['externo_semanales_actual']); // Pasamos los externos actuales
+    $labels_mensuales          = json_encode($resultados_gastos['labels_mensuales']);
 }
-
 
 function obtenerDiferenciaPromedios($conexion)
 {
@@ -1021,80 +1004,163 @@ foreach ($datos_medios as $row) {
 
     <script>
         // Datos de ejemplo
-
+        // Estructura de datos actualizando los gastos semanales desglosados
         const weeklyData = {
             labels: <?php echo $labels_semanales; ?>, // Días de la semana
-            expenses: <?php echo $gastos_semanales; ?> // Total de gastos por día
+            propio: <?php echo $gastos_propio; ?>, // Gastos propios por día
+            externo: <?php echo $gastos_externo; ?> // Gastos externos por día
         };
 
         const monthlyData = {
             labels: <?php echo $labels_mensuales ?>,
-            current: <?php echo $gastos_semanales_actual ?>,
-            previous: <?php echo $gastos_semanales_anterior ?>
+            current: <?php echo $gastos_semanales_actual ?>, // Tu gasto real neto actual
+            previous: <?php echo $gastos_semanales_anterior ?>, // Tu gasto real neto del mes pasado
+            external: <?php echo $gastos_semanales_externo ?> // NUEVO: Solo los flujos externos de este mes
         };
 
         const expensesCategories = <?php echo json_encode($categorias_gastos); ?>;
 
-        // Configurar gráfico semanal
+        // Configurar gráfico semanal con barras apiladas
         new Chart(document.getElementById('weeklyChart').getContext('2d'), {
             type: 'bar',
             data: {
                 labels: weeklyData.labels,
                 datasets: [{
-                    label: 'Gastos',
-                    data: weeklyData.expenses,
-                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
-                    borderRadius: 6
-                }]
+                        label: 'Gastos Propios',
+                        data: weeklyData.propio,
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)', // Azul original sutilmente más denso
+                        borderRadius: 6
+                    },
+                    {
+                        label: 'Gastos Externos',
+                        data: weeklyData.externo,
+                        backgroundColor: 'rgba(173, 181, 189, 0.7)', // Gris (#adb5bd) para la parte externa
+                        borderRadius: 6
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 plugins: {
                     legend: {
-                        display: false
+                        display: true, // Activamos la leyenda para que se entienda la diferencia del gris
+                        position: 'top',
+                        labels: {
+                            boxWidth: 12
+                        }
                     },
                     title: {
                         display: true,
-                        text: 'Gastos Diarios'
+                        text: 'Gastos Diarios de la Semana'
+                    },
+                    tooltip: {
+                        // Modificamos el tooltip para que muestre el total combinado del día al pasar el cursor
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                let value = context.raw || 0;
+                                return label + ': $' + new Intl.NumberFormat('es-CL').format(value);
+                            },
+                            footer: function(tooltipItems) {
+                                let total = 0;
+                                tooltipItems.forEach(function(item) {
+                                    total += item.raw;
+                                });
+                                return 'Total Día: $' + new Intl.NumberFormat('es-CL').format(total);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    // CRÍTICAL: Estas propiedades fuerzan a Chart.js a montar las barras una sobre otra
+                    x: {
+                        stacked: true
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        ticks: {
+                            // Formatea los números del eje lateral con puntos
+                            callback: function(value) {
+                                return '$' + new Intl.NumberFormat('es-CL').format(value);
+                            }
+                        }
                     }
                 }
             }
         });
 
         // Configurar gráfico mensual con comparación
+        // Configurar gráfico mensual con comparación y desglose externo
         new Chart(document.getElementById('monthlyChart').getContext('2d'), {
             type: 'line',
             data: {
                 labels: monthlyData.labels,
                 datasets: [{
-                    label: 'Mes Anterior',
-                    data: monthlyData.previous,
-                    borderColor: 'rgb(156, 163, 175)',
-                    backgroundColor: 'rgba(156, 163, 175, 0.3)',
-                    fill: true
-                }, {
-                    label: 'Mes Actual',
-                    data: monthlyData.current,
-                    borderColor: 'rgb(59, 130, 246)',
-                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
-                    fill: false
-                }]
+                        label: 'Mes Anterior (Neto)',
+                        data: monthlyData.previous,
+                        borderColor: 'rgb(156, 163, 175)',
+                        backgroundColor: 'rgba(156, 163, 175, 0.1)',
+                        //borderDash: [5, 5], // Línea discontinua para indicar que es pasado
+                        fill: true,
+                        tension: 0.2
+                    }, 
+                    {
+                        label: 'Mes Actual (Neto)',
+                        data: monthlyData.current,
+                        borderColor: 'rgb(59, 130, 246)', // Azul principal
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.2,
+                        borderWidth: 3 // Más gruesa para destacar que es el flujo actual
+                    },
+                    {
+                        label: 'Gastos Externos (Mes Act.)',
+                        data: monthlyData.external,
+                        borderColor: 'rgb(206, 212, 218)', // Gris claro/plateado para el flujo externo
+                        backgroundColor: 'transparent',
+                        borderDash: [3, 3],
+                        fill: false,
+                        tension: 0.2,
+                        pointRadius: 4,
+                        pointBackgroundColor: 'rgb(173, 181, 189)'
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Comparativa Semanal'
+                        text: 'Comparativa de Gastos Mensuales y Flujo Externo'
+                    },
+                    tooltip: {
+                        // Formateador chileno para los números dentro del tooltip interactivo
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                let value = context.raw || 0;
+                                return label + ': $' + new Intl.NumberFormat('es-CL').format(value);
+                            }
+                        }
                     }
                 },
                 interaction: {
                     intersect: false,
                     mode: 'index'
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + new Intl.NumberFormat('es-CL').format(value);
+                            }
+                        }
+                    }
                 }
             }
         });
-
         (function() {
             const ctx = document.getElementById('chartMediosPago').getContext('2d');
 
