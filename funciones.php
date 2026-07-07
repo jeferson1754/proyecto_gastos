@@ -148,8 +148,11 @@ function ejecutar_consulta($pdo, $where, $limit)
         $limit = intval($limit);  // Usar intval() para convertir a entero
     }
 
-    // Consulta SQL para obtener el total por categoría
-    $sql = "SELECT c.Nombre AS categoria, SUM(g.Valor) AS total_categoria
+    // Consulta SQL mejorada para desglosar el total_externo de cada categoría
+    // REVISA AQUÍ: Cambia "g.Fuente_Dinero = 'externo'" por tu columna real de gasto externo
+    $sql = "SELECT c.Nombre AS categoria, 
+                   SUM(g.Valor) AS total_categoria,
+                   SUM(CASE WHEN g.Fuente_Dinero = 'externo' THEN g.Valor ELSE 0 END) AS total_externo
             FROM gastos g
             INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
             WHERE ($where) 
@@ -167,10 +170,10 @@ function ejecutar_consulta($pdo, $where, $limit)
         // Ejecutar la consulta
         $stmt->execute();
 
-        // Obtener las categorías y sus totales
+        // Obtener las categorías, sus totales y ahora sus totales externos
         $categorias = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Calcular la suma total directamente en la consulta SQL
+        // Calcular la suma total directamente en la consulta SQL (Sigue funcionando igual)
         $suma_total = array_sum(array_column($categorias, 'total_categoria'));
 
         return [
@@ -187,17 +190,29 @@ function ejecutar_consulta($pdo, $where, $limit)
 //Funcion para hacer un grafico de pie para cada modulo con sus datos
 function piechart($id, $categoria_nombre, $colores, $title = 'Gastos por Categoría')
 {
-    // Encode the data and colors for JavaScript
-    $js_data = json_encode(array_map(function ($categoria) {
+    // Mapeamos los datos para procesar la distinción de externos
+    $data_procesada = array_map(function ($categoria) {
+        $nombre = $categoria['categoria'];
+        $total_categoria = (float)$categoria['total_categoria'];
+
+        // Detectamos si este registro trae gastos externos (asumiendo que agregaste 'total_externo' a tu SQL)
+        $total_externo = isset($categoria['total_externo']) ? (float)$categoria['total_externo'] : 0;
+
+        // Si el total es 100% externo, le añadimos el tag al nombre para la leyenda
+        if ($total_externo > 0 && $total_externo >= $total_categoria) {
+            $nombre .= ' (Ext)';
+        }
+
         return [
-            'value' => $categoria['total_categoria'],
-            'name' => $categoria['categoria']
+            'value' => $total_categoria,
+            'name'  => $nombre,
+            // Guardamos el valor externo de forma oculta en el objeto para usarlo en JavaScript
+            'externo' => $total_externo
         ];
-    }, $categoria_nombre));
+    }, $categoria_nombre);
 
+    $js_data = json_encode($data_procesada);
     $js_colors = json_encode($colores);
-
-    // Output the JavaScript code
 ?>
     <script>
         (function() {
@@ -209,20 +224,42 @@ function piechart($id, $categoria_nombre, $colores, $title = 'Gastos por Categor
 
             var option = {
                 tooltip: {
-                    trigger: 'item'
+                    trigger: 'item',
+                    // MEJORA: Formateador personalizado para mostrar el desglose del gasto externo
+                    formatter: function(params) {
+                        var total = params.value;
+                        var externo = params.data.externo || 0;
+                        var propio = total - externo;
+
+                        // Formateamos los números a estilo chileno (puntos)
+                        var formatNum = (num) => new Intl.NumberFormat('es-CL').format(num);
+
+                        var html = `<strong>${params.seriesName}</strong><br/>`;
+                        html += `${params.marker} ${params.name}: <strong>$${formatNum(total)}</strong><br/>`;
+
+                        // Si tiene gastos externos, mostramos el desglose en el tooltip
+                        if (externo > 0) {
+                            html += `<small style="padding-left: 15px;">• Propio: $${formatNum(propio)}</small><br/>`;
+                            html += `<small style="color: #aaa; padding-left: 15px;">• Externo: $${formatNum(externo)}</small><br/>`;
+                        }
+
+                        html += `<small style="padding-left: 15px;">• Porcentaje: ${params.percent}%</small>`;
+                        return html;
+                    }
                 },
                 legend: {
-                    left: 'center'
+                    left: 'center',
+                    type: 'scroll' // Evita que se amontone si hay muchas categorías
                 },
                 color: <?php echo $js_colors; ?>,
                 series: [{
-                    top: '5%',
+                    top: '10%',
                     name: <?php echo json_encode($title); ?>,
                     type: 'pie',
-                    radius: ['40%', '70%'],
-                    avoidLabelOverlap: false,
+                    radius: ['40%', '75%'],
+                    avoidLabelOverlap: true,
                     itemStyle: {
-                        borderRadius: 10,
+                        borderRadius: 8,
                         borderColor: '#fff',
                         borderWidth: 2
                     },
@@ -233,8 +270,12 @@ function piechart($id, $categoria_nombre, $colores, $title = 'Gastos por Categor
                     emphasis: {
                         label: {
                             show: true,
-                            fontSize: '18',
-                            fontWeight: 'bold'
+                            fontSize: '16',
+                            fontWeight: 'bold',
+                            // Muestra el nombre y el valor formateado al centro al pasar el mouse
+                            formatter: function(params) {
+                                return params.name + '\n$' + new Intl.NumberFormat('es-CL').format(params.value);
+                            }
                         }
                     },
                     labelLine: {
