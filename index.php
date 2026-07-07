@@ -518,18 +518,18 @@ $iconos_medio = [
         <?php
 
         // Calcular diferencias
-        $anterior_gastos = $anterior_total_gastos - $total_gastos_real;
-        $anterior_ocio = $anterior_total_ocio - $total_ocio_real;
-        $anterior_ahorros = $anterior_total_ahorros - $total_ahorros_real;
+        $anterior_gastos = $anterior_total_gastos - $total_gastos;
+        $anterior_ocio = $anterior_total_ocio - $total_ocio;
+        $anterior_ahorros = $anterior_total_ahorros - $total_ahorros;
 
-        $color_gastos_restante = obtenerColor($gastos, $total_gastos_real);
-        $color_ocio_restante = obtenerColor($ocio, $total_ocio_real);
-        $color_ahorro_restante = obtenerColor($ahorro, $total_ahorros_real);
+        $color_gastos_restante = obtenerColor($gastos, $total_gastos);
+        $color_ocio_restante = obtenerColor($ocio, $total_ocio);
+        $color_ahorro_restante = obtenerColor($ahorro, $total_ahorros);
 
         // Obtener colores para historico
-        $color_gastos_historico = obtenerColor($anterior_total_gastos, $total_gastos_real);
-        $color_ocio_historico = obtenerColor($anterior_total_ocio, $total_ocio_real);
-        $color_ahorro_historico = obtenerColor($anterior_total_ahorros, $total_ahorros_real);
+        $color_gastos_historico = obtenerColor($anterior_total_gastos, $total_gastos);
+        $color_ocio_historico = obtenerColor($anterior_total_ocio, $total_ocio);
+        $color_ahorro_historico = obtenerColor($anterior_total_ahorros, $total_ahorros);
 
         $pdo = new PDO("mysql:host=$host;dbname=$database", $user, $password);
 
