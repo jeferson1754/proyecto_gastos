@@ -3,7 +3,7 @@
 include('bd.php');
 require_once('funciones.php');
 
-$meses = isset($_GET['meses']) ? $_GET['meses'] : 6;
+$meses = isset($_GET['meses']) ? max(1, (int)$_GET['meses']) : 6;
 function obtener_dashboard($conexion, $meses)
 {
     // Array para almacenar los datos de ingresos y egresos
@@ -13,10 +13,12 @@ function obtener_dashboard($conexion, $meses)
     $stmt = $conexion->prepare("
         SELECT 
             SUM(CASE WHEN categorias_gastos.Nombre = 'Ingresos' THEN gastos.Valor ELSE 0 END) AS total_ingresos,
-            SUM(CASE WHEN categorias_gastos.Nombre != 'Ingresos' THEN gastos.Valor ELSE 0 END) AS total_egresos
+            SUM(CASE WHEN categorias_gastos.Nombre != 'Ingresos' AND categorias_gastos.ID NOT IN (2, 30) AND COALESCE(NULLIF(gastos.Fuente_Dinero,''),'sistema') <> 'externo' THEN gastos.Valor ELSE 0 END) AS total_egresos,
+            SUM(CASE WHEN categorias_gastos.Nombre != 'Ingresos' AND categorias_gastos.ID NOT IN (2, 30) AND COALESCE(NULLIF(gastos.Fuente_Dinero,''),'sistema') = 'externo' THEN gastos.Valor ELSE 0 END) AS total_egresos_externo,
+            SUM(CASE WHEN categorias_gastos.ID IN (2, 30) AND COALESCE(NULLIF(gastos.Fuente_Dinero,''),'sistema') <> 'externo' THEN gastos.Valor ELSE 0 END) AS total_ahorro
         FROM gastos 
         INNER JOIN categorias_gastos ON categorias_gastos.ID = gastos.ID_Categoria_Gastos 
-        WHERE MONTH(gastos.Fecha) = ? AND YEAR(gastos.Fecha) = ? AND categorias_gastos.ID != 2 AND categorias_gastos.ID != 30
+        WHERE MONTH(gastos.Fecha) = ? AND YEAR(gastos.Fecha) = ?
     ");
 
     // Iterar por los últimos meses
@@ -33,7 +35,9 @@ function obtener_dashboard($conexion, $meses)
 
         // Obtener los totales de ingresos y egresos
         $total_ingresos = $row['total_ingresos'] ?? 0;
-        $total_egresos = $row['total_egresos'] ?? 0;
+        $total_egresos = $row['total_egresos'] ?? 0;               // solo dinero del sistema (afecta liquidez)
+        $total_egresos_externo = $row['total_egresos_externo'] ?? 0; // externos (informativo)
+        $total_ahorro = $row['total_ahorro'] ?? 0;                   // ahorro (sale de la cuenta, no es gasto)
 
         // Almacenar los resultados en el array $datos
         $datos[] = [
@@ -42,8 +46,11 @@ function obtener_dashboard($conexion, $meses)
             'anio' => $anio,
             'ingresos' => $total_ingresos,
             'egresos' => $total_egresos,
-            'diferencia' => $total_ingresos - $total_egresos,
-            'diferencia_porcentaje' => ($total_egresos != 0) ? (($total_ingresos - $total_egresos) / $total_egresos) * 100 : 0
+            'egresos_externo' => $total_egresos_externo,
+            'ahorro' => $total_ahorro,
+            'egresos_total' => $total_egresos + $total_egresos_externo,
+            'diferencia' => $total_ingresos - $total_egresos - $total_ahorro, // disponible: ingresos - gastos - ahorro
+            'diferencia_porcentaje' => ($total_egresos != 0) ? (($total_ingresos - $total_egresos - $total_ahorro) / $total_egresos) * 100 : 0
         ];
     }
 
@@ -73,7 +80,8 @@ function obtenerDatos($conexion, $id_categoria, $fecha)
             g.Fecha AS Dia, 
             g.Valor AS Monto, 
             cg.Nombre AS Categoria, 
-            d.Detalle 
+            d.Detalle, 
+            COALESCE(NULLIF(g.Fuente_Dinero,''),'sistema') AS Fuente 
         FROM 
             (
                 SELECT 
@@ -146,7 +154,8 @@ SELECT
     g.Valor as Monto, 
     g.Fecha as Dia, 
     cg.Nombre as Categoria, 
-    d.Detalle 
+    d.Detalle, 
+    COALESCE(NULLIF(g.Fuente_Dinero,''),'sistema') as Fuente 
 FROM gastos g
 JOIN categorias_gastos cg ON g.ID_Categoria_Gastos = cg.ID
     JOIN 
@@ -154,6 +163,7 @@ JOIN categorias_gastos cg ON g.ID_Categoria_Gastos = cg.ID
 WHERE g.id_medio_pago = ? 
 AND DATE_FORMAT(g.Fecha, '%Y-%m') = ?
   AND cg.Nombre != 'Ingresos'
+  AND g.ID_Categoria_Gastos NOT IN (2, 30)
 ORDER BY g.Valor DESC 
 LIMIT 1
     ";
@@ -206,11 +216,12 @@ function obtener_top_categorias($conexion, $meses)
     $stmt = $conexion->prepare("
     SELECT 
         categorias_gastos.Nombre AS categoria, 
-        SUM(gastos.Valor) AS total_gastos
+        SUM(gastos.Valor) AS total_gastos,
+        SUM(CASE WHEN COALESCE(NULLIF(gastos.Fuente_Dinero,''),'sistema') = 'externo' THEN gastos.Valor ELSE 0 END) AS total_externo
     FROM gastos
     INNER JOIN categorias_gastos ON categorias_gastos.ID = gastos.ID_Categoria_Gastos
     WHERE categorias_gastos.ID NOT IN (1, 2, 30)  
-      AND gastos.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL $meses MONTH), '%Y-%m-01')
+      AND gastos.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL " . (max(1, (int)$meses) - 1) . " MONTH), '%Y-%m-01')
     GROUP BY categorias_gastos.Nombre
     ORDER BY total_gastos DESC
     LIMIT 5;
@@ -224,7 +235,9 @@ function obtener_top_categorias($conexion, $meses)
     while ($row = $result->fetch_assoc()) {
         $categorias_top[] = [
             'categoria' => $row['categoria'],
-            'total_gastos' => number_format($row['total_gastos'], 0, '', '.')
+            'total_gastos' => number_format($row['total_gastos'], 0, '', '.'),
+            'externo_raw' => (float)$row['total_externo'],
+            'externo' => number_format($row['total_externo'], 0, '', '.')
         ];
     }
 
@@ -243,7 +256,7 @@ function obtener_top_categorias_repetidas($conexion, $meses)
         FROM gastos
         INNER JOIN categorias_gastos ON categorias_gastos.ID = gastos.ID_Categoria_Gastos
         WHERE categorias_gastos.ID NOT IN (1, 2, 30)
-        AND gastos.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL $meses MONTH), '%Y-%m-01')
+        AND gastos.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL " . (max(1, (int)$meses) - 1) . " MONTH), '%Y-%m-01')
         GROUP BY categorias_gastos.Nombre
         ORDER BY cantidad_repeticiones DESC
         LIMIT 5
@@ -275,7 +288,7 @@ function obtener_promedio_gastos($conexion, $meses)
         FROM gastos
         INNER JOIN categorias_gastos ON categorias_gastos.ID = gastos.ID_Categoria_Gastos
         WHERE categorias_gastos.ID NOT IN (1, 2, 30)
-        AND gastos.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL $meses MONTH), '%Y-%m-01')
+        AND gastos.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL " . (max(1, (int)$meses) - 1) . " MONTH), '%Y-%m-01')
         GROUP BY categorias_gastos.Nombre
         ORDER BY `promedio_gastos` DESC
     ");
@@ -302,11 +315,12 @@ function obtener_gastos_menores($conexion, $meses)
     $stmt = $conexion->prepare("
           SELECT 
         categorias_gastos.Nombre AS categoria, 
-        SUM(gastos.Valor) AS gasto_minimo
+        SUM(gastos.Valor) AS gasto_minimo,
+        SUM(CASE WHEN COALESCE(NULLIF(gastos.Fuente_Dinero,''),'sistema') = 'externo' THEN gastos.Valor ELSE 0 END) AS total_externo
     FROM gastos
     INNER JOIN categorias_gastos ON categorias_gastos.ID = gastos.ID_Categoria_Gastos
     WHERE categorias_gastos.ID NOT IN (1, 2, 30)  -- Usamos NOT IN para simplificar las condiciones
-    AND gastos.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL $meses MONTH), '%Y-%m-01')
+    AND gastos.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL " . (max(1, (int)$meses) - 1) . " MONTH), '%Y-%m-01')
     GROUP BY categorias_gastos.Nombre
     ORDER BY gasto_minimo ASC
     LIMIT 5;
@@ -319,7 +333,9 @@ function obtener_gastos_menores($conexion, $meses)
     while ($row = $result->fetch_assoc()) {
         $gastos_menores[] = [
             'categoria' => $row['categoria'],
-            'gasto_minimo' => number_format($row['gasto_minimo'], 0, '', '.')
+            'gasto_minimo' => number_format($row['gasto_minimo'], 0, '', '.'),
+            'externo_raw' => (float)$row['total_externo'],
+            'externo' => number_format($row['total_externo'], 0, '', '.')
         ];
     }
 
@@ -646,6 +662,7 @@ function formatMonth($number_mes)
                             <th>Mes</th>
                             <th>Ingresos</th>
                             <th>Egresos</th>
+                            <th>Ahorro</th>
                             <th>Diferencia</th>
                             <th>Tendencia</th>
                             <th>Acciones</th> <!-- Nueva columna para el botón -->
@@ -655,11 +672,15 @@ function formatMonth($number_mes)
                         <?php
                         $totales_ingresos = 0;
                         $totales_egresos = 0;
+                        $totales_egresos_externo = 0;
+                        $totales_ahorro = 0;
                         $totales_diferencia = 0;
 
                         foreach ($dashboard as $row):
                             $totales_ingresos += $row['ingresos'];
                             $totales_egresos += $row['egresos'];
+                            $totales_egresos_externo += $row['egresos_externo'];
+                            $totales_ahorro += $row['ahorro'];
                             $totales_diferencia += $row['diferencia'];
                             $formatted_mes = formatMonth($row['number_mes']);
                         ?>
@@ -672,6 +693,13 @@ function formatMonth($number_mes)
                                 <td class="text-danger">
                                     <i class="bi bi-credit-card trend-icon"></i>
                                     $<?php echo number_format($row['egresos'], 0, '', '.'); ?>
+                                    <?php if ($row['egresos_externo'] > 0): ?>
+                                        <small class="text-muted fw-normal ms-1">(Ext: $<?php echo number_format($row['egresos_externo'], 0, '', '.'); ?>)</small>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-primary">
+                                    <i class="bi bi-safe trend-icon"></i>
+                                    $<?php echo number_format($row['ahorro'], 0, '', '.'); ?>
                                 </td>
                                 <td class="<?php echo $row['diferencia'] >= 0 ? 'text-success' : 'text-danger'; ?>">
                                     <i class="bi bi-balance trend-icon"></i>
@@ -697,7 +725,7 @@ function formatMonth($number_mes)
 
                             <!-- Fila de detalles oculta -->
                             <tr id="details-<?php echo $row['mes'] . '-' . $row['anio']; ?>" class="details-row" style="display: none;">
-                                <td colspan="6">
+                                <td colspan="7">
                                     <div class="details-content p-4 bg-light rounded shadow-sm">
                                         <div class="row g-3">
                                             <?php
@@ -741,7 +769,7 @@ function formatMonth($number_mes)
                                                             </div>
                                                             <div class="card-body">
                                                                 <p class="text-muted small mb-2"><?php echo $tarjeta['descripcion']; ?></p>
-                                                                <h3 class="mb-3 text-dark">$<?php echo number_format($fila['Monto'], 0, '', '.'); ?></h3>
+                                                                <h3 class="mb-3 text-dark">$<?php echo number_format($fila['Monto'], 0, '', '.'); ?><?php if (($fila['Fuente'] ?? 'sistema') === 'externo'): ?><span class="badge bg-secondary ms-2 align-middle" style="font-size:.5em;">Externo</span><?php endif; ?></h3>
                                                                 <div class="d-flex align-items-center text-secondary">
                                                                     <div class="me-3">
                                                                         <i class="far fa-calendar-alt me-1"></i>
@@ -802,7 +830,7 @@ function formatMonth($number_mes)
 
                                                 foreach ($gasto_top as $fila2):
                                                     // Calcular porcentaje
-                                                    $porcentaje = ($totales_egresos > 0) ? ($fila2['Monto'] / $totales_egresos) * 100 : 0;
+                                                    $porcentaje = ($row['egresos_total'] > 0) ? min(100, ($fila2['Monto'] / $row['egresos_total']) * 100) : 0;
                                             ?>
 
                                                     <div class="col-md-4">
@@ -820,6 +848,7 @@ function formatMonth($number_mes)
                                                                 <div class="d-flex align-items-baseline">
                                                                     <h3 class="mb-3 text-dark fw-bold">$<?php echo number_format($fila2['Monto'], 0, '', '.'); ?></h3>
                                                                     <small class="ms-2 text-muted">del total mensual</small>
+                                                                    <?php if (($fila2['Fuente'] ?? 'sistema') === 'externo'): ?><span class="badge bg-secondary ms-2 align-middle" style="font-size:.5em;">Externo</span><?php endif; ?>
                                                                 </div>
 
                                                                 <div class="progress mb-3" style="height: 6px;">
@@ -866,6 +895,13 @@ function formatMonth($number_mes)
                             <td class="text-danger">
                                 <i class="bi bi-wallet2 trend-icon"></i>
                                 $<?php echo number_format($totales_egresos, 0, '', '.'); ?>
+                                <?php if ($totales_egresos_externo > 0): ?>
+                                    <small class="text-muted fw-normal ms-1">(Ext: $<?php echo number_format($totales_egresos_externo, 0, '', '.'); ?>)</small>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-primary">
+                                <i class="bi bi-safe trend-icon"></i>
+                                $<?php echo number_format($totales_ahorro, 0, '', '.'); ?>
                             </td>
                             <td class="<?php echo $totales_diferencia >= 0 ? 'text-success' : 'text-danger'; ?>">
                                 <i class="bi bi-piggy-bank trend-icon"></i>
@@ -874,11 +910,11 @@ function formatMonth($number_mes)
                             <td class="<?php echo $totales_diferencia >= 0 ? 'text-success' : 'text-danger'; ?>">
                                 <?php
                                 if ($totales_egresos != 0) {
-                                    $totales_diferencia_porcentaje = (($totales_ingresos - $totales_egresos) / $totales_egresos) * 100;
+                                    $totales_diferencia_porcentaje = (($totales_ingresos - $totales_egresos - $totales_ahorro) / $totales_egresos) * 100;
                                 } else {
                                     $totales_diferencia_porcentaje = $totales_ingresos > 0 ? 100 : 0;
                                 }
-                                $diferencia = $totales_ingresos - $totales_egresos;
+                                $diferencia = $totales_ingresos - $totales_egresos - $totales_ahorro;
                                 $totales_tendencia = $diferencia > 0 ? 1 : ($diferencia < 0 ? -1 : 0);
 
                                 if ($totales_tendencia > 0): ?>
@@ -926,7 +962,7 @@ function formatMonth($number_mes)
                                 <i class="bi bi-graph-up-arrow"></i>
                                 <?php echo $categoria['categoria']; ?>
                             </span>
-                            <span class="value text-primary">$<?php echo $categoria['total_gastos']; ?></span>
+                            <span class="value text-primary">$<?php echo $categoria['total_gastos']; ?><?php if ($categoria['externo_raw'] > 0): ?> <small class="text-muted fw-normal">(Ext: $<?php echo $categoria['externo']; ?>)</small><?php endif; ?></span>
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -980,7 +1016,7 @@ function formatMonth($number_mes)
                                 <i class="bi bi-patch-minus"></i>
                                 <?php echo $categoria['categoria']; ?>
                             </span>
-                            <span class="value text-danger">$<?php echo $categoria['gasto_minimo']; ?></span>
+                            <span class="value text-danger">$<?php echo $categoria['gasto_minimo']; ?><?php if ($categoria['externo_raw'] > 0): ?> <small class="text-muted fw-normal">(Ext: $<?php echo $categoria['externo']; ?>)</small><?php endif; ?></span>
                         </div>
                     <?php endforeach; ?>
                 </div>

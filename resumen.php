@@ -4,7 +4,7 @@ include('bd.php');
 
 function obtenerGastosDiarios($conexion)
 {
-    // Consulta SQL mejorada: removemos "Fuente_Dinero != 'Externo'" para capturarlos, 
+    // Consulta SQL mejorada: removemos "COALESCE(NULLIF(Fuente_Dinero,''),'sistema') <> 'externo'" para capturarlos, 
     // y los dividimos usando SUM(CASE WHEN...)
     $dias = "
         SELECT 
@@ -17,14 +17,14 @@ function obtenerGastosDiarios($conexion)
                 WHEN DAYOFWEEK(Fecha) = 7 THEN 'Sábado'
                 WHEN DAYOFWEEK(Fecha) = 1 THEN 'Domingo'
             END AS nombre_dia, 
-            SUM(CASE WHEN Fuente_Dinero != 'Externo' THEN Valor ELSE 0 END) AS gastos_propio,
+            SUM(CASE WHEN COALESCE(NULLIF(Fuente_Dinero,''),'sistema') <> 'externo' THEN Valor ELSE 0 END) AS gastos_propio,
             SUM(CASE WHEN Fuente_Dinero = 'Externo' THEN Valor ELSE 0 END) AS gastos_externo
         FROM 
             gastos 
         WHERE 
             Fecha >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
             AND Fecha < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY)
-            AND ID_Categoria_Gastos != 1
+            AND ID_Categoria_Gastos NOT IN (1, 2, 30)
         GROUP BY 
             DAYOFWEEK(Fecha) 
         ORDER BY 
@@ -64,13 +64,13 @@ function obtenerGastosSemanales($conexion)
             MIN(Fecha) AS Fecha, 
             YEAR(Fecha) AS anio,
             WEEK(Fecha, 1) AS semana, 
-            SUM(CASE WHEN Fuente_Dinero != 'Externo' THEN Valor ELSE 0 END) AS gastos_propio,
+            SUM(CASE WHEN COALESCE(NULLIF(Fuente_Dinero,''),'sistema') <> 'externo' THEN Valor ELSE 0 END) AS gastos_propio,
             SUM(CASE WHEN Fuente_Dinero = 'Externo' THEN Valor ELSE 0 END) AS gastos_externo
         FROM 
             gastos
         WHERE 
             Fecha >= CURDATE() - INTERVAL 8 WEEK 
-            AND ID_Categoria_Gastos != 1
+            AND ID_Categoria_Gastos NOT IN (1, 2, 30)
         GROUP BY 
             anio, semana 
         ORDER BY anio DESC, semana DESC  
@@ -160,13 +160,13 @@ function obtenerDiferenciaPromedios($conexion)
     SELECT 
             SUM(CASE 
                     WHEN YEARWEEK(Fecha, 1) = YEARWEEK(CURDATE(), 1) 
-                    AND fuente_dinero = 'sistema' THEN Valor 
+                    AND COALESCE(NULLIF(fuente_dinero,''),'sistema') <> 'externo' THEN Valor 
                     ELSE 0 
                 END) AS promedio_gastos_actual,
             
             SUM(CASE 
                     WHEN YEARWEEK(Fecha, 1) = YEARWEEK(CURDATE() - INTERVAL 1 WEEK, 1) 
-                    AND fuente_dinero = 'sistema' THEN Valor 
+                    AND COALESCE(NULLIF(fuente_dinero,''),'sistema') <> 'externo' THEN Valor 
                     ELSE 0 
                 END) AS promedio_gastos_anterior,
             SUM(CASE 
@@ -175,7 +175,7 @@ function obtenerDiferenciaPromedios($conexion)
                     ELSE 0 
                 END) AS total_externos_actual
         FROM gastos
-        WHERE ID_Categoria_Gastos != 1
+        WHERE ID_Categoria_Gastos NOT IN (1, 2, 30)
         AND (
             YEAR(Fecha) = YEAR(CURDATE()) OR 
             (MONTH(Fecha) = 12 AND YEAR(Fecha) = YEAR(CURDATE()) - 1)
@@ -228,24 +228,20 @@ if ($resultados_promedios) {
 
 function obtenerDiferenciaGastosMeses($conexion)
 {
-    // Consulta SQL corregida para capturar gastos Propios y Externos
+    // Trae el mes calendario actual y el anterior (propio y externo por separado)
     $consulta = "
         SELECT 
             MONTH(Fecha) AS mes, 
             YEAR(Fecha) AS anio, 
-            SUM(CASE WHEN Fuente_Dinero != 'Externo' THEN Valor ELSE 0 END) AS gastos_propio,
-            SUM(CASE WHEN Fuente_Dinero = 'Externo' THEN Valor ELSE 0 END) AS gastos_externo
+            SUM(CASE WHEN COALESCE(NULLIF(Fuente_Dinero,''),'sistema') <> 'externo' THEN Valor ELSE 0 END) AS gastos_propio,
+            SUM(CASE WHEN COALESCE(NULLIF(Fuente_Dinero,''),'sistema') = 'externo' THEN Valor ELSE 0 END) AS gastos_externo
         FROM 
             gastos
         WHERE 
-            ID_Categoria_Gastos != 1
-            AND Fecha >= (
-                SELECT DATE_SUB(MAX(Fecha), INTERVAL 2 MONTH)
-                FROM gastos
-            )
-        GROUP BY anio, mes 
-        ORDER BY anio DESC, mes DESC
-        LIMIT 2;
+            ID_Categoria_Gastos NOT IN (1, 2, 30)
+            AND Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01')
+            AND Fecha <= LAST_DAY(CURDATE())
+        GROUP BY anio, mes;
     ";
 
     $resultado = $conexion->query($consulta);
@@ -255,16 +251,18 @@ function obtenerDiferenciaGastosMeses($conexion)
     $gastos_mes_anterior = 0;
 
     if ($resultado) {
-        $contador = 0;
+        $clave_actual   = date('Y-n');
+        $clave_anterior = date('Y-n', strtotime('first day of last month'));
+
         while ($fila = $resultado->fetch_assoc()) {
-            if ($contador == 0) {
+            $clave = $fila['anio'] . '-' . (int)$fila['mes'];
+            if ($clave === $clave_actual) {
                 $gastos_mes_actual = (float)$fila['gastos_propio'];
                 $ext_mes_actual    = (float)$fila['gastos_externo'];
-            } elseif ($contador == 1) {
+            } elseif ($clave === $clave_anterior) {
                 // Comparamos contra el neto propio del mes pasado para una métrica justa
                 $gastos_mes_anterior = (float)$fila['gastos_propio'];
             }
-            $contador++;
         }
     } else {
         throw new Exception("Error en la consulta: " . $conexion->error);
@@ -272,13 +270,12 @@ function obtenerDiferenciaGastosMeses($conexion)
 
     $diferencia = $gastos_mes_actual - $gastos_mes_anterior;
 
-    // Normalización a clases nativas de Tailwind CSS y textos más limpios
     if ($diferencia < 0) {
         $formato_diferencia = "↓ $" . number_format(abs($diferencia), 0, '', '.');
-        $color_diferencia = "green"; // Verde limpio
+        $color_diferencia = "green";
     } else {
         $formato_diferencia = "↑ $" . number_format(($diferencia), 0, '', '.');
-        $color_diferencia = "red"; // Rojo moderno
+        $color_diferencia = "red";
     }
 
     return [
@@ -304,6 +301,21 @@ function obtenerIngresosMesActual($conexion)
     return $total_ingresos;
 }
 
+// Ahorro del mes actual (categorías 2 y 30): no es gasto, pero el dinero sale de la cuenta
+function obtenerAhorroMesActual($conexion)
+{
+    $consulta = "SELECT SUM(Valor) AS total_ahorro FROM gastos 
+                 WHERE MONTH(Fecha) = MONTH(CURDATE()) AND YEAR(Fecha) = YEAR(CURDATE()) 
+                 AND ID_Categoria_Gastos IN (2, 30) 
+                 AND COALESCE(NULLIF(Fuente_Dinero,''),'sistema') <> 'externo'";
+    $resultado = $conexion->query($consulta);
+    $total = 0;
+    if ($resultado && $fila = $resultado->fetch_assoc()) {
+        $total = (float)$fila['total_ahorro'];
+    }
+    return $total;
+}
+
 // Ejecución y Cálculos
 $resultados_meses        = obtenerDiferenciaGastosMeses($conexion);
 $gasto_mensual_total     = $resultados_meses['gastos_mes_actual'];
@@ -314,7 +326,8 @@ $color_tendencia_mensual = $resultados_meses['color_diferencia'];
 $total_ingresos = obtenerIngresosMesActual($conexion);
 
 $porcentaje_presupuesto = ($total_ingresos > 0) ? round(($gasto_mensual_total / $total_ingresos) * 100, 1) : 0;
-$presupuesto_restante   = $total_ingresos - $gasto_mensual_total;
+$ahorro_mes             = obtenerAhorroMesActual($conexion);
+$presupuesto_restante   = $total_ingresos - $gasto_mensual_total - $ahorro_mes; // disponible real: ingresos - gastos - ahorro
 function obtenerCategoriasGastos($conexion)
 {
 
@@ -342,13 +355,12 @@ function obtenerCategoriasGastos($conexion)
     JOIN 
         categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
     WHERE 
-        g.ID_Categoria_Gastos != 1 
-        AND g.ID_Categoria_Gastos != 2
+        g.ID_Categoria_Gastos NOT IN (1, 2, 30)
         AND (
             YEAR(g.Fecha) = YEAR(CURDATE()) OR 
             (MONTH(g.Fecha) = 12 AND YEAR(g.Fecha) = YEAR(CURDATE()) - 1)
         )
-        AND Fuente_Dinero != 'Externo'
+        AND COALESCE(NULLIF(Fuente_Dinero,''),'sistema') <> 'externo'
     GROUP BY 
         c.Nombre
         $ORDEN
@@ -415,8 +427,8 @@ function obtenerCategoriasGastosMes($conexion)
         JOIN 
             categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
         WHERE 
-            g.ID_Categoria_Gastos NOT IN (1, 2)
-            AND g.Fuente_Dinero != 'Externo'
+            g.ID_Categoria_Gastos NOT IN (1, 2, 30)
+            AND COALESCE(NULLIF(g.Fuente_Dinero,''),'sistema') <> 'externo'
         GROUP BY 
             c.Nombre
         $ORDEN
@@ -484,8 +496,8 @@ function obtenerCategoriasGastosAnuales($conexion)
         JOIN 
             categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
         WHERE 
-            g.ID_Categoria_Gastos NOT IN (1)
-            AND g.Fuente_Dinero != 'Externo'
+            g.ID_Categoria_Gastos NOT IN (1, 2, 30)
+            AND COALESCE(NULLIF(g.Fuente_Dinero,''),'sistema') <> 'externo'
         GROUP BY 
             c.Nombre
 $ORDEN
@@ -531,11 +543,11 @@ $categorias_gastos_anual = obtenerCategoriasGastosAnuales($conexion);
 // Obtener totales (propios y externos) por medio de pago para el mes actual
 $sql_medios = "SELECT 
         id_medio_pago, 
-        SUM(CASE WHEN Fuente_Dinero != 'Externo' THEN Valor ELSE 0 END) as total_propio,
+        SUM(CASE WHEN COALESCE(NULLIF(Fuente_Dinero,''),'sistema') <> 'externo' THEN Valor ELSE 0 END) as total_propio,
         SUM(CASE WHEN Fuente_Dinero = 'Externo' THEN Valor ELSE 0 END) as total_externo
     FROM gastos 
     WHERE MONTH(Fecha) = MONTH(CURDATE()) AND YEAR(Fecha) = YEAR(CURDATE()) 
-      AND ID_Categoria_Gastos NOT IN (1, 2)
+      AND ID_Categoria_Gastos NOT IN (1, 2, 30)
     GROUP BY id_medio_pago;";
 
 $stmt_medios = $pdo->query($sql_medios);
@@ -779,6 +791,11 @@ foreach ($datos_medios as $row) {
                     <span class="text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded">
                         <?php echo $porcentaje_presupuesto . '% consumido'; ?>
                     </span>
+                    <?php if ($ahorro_mes > 0): ?>
+                        <span class="text-[11px] text-gray-400 font-medium">
+                            Ahorro: -$<?php echo number_format($ahorro_mes, 0, '', '.'); ?>
+                        </span>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

@@ -31,7 +31,7 @@ function obtener_datos_ultimos_meses($conexion, $meses)
                                     SUM(CASE WHEN categorias_gastos.Nombre != 'Ingresos' THEN gastos.Valor ELSE 0 END) AS total_egresos
                                 FROM gastos 
                                 INNER JOIN categorias_gastos ON categorias_gastos.ID = gastos.ID_Categoria_Gastos 
-                                WHERE MONTH(gastos.Fecha) = ? AND YEAR(gastos.Fecha) = ? AND Fuente_Dinero != 'Externo'
+                                WHERE MONTH(gastos.Fecha) = ? AND YEAR(gastos.Fecha) = ? AND COALESCE(NULLIF(gastos.Fuente_Dinero,''),'sistema') <> 'externo'
                             ");
 
     for ($i = $meses - 1; $i >= 0; $i--) {
@@ -63,8 +63,8 @@ function obtener_datos($conexion, $where, $current_month, $current_year, $previo
 {
     // SQL mejorado: Sumamos por separado sistema y externo en una sola pasada usando CASE
     $sql_total = "SELECT 
-        SUM(CASE WHEN g.Fuente_Dinero != 'externo' OR g.Valor IS NULL THEN g.Valor ELSE 0 END) AS total_sistema,
-        SUM(CASE WHEN g.Fuente_Dinero = 'externo' THEN g.Valor ELSE 0 END) AS total_externo
+        SUM(CASE WHEN COALESCE(NULLIF(g.Fuente_Dinero,''),'sistema') <> 'externo' THEN g.Valor ELSE 0 END) AS total_sistema,
+        SUM(CASE WHEN COALESCE(NULLIF(g.Fuente_Dinero,''),'sistema') = 'externo' THEN g.Valor ELSE 0 END) AS total_externo
     FROM gastos g
     INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
     WHERE (MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?)
@@ -82,8 +82,8 @@ function obtener_datos($conexion, $where, $current_month, $current_year, $previo
 
     // SQL Mes Anterior (también desglosado para comparar peras con peras)
     $sql_anterior = "SELECT 
-        SUM(CASE WHEN g.Fuente_Dinero != 'externo' OR g.Valor IS NULL THEN g.Valor ELSE 0 END) AS total_sistema,
-        SUM(CASE WHEN g.Fuente_Dinero = 'externo' THEN g.Valor ELSE 0 END) AS total_externo
+        SUM(CASE WHEN COALESCE(NULLIF(g.Fuente_Dinero,''),'sistema') <> 'externo' THEN g.Valor ELSE 0 END) AS total_sistema,
+        SUM(CASE WHEN COALESCE(NULLIF(g.Fuente_Dinero,''),'sistema') = 'externo' THEN g.Valor ELSE 0 END) AS total_externo
     FROM gastos g
     INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID 
     WHERE (MONTH(g.Fecha) = ? AND YEAR(g.Fecha) = ?)
@@ -120,7 +120,9 @@ function obtener_datos($conexion, $where, $current_month, $current_year, $previo
         'total_general'  => ($total_sistema + $total_externo),
         'detalles'       => $result_detalles,
         'anterior_sistema' => $ant_sistema,
-        'anterior_externo' => $ant_externo
+        'anterior_externo' => $ant_externo,
+        // Para comparar contra 'total_general' (sistema + externo) con la misma base
+        'anterior_general' => ($ant_sistema + $ant_externo)
     ];
 }
 
@@ -147,6 +149,8 @@ function ejecutar_consulta($pdo, $where, $limit)
     if (!is_int($limit) || $limit <= 0) {
         $limit = intval($limit);  // Usar intval() para convertir a entero
     }
+    // El mes actual cuenta como 1: para N meses se retrocede N-1
+    $limit_offset = max(1, $limit) - 1;
 
     // Consulta SQL mejorada para desglosar el total_externo de cada categoría
     // REVISA AQUÍ: Cambia "g.Fuente_Dinero = 'externo'" por tu columna real de gasto externo
@@ -156,7 +160,7 @@ function ejecutar_consulta($pdo, $where, $limit)
             FROM gastos g
             INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
             WHERE ($where) 
-            AND g.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL :limit MONTH), '%Y-%m-01')
+            AND g.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL :limit_offset MONTH), '%Y-%m-01')
             GROUP BY c.Nombre
             ORDER BY total_categoria DESC";
 
@@ -165,7 +169,7 @@ function ejecutar_consulta($pdo, $where, $limit)
         $stmt = $pdo->prepare($sql);
 
         // Asociar el valor del parámetro :limit
-        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindParam(':limit_offset', $limit_offset, PDO::PARAM_INT);
 
         // Ejecutar la consulta
         $stmt->execute();
@@ -308,7 +312,7 @@ function DatosHistoricos($where, $conexion, $nombre_grafico, $colores, $limit)
     INNER JOIN 
         categorias_gastos c ON gastos.ID_Categoria_Gastos = c.ID 
     WHERE ($where) 
-    AND gastos.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL $limit MONTH), '%Y-%m-01')
+    AND gastos.Fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL " . (max(1, (int)$limit) - 1) . " MONTH), '%Y-%m-01')
     GROUP BY 
         c.Nombre, mes;";
 
@@ -600,7 +604,7 @@ function generarGraficosPorCategoria($conexion, $where, $colores, $tipo, $numero
         WHERE $where
         GROUP BY
             c.Nombre, mes
-            ORDER BY gastos.Valor DESC;";
+            ORDER BY mes ASC;";
 
     // Ejecutar la consulta
     $result = $conexion->query($sql);
@@ -690,7 +694,7 @@ function generarGraficosPorCategoria($conexion, $where, $colores, $tipo, $numero
         echo "<div class='col-md-$numero mx-auto responsivo'><br><br>
                 <h4 class='text-center'>$categoria</h4>
                 
-                <p>$tipo_diferencia<strong>$" . number_format($diferencia, 0, '', '.') . "</strong> (" . number_format($porcentaje, 1) . "%)</p>
+                <p>$tipo_diferencia<strong>$" . number_format(abs($diferencia), 0, '', '.') . "</strong> (" . number_format($porcentaje, 1) . "%)</p>
                 <div id='$tipo-historico-$categoria' style='height: 400px;'></div>
               </div>";
 
