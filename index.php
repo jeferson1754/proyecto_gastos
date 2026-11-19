@@ -30,19 +30,21 @@ foreach ($modulos as $nombre_categoria => $where_clause) {
 // Acceder a los resultados de cada categoría
 $total_gastos = $resultados['Gastos']['total_general'];
 $result_detalles_gastos = $resultados['Gastos']['detalles'];
-$anterior_total_gastos = $resultados['Gastos']['anterior_sistema'];
+$anterior_total_gastos = $resultados['Gastos']['anterior_general'];
 
 $total_ocio = $resultados['Ocio']['total_general'];
 $result_detalles_ocio = $resultados['Ocio']['detalles'];
-$anterior_total_ocio = $resultados['Ocio']['anterior_sistema'];
+$anterior_total_ocio = $resultados['Ocio']['anterior_general'];
 
 $total_ahorros = $resultados['Ahorros']['total_general'];
 $result_detalles_ahorros = $resultados['Ahorros']['detalles'];
-$anterior_total_ahorros = $resultados['Ahorros']['anterior_sistema'];
+$anterior_total_ahorros = $resultados['Ahorros']['anterior_general'];
 
+// total_* = sistema + externo | *_real = solo sistema | *_externo = solo externo
+// El 'anterior_*' se compara siempre con total_* (misma base: sistema + externo)
 // --- ACCESO A RESULTADOS DE GASTOS ---
 $total_gastos_externo  = $resultados['Gastos']['total_externo']; // El informativo
-$total_gastos_real     = $resultados['Gastos']['total_sistema']; // La suma de ambos
+$total_gastos_real     = $resultados['Gastos']['total_sistema']; // Solo dinero del sistema
 
 // --- ACCESO A RESULTADOS DE OCIO ---
 $total_ocio_externo    = $resultados['Ocio']['total_externo'];
@@ -66,6 +68,7 @@ $sql_alertas = "
         SUM(CASE WHEN Fecha_Vencimiento = DATE_ADD(:hoy, INTERVAL 1 DAY) THEN 1 ELSE 0 END) as manana
     FROM pagos 
     WHERE Estado = 'Pendiente'
+      AND Automatico = 0 -- los pagos automáticos no generan alertas
 ";
 
 $stmt_alertas = $pdo->prepare($sql_alertas);

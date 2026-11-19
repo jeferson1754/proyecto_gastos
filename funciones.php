@@ -858,37 +858,125 @@ function clasificarGasto($texto)
     return "Sin Clasificar"; // Valor por defecto
 }
 
-function procesarLogicaMetodoPago($pdo, $valor_pago, $metodo)
+// ============================================================
+//  TARJETA DE CRÉDITO: la deuda se acumula en UNA cuenta pendiente
+//  llamada 'Tarjeta de Credito' que vence el día 10 de cada mes.
+// ============================================================
+if (!defined('CUENTA_TARJETA')) define('CUENTA_TARJETA', 'Tarjeta de Credito');
+if (!defined('DIA_VENCIMIENTO_TARJETA')) define('DIA_VENCIMIENTO_TARJETA', 10);
+
+// ¿La cuenta es la Tarjeta de Crédito? (ignora mayúsculas y tildes)
+function esCuentaTarjeta($cuenta): bool
+{
+    $c = mb_strtolower(trim((string)$cuenta));
+    $c = str_replace(['é', 'É'], 'e', $c);
+    return $c === 'tarjeta de credito';
+}
+
+// Convierte un monto a float. Acepta el valor de la BD (15000 / 15000.00)
+// y el formato con máscara chilena ("$ 15.000").
+function limpiarMontoPago($valor): float
+{
+    if (is_int($valor) || is_float($valor)) return (float)$valor;
+    $valor = trim((string)$valor);
+    if (is_numeric($valor)) return (float)$valor;
+    $valor = preg_replace('/[^0-9.,-]/', '', $valor);
+    return (float) str_replace(['.', ','], ['', '.'], $valor);
+}
+
+// Suma un mes conservando el día (31 de enero -> 28/29 de febrero, no 3 de marzo)
+function sumarUnMes(string $fecha): string
+{
+    $d = new DateTime($fecha);
+    $dia = (int)$d->format('j');
+    $d->modify('first day of next month');
+    $d->setDate((int)$d->format('Y'), (int)$d->format('n'), min($dia, (int)$d->format('t')));
+    return $d->format('Y-m-d');
+}
+
+// Próximo día 10 a partir de hoy (si hoy es 10 o antes -> este mes; si no -> el mes siguiente)
+function proximoVencimientoTarjeta(?string $desde = null): string
+{
+    $hoy = new DateTime($desde ?: 'today');
+    $hoy->setTime(0, 0, 0);
+    $venc = clone $hoy;
+    $venc->setDate((int)$hoy->format('Y'), (int)$hoy->format('n'), DIA_VENCIMIENTO_TARJETA);
+    if ($hoy > $venc) {
+        $venc->modify('first day of next month');
+        $venc->setDate((int)$venc->format('Y'), (int)$venc->format('n'), DIA_VENCIMIENTO_TARJETA);
+    }
+    return $venc->format('Y-m-d');
+}
+
+// Vencimiento del siguiente ciclo: la tarjeta siempre cae el día 10, el resto conserva su día
+function siguienteVencimiento(string $fecha_vencimiento_actual, $cuenta): string
+{
+    if (esCuentaTarjeta($cuenta)) {
+        $d = new DateTime($fecha_vencimiento_actual);
+        $d->modify('first day of next month');
+        $d->setDate((int)$d->format('Y'), (int)$d->format('n'), DIA_VENCIMIENTO_TARJETA);
+        return $d->format('Y-m-d');
+    }
+    return sumarUnMes($fecha_vencimiento_actual);
+}
+
+// Define el origen del dinero según el método de pago.
+// Si es crédito: SUMA el gasto a la deuda pendiente de la tarjeta (la crea si no existe)
+// y lo marca como 'externo' (no resta de tu liquidez hasta que pagues la tarjeta).
+// Lanza Exception si no se puede registrar; llamarla dentro de una transacción.
+function procesarLogicaMetodoPago($pdo, $valor_pago, $metodo, $cuenta_origen = null)
 {
     $resultado = [
         'origen' => 'sistema',
         'id_medio' => 1
     ];
 
-    // Convertimos valor a número puro (por si viene con puntos o comas de la máscara JS)
-    $valor_limpio = (float) str_replace(['.', ','], ['', '.'], $valor_pago);
-
-    // Comparamos de forma flexible (==) o verificamos ambos tipos
-    if ($metodo === 'credito' || $metodo == 2) {
-
-        // 1. Buscar la cuenta de Tarjeta de Crédito pendiente
-        $stmt_tc = $pdo->prepare("SELECT ID, Valor FROM pagos WHERE Cuenta = 'Tarjeta de Credito' AND Estado = 'Pendiente' LIMIT 1");
-        $stmt_tc->execute();
-        $cuenta_tc = $stmt_tc->fetch(PDO::FETCH_ASSOC);
-
-        if ($cuenta_tc) {
-            // 2. Sumar el valor del gasto actual a la deuda acumulada
-            $nuevo_valor = (float)$cuenta_tc['Valor'] + $valor_limpio;
-
-            $update = $pdo->prepare("UPDATE pagos SET Valor = ? WHERE ID = ?");
-            $update->execute([$nuevo_valor, $cuenta_tc['ID']]);
-        }
-
-        // 3. Ajustar valores de retorno para crédito
-        $resultado['origen'] = 'externo';
-        $resultado['id_medio'] = 2;
+    $es_credito = ($metodo === 'credito' || $metodo === 2 || $metodo === '2');
+    if (!$es_credito) {
+        return $resultado;
     }
 
+    if ($cuenta_origen !== null && esCuentaTarjeta($cuenta_origen)) {
+        throw new Exception("La Tarjeta de Crédito no se puede pagar con la misma tarjeta.");
+    }
+
+    $valor = limpiarMontoPago($valor_pago);
+    if ($valor <= 0) {
+        throw new Exception("El monto del gasto con crédito debe ser mayor a 0.");
+    }
+
+    // 1. Cuenta de tarjeta pendiente más próxima
+    $stmt_tc = $pdo->prepare("SELECT ID FROM pagos WHERE Cuenta = ? AND Estado = 'Pendiente' ORDER BY Fecha_Vencimiento ASC, ID ASC LIMIT 1");
+    $stmt_tc->execute([CUENTA_TARJETA]);
+    $id_tc = $stmt_tc->fetchColumn();
+
+    if ($id_tc) {
+        // 2a. Sumar a la deuda acumulada (operación atómica en la BD)
+        $pdo->prepare("UPDATE pagos SET Valor = Valor + ? WHERE ID = ?")->execute([$valor, $id_tc]);
+    } else {
+        // 2b. No hay ciclo abierto: se crea uno nuevo que vence el próximo día 10
+        $stmt_plantilla = $pdo->prepare("SELECT gasto_id, quien_paga, Automatico FROM pagos WHERE Cuenta = ? ORDER BY ID DESC LIMIT 1");
+        $stmt_plantilla->execute([CUENTA_TARJETA]);
+        $plantilla = $stmt_plantilla->fetch(PDO::FETCH_ASSOC);
+
+        if (!$plantilla) {
+            throw new Exception("No existe ninguna cuenta llamada '" . CUENTA_TARJETA . "' para acumular el uso de la tarjeta. Créala primero en Pagos.");
+        }
+
+        $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, Vencimiento, Automatico)
+                       VALUES (?, ?, ?, ?, 'Pendiente', ?, 0, ?)")
+            ->execute([
+                $plantilla['gasto_id'],
+                $plantilla['quien_paga'],
+                CUENTA_TARJETA,
+                $valor,
+                proximoVencimientoTarjeta(),
+                (int)$plantilla['Automatico']
+            ]);
+    }
+
+    $resultado['origen'] = 'externo';
+    $resultado['id_medio'] = 2;
     return $resultado;
 }
 
@@ -926,6 +1014,12 @@ function obtenerConfiguracionGasto(array $pago): array
         $icon  = '✓';
         $class = 'bg-success';
         $texto = 'Pagado';
+    } elseif ($pago['Estado'] === 'Pendiente' && !empty($pago['Automatico'])) {
+        // Pago automático: se cobra solo, no genera alertas de vencimiento
+        $icon        = '🔄';
+        $class       = 'bg-info text-dark';
+        $texto       = 'Automático';
+        $color_fecha = 'steelblue';
     } elseif ($pago['Estado'] === 'Pendiente') {
 
         if ($dias_restantes < 0) {

@@ -31,74 +31,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $error = '';
     try {
         $gasto_id = $_POST['gasto_id'] ?? '';
-        $quien_paga = $_POST['quien_paga'];
-        $cuenta = $_POST['cuenta'];
-        $fecha = $_POST['fecha'] ?? $fecha_actual_hora_actual;
-        $fecha_vencimiento = $_POST['fecha_vencimiento'];
-        $estado = $_POST['estado'];
-        $estado_antiguo = $_POST['estado_antiguo'];
-        $valor  = formatearMonto($_POST['valor']);
-        $comprobante_url = $_POST['comprobante_url'];
-        $tiempo_pago = $_POST['tiempo_pago'];
+        $quien_paga = $_POST['quien_paga'] ?? '';
+        $cuenta = $_POST['cuenta'] ?? '';
+        $fecha = !empty($_POST['fecha']) ? $_POST['fecha'] : $fecha_actual_hora_actual;
+        $fecha_vencimiento = $_POST['fecha_vencimiento'] ?? '';
+        $estado = $_POST['estado'] ?? '';
+        $estado_antiguo = $_POST['estado_antiguo'] ?? '';
+        $valor  = formatearMonto($_POST['valor'] ?? '0');
+        $comprobante_url = $_POST['comprobante_url'] ?? '';
+        $tiempo_pago = (int)($_POST['tiempo_pago'] ?? 0);
         $metodo_pago = $_POST['metodo_pago'] ?? 'debito';
+        $automatico = isset($_POST['automatico']) ? 1 : 0;
 
-        if ($metodo_pago === 'credito') {
-            // 1. Buscamos la fila de la Tarjeta de Crédito que esté pendiente
-            // Usamos fetch(PDO::FETCH_ASSOC) para obtener el ID y el Valor al mismo tiempo
-            $stmt_busqueda = $pdo->prepare("SELECT ID, Valor FROM `pagos` WHERE Cuenta = 'Tarjeta de Credito' AND Estado = 'Pendiente' LIMIT 1");
-            $stmt_busqueda->execute();
-            $cuenta_tarjeta = $stmt_busqueda->fetch(PDO::FETCH_ASSOC);
+        $es_tarjeta = esCuentaTarjeta($cuenta);
+        $pasa_a_pagado = ($estado == 'Pagado' && $estado_antiguo != 'Pagado');
 
-            if ($cuenta_tarjeta) {
-                $credito_id = $cuenta_tarjeta['ID'];
-                $valor_actual_deuda = $cuenta_tarjeta['Valor'];
-
-                // 2. Calculamos el nuevo total (Deuda anterior + gasto actual)
-                $nuevo_valor_credito = $valor_actual_deuda + $valor;
-
-                // 3. Actualizamos el registro de la Tarjeta de Crédito
-                // IMPORTANTE: Verifica si usas $pdo o $conexion (mysqli). Aquí lo dejo con $pdo por consistencia:
-                $stmt_update = $pdo->prepare("UPDATE pagos SET Valor = ? WHERE ID = ?");
-                $resultado = $stmt_update->execute([$nuevo_valor_credito, $credito_id]);
-
-                if (!$resultado) {
-                    throw new Exception("Error al actualizar la deuda de la tarjeta.");
-                }
-
-                // OPCIONAL: Cambiar el origen del dinero a 'externo' para este gasto específico 
-                // para que no reste del balance del mes (según la lógica que hablamos antes)
-                $origen_dinero = 'externo';
-                $id_medio_pago = 2; // Guardamos el ID del pago de la tarjeta para referencia futura
-            } else {
-                // Si no existe un registro "Pendiente" para la tarjeta, podrías lanzarlo como error
-                // o crear uno nuevo automáticamente.
-                throw new Exception("No hay una cuenta de 'Tarjeta de Credito' pendiente para acumular la deuda.");
-            }
-        } else {
-            $origen_dinero = 'sistema';
-            $id_medio_pago = 1; // No es necesario guardar un ID de medio de pago para débito/efectivo
-        }
-
-        $stmt = $pdo->prepare("
-            SELECT 
-                g.ID_Categoria_Gastos,
-                g.ID_Detalle,
-                c.Categoria_Padre AS modulo
-            FROM gastos g
-            INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
-            WHERE g.ID = :gasto_id
-        ");
-
-        $stmt->execute([':gasto_id' => $gasto_id]);
-        $info = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        $categoria_id = (int)$info['ID_Categoria_Gastos'];
-        $detalle_id   = (int)$info['ID_Detalle'];
-        $modulo       = (int)$info['modulo'];
-
-
-        // Validaciones
-        if (empty($quien_paga) || empty($cuenta) || empty($valor) || empty($estado) || empty($fecha_vencimiento)) {
+        // Validaciones (la tarjeta puede quedar en $0 cuando aún no tiene uso)
+        if (empty($quien_paga) || empty($cuenta) || empty($estado) || empty($fecha_vencimiento) || ($valor <= 0 && !$es_tarjeta)) {
             throw new Exception("Todos los campos son obligatorios");
         }
 
@@ -112,110 +61,111 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
 
+        $pdo->beginTransaction();
 
-        // Actualizar el pago
-        $stmt = $conexion->prepare("UPDATE pagos SET gasto_id = ?, quien_paga = ?, cuenta = ?, valor = ?, comprobante = ?, Fecha_Pago = ?, Fecha_Vencimiento = ?, Estado = ?, Vencimiento = ? WHERE ID = ?");
+        // El crédito y el gasto solo se registran al pasar de Pendiente a Pagado
+        // (antes se sumaba a la tarjeta en cualquier guardado, incluso sin pagar)
+        if ($pasa_a_pagado) {
+            // La tarjeta siempre se paga con dinero propio
+            if ($es_tarjeta) {
+                $metodo_pago = 'debito';
+            }
 
-        if ($stmt === false) {
-            die("Error al preparar la consulta de actualización: " . $conexion->error);
-        }
+            // Si es crédito, suma el valor a la deuda de la tarjeta
+            $configuracionPago = procesarLogicaMetodoPago($pdo, $valor, $metodo_pago, $cuenta);
+            $origen_dinero = $configuracionPago['origen'];
+            $id_medio_pago = $configuracionPago['id_medio'];
 
-        $stmt->bind_param('issssssssi', $gasto_id, $quien_paga, $cuenta, $valor, $comprobante_url, $fecha, $fecha_vencimiento, $estado, $tiempo_pago, $id);
-        $stmt->execute();
+            $stmt = $pdo->prepare("
+                SELECT 
+                    g.ID_Categoria_Gastos,
+                    g.ID_Detalle,
+                    c.Categoria_Padre AS modulo
+                FROM gastos g
+                INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
+                WHERE g.ID = :gasto_id
+            ");
+            $stmt->execute([':gasto_id' => $gasto_id]);
+            $info = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Actualizar el pago
-        $stmt_vencimiento = $conexion->prepare("UPDATE pagos SET Vencimiento = ? WHERE ID = ?");
+            if (!$info) {
+                throw new Exception("No se pudo obtener la información del gasto asociado.");
+            }
 
-        if ($stmt_vencimiento === false) {
-            die("Error al preparar la consulta de actualización: " . $conexion->error);
-        }
-
-        $stmt_vencimiento->bind_param('ii', $tiempo_pago, $id);
-        $stmt_vencimiento->execute();
-
-        if ($estado == 'Pagado' && $estado_antiguo != 'Pagado') {
+            $categoria_id = (int)$info['ID_Categoria_Gastos'];
+            $detalle_id   = (int)$info['ID_Detalle'];
+            $modulo       = (int)$info['modulo'];
 
             if (empty($categoria_id) || empty($detalle_id) || empty($modulo)) {
                 throw new Exception("No se pudo obtener la información del gasto asociado.");
             }
-            // Insertar el ingreso en la tabla de gastos
-            $stmt = $pdo->prepare("
-                INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha, fuente_dinero,id_medio_pago)
-                VALUES (:detalle_id, :categoria_id, :valor, :fecha, :fuente_dinero, :id_medio_pago)
-            ");
-            $stmt->execute([
-                ':detalle_id' => $detalle_id,
-                ':categoria_id' => $categoria_id,
-                ':valor' => $valor,
-                ':fecha' => $fecha,
-                ':fuente_dinero' => $origen_dinero,
-                ':id_medio_pago' => $id_medio_pago
-            ]);
 
-        } 
-
-        $fecha_pago_futuro = "0000-00-00 00:00:00";
-        
-
-
-
-        if ($estado != $estado_antiguo) {
-
-            // Obtener el siguiente mes
-            $mes_actual = date('m', strtotime($fecha_vencimiento));
-            $fecha_siguiente_mes = ($mes_actual == 2)
-                ? date('Y-m-d', strtotime($fecha_vencimiento . ' +28 days'))
-                : date('Y-m-d', strtotime($fecha_vencimiento . ' +1 month'));
-
-            /* Para alternar entre dos cuentas específicas
-        if ($cuenta == "Luz") {
-            $otra_cuenta = "Agua";
-        } else if ($cuenta == "Agua") {
-            $otra_cuenta = "Luz";
-        } else {
-            $otra_cuenta = $cuenta;
+            // Registrar el gasto (si la tarjeta no tuvo uso, no hay nada que registrar)
+            if (!($es_tarjeta && $valor <= 0)) {
+                $stmt = $pdo->prepare("
+                    INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha, fuente_dinero, id_medio_pago)
+                    VALUES (:detalle_id, :categoria_id, :valor, :fecha, :fuente_dinero, :id_medio_pago)
+                ");
+                $stmt->execute([
+                    ':detalle_id' => $detalle_id,
+                    ':categoria_id' => $categoria_id,
+                    ':valor' => $valor,
+                    ':fecha' => $fecha,
+                    ':fuente_dinero' => $origen_dinero,
+                    ':id_medio_pago' => $id_medio_pago
+                ]);
+            }
         }
-            */
 
-            $otra_cuenta = $cuenta;
+        // Actualizar el pago
+        $stmt = $pdo->prepare("UPDATE pagos SET gasto_id = ?, quien_paga = ?, cuenta = ?, valor = ?, comprobante = ?, Fecha_Pago = ?, Fecha_Vencimiento = ?, Estado = ?, Vencimiento = ?, Automatico = ? WHERE ID = ?");
+        $stmt->execute([$gasto_id, $quien_paga, $cuenta, $valor, $comprobante_url, $fecha, $fecha_vencimiento, $estado, $tiempo_pago, $automatico, $id]);
+
+        $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente"];
+
+        // Programar el siguiente ciclo solo cuando el pago pasa a 'Pagado'
+        if ($pasa_a_pagado) {
+            $programar_siguiente = false;
 
             if ($tiempo_pago == 0) {
-                // Insertar el registro de pago para el próximo mes
-                $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt_next->execute([$gasto_id, $quien_paga, $otra_cuenta, $valor, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago]);
-
-                $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se programó el pago para el siguiente mes."];
+                $programar_siguiente = true;
             } else if ($tiempo_pago > 1) {
-                // Ejecutar la consulta directamente y obtener el resultado
-                $query = "SELECT COUNT(*) AS total_cuentas FROM pagos WHERE Cuenta = ?";
-                $stmt_count = $conexion->prepare($query);
-                $stmt_count->bind_param("s", $cuenta); // 's' para string
+                $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM pagos WHERE Cuenta = ?");
+                $stmt_count->execute([$cuenta]);
+                $total_cuentas = (int)$stmt_count->fetchColumn();
 
-                // Ejecutar y obtener el total de cuentas en una sola línea
-                $stmt_count->execute();
-                $stmt_count->bind_result($total_cuentas);
-                $stmt_count->fetch();
-
-
-                echo $total_cuentas . "<br>";
                 if ($total_cuentas < $tiempo_pago) {
-
-                    $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                    $stmt_next->execute([$gasto_id, $quien_paga, $otra_cuenta, $valor, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago]);
-
-                    $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se programó el pago para el siguiente mes."];
+                    $programar_siguiente = true;
                 } else {
-                    $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se termino el ciclo de pago"];
+                    $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se terminó el ciclo de pago"];
                 }
-            } else {
-                $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente"];
             }
-        } else {
-            $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente"];
+
+            // Evitar duplicar la tarjeta si ya existe otro ciclo pendiente
+            if ($programar_siguiente && $es_tarjeta) {
+                $stmt_dup = $pdo->prepare("SELECT COUNT(*) FROM pagos WHERE Cuenta = ? AND Estado = 'Pendiente' AND ID != ?");
+                $stmt_dup->execute([$cuenta, $id]);
+                if ((int)$stmt_dup->fetchColumn() > 0) {
+                    $programar_siguiente = false;
+                }
+            }
+
+            if ($programar_siguiente) {
+                // La tarjeta vence siempre el día 10 y el nuevo ciclo parte en $0
+                $fecha_siguiente_mes = siguienteVencimiento($fecha_vencimiento, $cuenta);
+                $valor_siguiente = $es_tarjeta ? 0 : $valor;
+
+                $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento, Automatico) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt_next->execute([$gasto_id, $quien_paga, $cuenta, $valor_siguiente, 'Pendiente', $fecha_siguiente_mes, "0000-00-00 00:00:00", $tiempo_pago, $automatico]);
+
+                $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se programó el pago para el " . date('d/m/Y', strtotime($fecha_siguiente_mes)) . "."];
+            }
         }
-    } catch (Exception $e) {
+
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
         $mensaje = ["tipo" => "danger", "texto" => $e->getMessage()];
     }
 }
@@ -542,6 +492,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         required>
                     <div class="form-text">Ingrese el número de meses. Use "0" para indicar un pago indefinido.</div>
                     <div class="invalid-feedback">Ingrese un número válido de meses (0 o 120 meses).</div>
+                </div>
+
+                <div class="mb-4 p-3 border rounded bg-light">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="automatico" name="automatico" value="1"
+                            <?php echo !empty($resultado['Automatico']) ? 'checked' : ''; ?>>
+                        <label class="form-check-label fw-bold" for="automatico">
+                            <i class="fas fa-rotate me-2"></i>Pago automático
+                        </label>
+                    </div>
+                    <div class="form-text">Se cobra solo (por ejemplo, cargo a la tarjeta o cuenta). No aparecerá en las alertas del inicio.</div>
                 </div>
 
                 <div class="d-flex gap-2 justify-content-end mt-4">

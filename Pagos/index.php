@@ -816,6 +816,9 @@ foreach ($datos_pie as $row) {
                 const monto = btn.dataset.monto;
                 const vencimiento = btn.dataset.vencimiento;
                 const cuenta = btn.dataset.cuenta;
+                // La tarjeta de crédito no se puede pagar con la misma tarjeta
+                const esTarjeta = cuenta.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase() === 'tarjeta de credito';
+                const opcionCredito = esTarjeta ? '' : '<option value="credito">Tarjeta de Crédito</option>';
 
                 Swal.fire({
                     title: '¿Confirmar Pago?',
@@ -828,7 +831,7 @@ foreach ($datos_pie as $row) {
                     <label class="form-label">Método de Pago:</label>
                     <select id="swal-metodo" class="form-select">
                         <option value="debito">Débito / Efectivo</option>
-                        <option value="credito">Tarjeta de Crédito</option>
+                        ${opcionCredito}
                     </select>
                 </div>
             `,

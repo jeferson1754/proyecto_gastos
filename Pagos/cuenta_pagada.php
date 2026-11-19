@@ -6,7 +6,8 @@ include('../bd.php');
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     try {
-        $gasto_id = $_POST['gasto_id'] ?? '';
+        // El select del formulario se llama 'detalle_categoria'; se acepta también 'gasto_id'
+        $gasto_id = $_POST['gasto_id'] ?? $_POST['detalle_categoria'] ?? '';
         $quien_paga = $_POST['quien_paga'];
         $cuenta = $_POST['cuenta'];
         $fecha = $_POST['fecha'];
@@ -14,6 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $valor = str_replace(['$', '.', ' '], '', $_POST['valor']); // Limpiamos el formato de moneda
         $comprobante_url = $_POST['comprobante_url'];
         $tiempo_pago = $_POST['tiempo_pago'];
+        $automatico = isset($_POST['automatico']) ? 1 : 0;
 
         $stmt = $pdo->prepare("
             SELECT 
@@ -40,13 +42,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         // Registrar el pago
-        $stmt = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, comprobante, Fecha_Pago, Fecha_Vencimiento, Vencimiento) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$gasto_id, $quien_paga, $cuenta, $valor, $comprobante_url, $fecha, $fecha_vencimiento, $tiempo_pago]);
+        $stmt = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, comprobante, Fecha_Pago, Fecha_Vencimiento, Vencimiento, Automatico) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$gasto_id, $quien_paga, $cuenta, $valor, $comprobante_url, $fecha, $fecha_vencimiento, $tiempo_pago, $automatico]);
 
-        $mes_actual = date('m', strtotime($fecha));
-        $fecha_siguiente_mes = ($mes_actual == 2)
-            ? date('Y-m-d', strtotime($fecha . ' +28 days'))
-            : date('Y-m-d', strtotime($fecha . ' +1 month'));
+        // La tarjeta de crédito vence siempre el día 10 y su nuevo ciclo parte en $0
+        $es_tarjeta = esCuentaTarjeta($cuenta);
+        $fecha_siguiente_mes = $es_tarjeta
+            ? siguienteVencimiento($fecha_vencimiento, $cuenta)
+            : sumarUnMes($fecha);
+        $valor_siguiente = $es_tarjeta ? 0 : $valor;
         /* Para alternar entre dos cuentas específicas
         if ($cuenta == "Luz") {
             $otra_cuenta = "Agua";
@@ -61,9 +65,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         if ($tiempo_pago == 0 || $tiempo_pago != 1) {
             // Insertar el registro de pago para el próximo mes
-            $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt_next->execute([$gasto_id, $quien_paga, $otra_cuenta, $valor, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago]);
+            $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento, Automatico) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt_next->execute([$gasto_id, $quien_paga, $otra_cuenta, $valor_siguiente, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago, $automatico]);
 
             $mensaje = ["tipo" => "success", "texto" => "Pago registrado exitosamente y se programó el pago para el siguiente mes."];
         } else {
@@ -310,6 +314,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         required>
                     <div class="form-text">Ingrese el número de meses. Use "0" para indicar un pago indefinido.</div>
                     <div class="invalid-feedback">Ingrese un número válido de meses (0 o 120 meses).</div>
+                </div>
+
+                <div class="mb-4 p-3 border rounded bg-light">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="automatico" name="automatico" value="1">
+                        <label class="form-check-label fw-bold" for="automatico">
+                            <i class="fas fa-rotate me-2"></i>Pago automático
+                        </label>
+                    </div>
+                    <div class="form-text">Se cobra solo. Los próximos pagos de esta cuenta no aparecerán en las alertas del inicio.</div>
                 </div>
 
 
