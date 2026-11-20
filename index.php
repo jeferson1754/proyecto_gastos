@@ -3,6 +3,11 @@
 include('bd.php');
 require_once('funciones.php');
 
+// Pagos automáticos vencidos: se registran solos con la fecha de vencimiento como fecha de pago
+if (isset($pdo)) {
+    procesarPagosAutomaticos($pdo);
+}
+
 
 $cantidad_meses_balance = isset($_GET['cantidad_meses']) ? $_GET['cantidad_meses'] : 6;
 
@@ -203,6 +208,96 @@ $iconos_medio = [
                             </h2>
                         </div>
 
+                        <?php
+                        // Comparativa a la misma fecha (solo informativa)
+                        try {
+                            $comparativa = obtener_comparativa_misma_fecha($pdo, $fecha_actual ?? null);
+                            $curva_comparativa = obtener_curva_balance_mensual($pdo, $fecha_actual ?? null);
+                        } catch (Throwable $e) {
+                            $comparativa = null;
+                            $curva_comparativa = null;
+                            error_log('Comparativa misma fecha: ' . $e->getMessage());
+                        }
+
+                        if ($comparativa):
+                            $cmp_hoy = $comparativa['hoy'];
+                            $cmp_refs = [
+                                ['titulo' => 'Mes pasado', 'datos' => $comparativa['mes_pasado']],
+                                ['titulo' => 'Año pasado', 'datos' => $comparativa['anio_pasado']],
+                            ];
+                            $cmp_metricas = [
+                                ['clave' => 'balance_mes', 'flag' => 'tiene_datos_mes', 'titulo' => 'Balance del mes', 'ayuda' => 'Ingresos - egresos, desde el día 1 hasta esa fecha'],
+                                ['clave' => 'saldo_acumulado', 'flag' => 'tiene_datos', 'titulo' => 'Saldo acumulado', 'ayuda' => 'Todo lo registrado hasta esa fecha'],
+                            ];
+
+                            // La tabla se arma una vez y se muestra en la tarjeta y en el modal
+                            ob_start();
+                        ?>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-borderless mb-0 text-center align-middle">
+                                    <thead>
+                                        <tr class="small text-muted">
+                                            <th></th>
+                                            <th>Hoy<br><span class="fw-normal"><?php echo $cmp_hoy['etiqueta']; ?></span></th>
+                                            <?php foreach ($cmp_refs as $ref): ?>
+                                                <th><?php echo $ref['titulo']; ?><br><span class="fw-normal"><?php echo $ref['datos']['etiqueta']; ?></span></th>
+                                            <?php endforeach; ?>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($cmp_metricas as $m):
+                                            $valor_hoy = $cmp_hoy[$m['clave']];
+                                        ?>
+                                            <tr>
+                                                <td class="text-start small fw-semibold" title="<?php echo $m['ayuda']; ?>"><?php echo $m['titulo']; ?></td>
+                                                <td class="fw-bold"><?php echo formatoPesos($valor_hoy); ?></td>
+                                                <?php foreach ($cmp_refs as $ref):
+                                                    $d = $ref['datos'];
+                                                ?>
+                                                    <td>
+                                                        <?php if (!$d[$m['flag']]): ?>
+                                                            <span class="text-muted small">Sin datos</span>
+                                                        <?php else:
+                                                            $dif = $valor_hoy - $d[$m['clave']];
+                                                        ?>
+                                                            <div><?php echo formatoPesos($d[$m['clave']]); ?></div>
+                                                            <?php if (abs($dif) < 1): ?>
+                                                                <small class="text-muted">igual que hoy</small>
+                                                            <?php elseif ($dif > 0): ?>
+                                                                <small class="text-success">▲ hoy tienes <?php echo formatoPesos($dif); ?> más</small>
+                                                            <?php else: ?>
+                                                                <small class="text-danger">▼ hoy tienes <?php echo formatoPesos(abs($dif)); ?> menos</small>
+                                                            <?php endif; ?>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                <?php endforeach; ?>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php
+                            $cmp_tabla_html = ob_get_clean();
+                        ?>
+                            <div id="cmp-tarjeta" class="bg-light rounded-3 p-3 mb-4">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="text-secondary mb-0">
+                                        <i class="bi bi-clock-history me-1"></i>A esta misma fecha
+                                        <small class="text-muted fw-normal ms-1">· solo informativo</small>
+                                    </h6>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalComparativa" title="Ver gráfico">
+                                            <i class="bi bi-graph-up"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" id="cmp-alternar" title="Ocultar">
+                                            <i class="bi bi-eye-slash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="cmp-cuerpo" class="mt-2"><?php echo $cmp_tabla_html; ?></div>
+                            </div>
+                        <?php endif; ?>
+
                         <!-- Botones con mejor diseño y espaciado -->
                         <div class="d-flex justify-content-center align-items-center gap-3">
                             <!-- Botón Añadir Ingreso -->
@@ -241,6 +336,152 @@ $iconos_medio = [
                 </div>
             </div>
         </div>
+
+        <?php if (!empty($comparativa)): ?>
+            <!-- Modal: comparación a la misma fecha (gráfico + tabla) -->
+            <div class="modal fade" id="modalComparativa" tabindex="-1" aria-labelledby="modalComparativaLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalComparativaLabel"><i class="bi bi-clock-history me-2"></i>Comparación a la misma fecha</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-muted small mb-2">
+                                Solo informativo. Balance acumulado del mes día a día (ingresos - egresos de dinero del sistema).
+                                La línea vertical marca el día de hoy.
+                            </p>
+                            <?php if (!empty($curva_comparativa['series'])): ?>
+                                <div id="grafico-comparativa" style="height: 340px;"></div>
+                            <?php else: ?>
+                                <div class="text-center text-muted py-4">Aún no hay datos suficientes para el gráfico.</div>
+                            <?php endif; ?>
+                            <div class="mt-3"><?php echo $cmp_tabla_html; ?></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    // ---- Ocultar / mostrar la tarjeta (se recuerda la preferencia) ----
+                    var cuerpo = document.getElementById('cmp-cuerpo');
+                    var boton = document.getElementById('cmp-alternar');
+
+                    function aplicarEstado(oculto) {
+                        cuerpo.style.display = oculto ? 'none' : '';
+                        boton.innerHTML = oculto ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+                        boton.title = oculto ? 'Mostrar' : 'Ocultar';
+                    }
+
+                    var oculto = false;
+                    try {
+                        oculto = localStorage.getItem('cmp_oculto') === '1';
+                    } catch (e) {}
+                    aplicarEstado(oculto);
+
+                    boton.addEventListener('click', function() {
+                        oculto = !oculto;
+                        aplicarEstado(oculto);
+                        try {
+                            localStorage.setItem('cmp_oculto', oculto ? '1' : '0');
+                        } catch (e) {}
+                    });
+
+                    // ---- Gráfico: balance del mes acumulado día a día ----
+                    var curva = <?php echo json_encode($curva_comparativa, JSON_UNESCAPED_UNICODE); ?>;
+
+                    function construirOpcionComparativa(curva) {
+                        var colores = ['#0d6efd', '#fd7e14', '#6c757d'];
+                        var dias = [];
+                        for (var i = 1; i <= 31; i++) dias.push(String(i));
+
+                        function pesos(v) {
+                            if (v === null || v === undefined) return '-';
+                            return (v < 0 ? '-' : '') + '$' + Math.abs(Math.round(v)).toLocaleString('es-CL');
+                        }
+
+                        return {
+                            color: colores,
+                            tooltip: {
+                                trigger: 'axis',
+                                valueFormatter: pesos
+                            },
+                            legend: {
+                                top: 0
+                            },
+                            grid: {
+                                left: 80,
+                                right: 45,
+                                top: 50,
+                                bottom: 30
+                            },
+                            xAxis: {
+                                type: 'category',
+                                data: dias,
+                                name: 'Día',
+                                boundaryGap: false
+                            },
+                            yAxis: {
+                                type: 'value',
+                                axisLabel: {
+                                    formatter: pesos
+                                }
+                            },
+                            series: curva.series.map(function(s, i) {
+                                var serie = {
+                                    name: s.nombre,
+                                    type: 'line',
+                                    data: s.datos,
+                                    showSymbol: false,
+                                    connectNulls: false,
+                                    lineStyle: {
+                                        width: i === 0 ? 3 : 2,
+                                        type: i === 0 ? 'solid' : 'dashed'
+                                    }
+                                };
+                                if (i === 0) {
+                                    serie.markLine = {
+                                        silent: true,
+                                        symbol: 'none',
+                                        lineStyle: {
+                                            color: '#adb5bd',
+                                            type: 'dotted'
+                                        },
+                                        label: {
+                                            formatter: 'Hoy',
+                                            position: 'end'
+                                        },
+                                        data: [{
+                                            xAxis: String(curva.dia_hoy)
+                                        }]
+                                    };
+                                }
+                                return serie;
+                            })
+                        };
+                    }
+
+                    var contenedor = document.getElementById('grafico-comparativa');
+                    var modalEl = document.getElementById('modalComparativa');
+                    var grafico = null;
+
+                    if (contenedor && modalEl && curva && curva.series && curva.series.length) {
+                        // El gráfico se crea al abrir el modal (antes el contenedor no tiene tamaño)
+                        modalEl.addEventListener('shown.bs.modal', function() {
+                            if (!grafico) {
+                                grafico = echarts.init(contenedor);
+                                grafico.setOption(construirOpcionComparativa(curva));
+                            }
+                            grafico.resize();
+                        });
+                        window.addEventListener('resize', function() {
+                            if (grafico) grafico.resize();
+                        });
+                    }
+                });
+            </script>
+        <?php endif; ?>
 
         <script>
             function cambiarCantidadMeses() {

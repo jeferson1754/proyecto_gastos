@@ -16,6 +16,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $comprobante_url = $_POST['comprobante_url'];
         $tiempo_pago = $_POST['tiempo_pago'];
         $automatico = isset($_POST['automatico']) ? 1 : 0;
+        $medio_auto = ((int)($_POST['medio_pago_auto'] ?? 1) === 2) ? 2 : 1; // con qué se cobra si es automático
+        if (esCuentaTarjeta($cuenta)) {
+            $medio_auto = 1;
+        }
 
         $stmt = $pdo->prepare("
             SELECT 
@@ -42,8 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         // Registrar el pago
-        $stmt = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, comprobante, Fecha_Pago, Fecha_Vencimiento, Vencimiento, Automatico) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$gasto_id, $quien_paga, $cuenta, $valor, $comprobante_url, $fecha, $fecha_vencimiento, $tiempo_pago, $automatico]);
+        $stmt = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, comprobante, Fecha_Pago, Fecha_Vencimiento, Vencimiento, Automatico, Medio_Pago_Auto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$gasto_id, $quien_paga, $cuenta, $valor, $comprobante_url, $fecha, $fecha_vencimiento, $tiempo_pago, $automatico, $medio_auto]);
 
         // La tarjeta de crédito vence siempre el día 10 y su nuevo ciclo parte en $0
         $es_tarjeta = esCuentaTarjeta($cuenta);
@@ -65,9 +69,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         if ($tiempo_pago == 0 || $tiempo_pago != 1) {
             // Insertar el registro de pago para el próximo mes
-            $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento, Automatico) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt_next->execute([$gasto_id, $quien_paga, $otra_cuenta, $valor_siguiente, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago, $automatico]);
+            $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento, Automatico, Medio_Pago_Auto) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt_next->execute([$gasto_id, $quien_paga, $otra_cuenta, $valor_siguiente, 'Pendiente', $fecha_siguiente_mes, $fecha_pago_futuro, $tiempo_pago, $automatico, $medio_auto]);
 
             $mensaje = ["tipo" => "success", "texto" => "Pago registrado exitosamente y se programó el pago para el siguiente mes."];
         } else {
@@ -324,6 +328,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </label>
                     </div>
                     <div class="form-text">Se cobra solo. Los próximos pagos de esta cuenta no aparecerán en las alertas del inicio.</div>
+                    <div class="mt-3" id="bloque-medio-auto" style="display:none;">
+                        <label for="medio_pago_auto" class="form-label small fw-bold">Se cobra con</label>
+                        <select class="form-select form-select-sm" id="medio_pago_auto" name="medio_pago_auto">
+                            <option value="1">Débito / cuenta</option>
+                            <option value="2" selected>Tarjeta de crédito</option>
+                        </select>
+                        <div class="form-text">Con tarjeta de crédito el cobro se suma a la factura de la tarjeta.</div>
+                    </div>
+                    <script>
+                        (function() {
+                            var sw = document.getElementById('automatico');
+                            var bloque = document.getElementById('bloque-medio-auto');
+                            function mostrar() { bloque.style.display = sw.checked ? 'block' : 'none'; }
+                            sw.addEventListener('change', mostrar);
+                            mostrar();
+                        })();
+                    </script>
                 </div>
 
 

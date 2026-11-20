@@ -35,8 +35,19 @@ try {
         throw new Exception('Todos los campos son requeridos.');
     }
     
+    // Transacción: la deuda de la tarjeta y el gasto se guardan juntos o no se guarda nada
+    $pdo->beginTransaction();
+
     //Procesar metodo de pago Tarjeta de Credito y sumarlo en pagos pendientes
-    $configuracionPago = procesarLogicaMetodoPago($pdo, $valor, $medio_pago);
+    $configuracionPago = procesarLogicaMetodoPago($pdo, $valor, $medio_pago, null, $fecha);
+
+    // Con crédito el servidor decide: siempre 'externo' y medio 2, aunque el
+    // interruptor de la pantalla haya quedado en "Sistema". Así no se cuenta
+    // como dinero que salió de la cuenta algo que se pagará con la tarjeta.
+    if ($configuracionPago['id_medio'] == 2) {
+        $fuente_dinero = $configuracionPago['origen'];
+        $medio_pago    = $configuracionPago['id_medio'];
+    }
 
     // Obtener o crear categoría
     $stmt = $pdo->prepare("SELECT ID FROM categorias_gastos WHERE Nombre = :nombre AND Categoria_Padre = :categoria_padre");
@@ -80,6 +91,9 @@ try {
         ':fuente_dinero' => $fuente_dinero,
         ':medio_pago' => $medio_pago
     ]);
+
+    // Confirmar la transacción
+    $pdo->commit();
 
     if ($presupuesto_restante < $monto) {
         $stmt = $pdo->prepare("SELECT COUNT(*) AS total FROM alertas_presupuesto WHERE seccion = :seccion AND mes_alerta = :mes AND anio_alerta = :anio");
@@ -131,8 +145,14 @@ try {
     exit;
 } catch (PDOException $e) {
     // Error de conexión
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     echo "Error de conexión: " . $e->getMessage();
 } catch (Exception $e) {
-    // Error de validación u otros
+    // Error de validación, de crédito u otros
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     echo "Error: " . $e->getMessage();
 }

@@ -58,6 +58,139 @@ function obtener_datos_ultimos_meses($conexion, $meses)
 }
 //USO: $datos_financieros = obtener_datos_ultimos_meses($conexion, $cantidad_meses_balance);
 
+// ============================================================
+//  COMPARATIVA A LA MISMA FECHA (solo informativa)
+//  Compara tu situación de HOY con la del mismo día del mes pasado y del año pasado.
+//  Usa el mismo criterio que el balance mensual: solo dinero del sistema (sin gastos
+//  externos); ingresos - egresos, donde los egresos incluyen el ahorro (sale de la cuenta).
+// ============================================================
+
+// Resta meses a una fecha conservando el día (31/03 - 1 mes = 28/02; 29/02 - 1 año = 28/02)
+function restarMesesFecha(DateTime $fecha, int $meses): DateTime
+{
+    $r = new DateTime($fecha->format('Y-m-01'));
+    $r->modify("-$meses month");
+    $dia = min((int)$fecha->format('j'), (int)$r->format('t'));
+    $r->setDate((int)$r->format('Y'), (int)$r->format('n'), $dia);
+    return $r;
+}
+
+// Formato de pesos con signo delante: -$5.000 / $5.000
+function formatoPesos($monto): string
+{
+    $monto = (float)$monto;
+    return ($monto < 0 ? '-' : '') . '$' . number_format(abs($monto), 0, '', '.');
+}
+
+// Calcula, a una fecha dada:
+//  - balance_mes: ingresos - egresos del día 1 del mes de esa fecha hasta esa fecha
+//  - saldo_acumulado: ingresos - egresos de TODO lo registrado hasta esa fecha
+function obtener_balance_a_la_fecha(PDO $pdo, DateTime $ref): array
+{
+    $inicio_mes = $ref->format('Y-m-01 00:00:00');
+    $limite = (clone $ref)->modify('+1 day')->format('Y-m-d 00:00:00'); // incluye todo el día
+
+    $stmt = $pdo->prepare("
+        SELECT
+            SUM(CASE WHEN c.Nombre = 'Ingresos' AND g.Fecha >= ? THEN g.Valor ELSE 0 END) AS ing_mes,
+            SUM(CASE WHEN c.Nombre <> 'Ingresos' AND g.Fecha >= ? THEN g.Valor ELSE 0 END) AS egr_mes,
+            SUM(CASE WHEN g.Fecha >= ? THEN 1 ELSE 0 END) AS registros_mes,
+            SUM(CASE WHEN c.Nombre = 'Ingresos' THEN g.Valor ELSE 0 END) AS ing_acum,
+            SUM(CASE WHEN c.Nombre <> 'Ingresos' THEN g.Valor ELSE 0 END) AS egr_acum,
+            COUNT(*) AS registros
+        FROM gastos g
+        INNER JOIN categorias_gastos c ON c.ID = g.ID_Categoria_Gastos
+        WHERE g.Fecha < ?
+          AND COALESCE(NULLIF(g.Fuente_Dinero,''),'sistema') <> 'externo'
+    ");
+    $stmt->execute([$inicio_mes, $inicio_mes, $inicio_mes, $limite]);
+    $r = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return [
+        'fecha'            => $ref->format('Y-m-d'),
+        'etiqueta'         => $ref->format('j') . ' ' . mb_strtolower(obtener_nombre_mes_espanol((int)$ref->format('n'))) . ' ' . $ref->format('Y'),
+        'balance_mes'      => (float)$r['ing_mes'] - (float)$r['egr_mes'],
+        'tiene_datos_mes'  => ((int)$r['registros_mes'] > 0),
+        'saldo_acumulado'  => (float)$r['ing_acum'] - (float)$r['egr_acum'],
+        'tiene_datos'      => ((int)$r['registros'] > 0),
+    ];
+}
+
+// Curva del balance del mes día a día (acumulado desde el día 1) para graficar:
+// este mes (hasta hoy), el mes pasado y el mismo mes del año pasado.
+// Cada serie trae 31 posiciones (día 1..31); null = ese día no aplica.
+function obtener_curva_balance_mensual(PDO $pdo, ?string $hoy = null): array
+{
+    $hoy_dt = new DateTime($hoy ?: 'today');
+    $hoy_dt->setTime(0, 0, 0);
+    $dia_hoy = (int)$hoy_dt->format('j');
+
+    $refs = [
+        ['Este mes',    $hoy_dt,                         true],
+        ['Mes pasado',  restarMesesFecha($hoy_dt, 1),    false],
+        ['Año pasado',  restarMesesFecha($hoy_dt, 12),   false],
+    ];
+
+    $stmt = $pdo->prepare("
+        SELECT DATE(g.Fecha) AS dia,
+               SUM(CASE WHEN c.Nombre = 'Ingresos' THEN g.Valor ELSE -g.Valor END) AS neto
+        FROM gastos g
+        INNER JOIN categorias_gastos c ON c.ID = g.ID_Categoria_Gastos
+        WHERE g.Fecha >= ? AND g.Fecha < ?
+          AND COALESCE(NULLIF(g.Fuente_Dinero,''),'sistema') <> 'externo'
+        GROUP BY DATE(g.Fecha)
+    ");
+
+    $series = [];
+    foreach ($refs as [$titulo, $ref, $es_actual]) {
+        $inicio = new DateTime($ref->format('Y-m-01'));
+        $dias_mes = (int)$inicio->format('t');
+        $fin = (clone $inicio)->modify('first day of next month');
+
+        $stmt->execute([$inicio->format('Y-m-d 00:00:00'), $fin->format('Y-m-d 00:00:00')]);
+        $por_dia = [];
+        while ($fila = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $por_dia[(int)substr((string)$fila['dia'], 8, 2)] = (float)$fila['neto'];
+        }
+        if (!$por_dia) {
+            continue; // sin registros ese mes: no se dibuja
+        }
+
+        // El mes actual llega solo hasta hoy; los anteriores se muestran completos
+        $limite = $es_actual ? min($dia_hoy, $dias_mes) : $dias_mes;
+        $acumulado = 0.0;
+        $datos = [];
+        for ($d = 1; $d <= 31; $d++) {
+            if ($d > $limite) {
+                $datos[] = null;
+                continue;
+            }
+            $acumulado += $por_dia[$d] ?? 0;
+            $datos[] = $acumulado;
+        }
+
+        $series[] = [
+            'nombre' => $titulo . ' (' . mb_strtolower(obtener_nombre_mes_espanol((int)$inicio->format('n'))) . ' ' . $inicio->format('Y') . ')',
+            'datos'  => $datos,
+        ];
+    }
+
+    return ['dia_hoy' => $dia_hoy, 'series' => $series];
+}
+
+function obtener_comparativa_misma_fecha(PDO $pdo, ?string $hoy = null): array
+{
+    $hoy_dt = new DateTime($hoy ?: 'today');
+    $hoy_dt->setTime(0, 0, 0);
+
+    return [
+        'hoy'          => obtener_balance_a_la_fecha($pdo, $hoy_dt),
+        'mes_pasado'   => obtener_balance_a_la_fecha($pdo, restarMesesFecha($hoy_dt, 1)),
+        'anio_pasado'  => obtener_balance_a_la_fecha($pdo, restarMesesFecha($hoy_dt, 12)),
+    ];
+}
+
+
 //Funcion para sacar el total, los detalles y el total anterior de cada modulo
 function obtener_datos($conexion, $where, $current_month, $current_year, $previous_month, $previous_year)
 {
@@ -864,6 +997,7 @@ function clasificarGasto($texto)
 // ============================================================
 if (!defined('CUENTA_TARJETA')) define('CUENTA_TARJETA', 'Tarjeta de Credito');
 if (!defined('DIA_VENCIMIENTO_TARJETA')) define('DIA_VENCIMIENTO_TARJETA', 10);
+if (!defined('DIA_CIERRE_TARJETA')) define('DIA_CIERRE_TARJETA', 24); // la facturación cierra el 24
 
 // ¿La cuenta es la Tarjeta de Crédito? (ignora mayúsculas y tildes)
 function esCuentaTarjeta($cuenta): bool
@@ -894,18 +1028,29 @@ function sumarUnMes(string $fecha): string
     return $d->format('Y-m-d');
 }
 
-// Próximo día 10 a partir de hoy (si hoy es 10 o antes -> este mes; si no -> el mes siguiente)
-function proximoVencimientoTarjeta(?string $desde = null): string
+// Cierre de facturación (día 24). Una compra hecha hasta el 24 entra en la factura que cierra
+// ese mismo mes; desde el 25 entra en la factura que cierra el mes siguiente.
+function cierreFacturacionTarjeta(?string $fecha_compra = null): string
 {
-    $hoy = new DateTime($desde ?: 'today');
-    $hoy->setTime(0, 0, 0);
-    $venc = clone $hoy;
-    $venc->setDate((int)$hoy->format('Y'), (int)$hoy->format('n'), DIA_VENCIMIENTO_TARJETA);
-    if ($hoy > $venc) {
-        $venc->modify('first day of next month');
-        $venc->setDate((int)$venc->format('Y'), (int)$venc->format('n'), DIA_VENCIMIENTO_TARJETA);
+    $d = new DateTime($fecha_compra ?: 'today');
+    $d->setTime(0, 0, 0);
+    $cierre = clone $d;
+    $cierre->setDate((int)$d->format('Y'), (int)$d->format('n'), DIA_CIERRE_TARJETA);
+    if ($d > $cierre) {
+        $cierre->modify('first day of next month');
+        $cierre->setDate((int)$cierre->format('Y'), (int)$cierre->format('n'), DIA_CIERRE_TARJETA);
     }
-    return $venc->format('Y-m-d');
+    return $cierre->format('Y-m-d');
+}
+
+// La factura que cierra el 24 se paga el día 10 del mes siguiente.
+// Ej.: compra del 18/11 -> cierra 24/11 -> vence 10/12 | compra del 25/11 -> vence 10/01
+function vencimientoTarjetaDeCompra(?string $fecha_compra = null): string
+{
+    $v = new DateTime(cierreFacturacionTarjeta($fecha_compra));
+    $v->modify('first day of next month');
+    $v->setDate((int)$v->format('Y'), (int)$v->format('n'), DIA_VENCIMIENTO_TARJETA);
+    return $v->format('Y-m-d');
 }
 
 // Vencimiento del siguiente ciclo: la tarjeta siempre cae el día 10, el resto conserva su día
@@ -921,10 +1066,11 @@ function siguienteVencimiento(string $fecha_vencimiento_actual, $cuenta): string
 }
 
 // Define el origen del dinero según el método de pago.
-// Si es crédito: SUMA el gasto a la deuda pendiente de la tarjeta (la crea si no existe)
-// y lo marca como 'externo' (no resta de tu liquidez hasta que pagues la tarjeta).
+// Si es crédito: SUMA el gasto a la factura de la tarjeta del ciclo al que pertenece la compra
+// (la crea si no existe) y lo marca como 'externo' (no resta de tu liquidez hasta que pagues la tarjeta).
+// $fecha_compra decide el ciclo; si no se indica se usa hoy.
 // Lanza Exception si no se puede registrar; llamarla dentro de una transacción.
-function procesarLogicaMetodoPago($pdo, $valor_pago, $metodo, $cuenta_origen = null)
+function procesarLogicaMetodoPago($pdo, $valor_pago, $metodo, $cuenta_origen = null, $fecha_compra = null)
 {
     $resultado = [
         'origen' => 'sistema',
@@ -945,16 +1091,19 @@ function procesarLogicaMetodoPago($pdo, $valor_pago, $metodo, $cuenta_origen = n
         throw new Exception("El monto del gasto con crédito debe ser mayor a 0.");
     }
 
-    // 1. Cuenta de tarjeta pendiente más próxima
-    $stmt_tc = $pdo->prepare("SELECT ID FROM pagos WHERE Cuenta = ? AND Estado = 'Pendiente' ORDER BY Fecha_Vencimiento ASC, ID ASC LIMIT 1");
-    $stmt_tc->execute([CUENTA_TARJETA]);
+    // Factura (ciclo) a la que pertenece esta compra
+    $vencimiento = vencimientoTarjetaDeCompra($fecha_compra ?: null);
+
+    // 1. ¿Ya existe la factura pendiente de ese ciclo?
+    $stmt_tc = $pdo->prepare("SELECT ID FROM pagos WHERE Cuenta = ? AND Estado = 'Pendiente' AND DATE(Fecha_Vencimiento) = ? ORDER BY ID ASC LIMIT 1");
+    $stmt_tc->execute([CUENTA_TARJETA, $vencimiento]);
     $id_tc = $stmt_tc->fetchColumn();
 
     if ($id_tc) {
-        // 2a. Sumar a la deuda acumulada (operación atómica en la BD)
+        // 2a. Sumar a la deuda acumulada del ciclo (operación atómica en la BD)
         $pdo->prepare("UPDATE pagos SET Valor = Valor + ? WHERE ID = ?")->execute([$valor, $id_tc]);
     } else {
-        // 2b. No hay ciclo abierto: se crea uno nuevo que vence el próximo día 10
+        // 2b. Primer gasto del ciclo: se crea la factura con su vencimiento
         $stmt_plantilla = $pdo->prepare("SELECT gasto_id, quien_paga, Automatico FROM pagos WHERE Cuenta = ? ORDER BY ID DESC LIMIT 1");
         $stmt_plantilla->execute([CUENTA_TARJETA]);
         $plantilla = $stmt_plantilla->fetch(PDO::FETCH_ASSOC);
@@ -963,14 +1112,14 @@ function procesarLogicaMetodoPago($pdo, $valor_pago, $metodo, $cuenta_origen = n
             throw new Exception("No existe ninguna cuenta llamada '" . CUENTA_TARJETA . "' para acumular el uso de la tarjeta. Créala primero en Pagos.");
         }
 
-        $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, Vencimiento, Automatico)
-                       VALUES (?, ?, ?, ?, 'Pendiente', ?, 0, ?)")
+        $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, Vencimiento, Automatico, Medio_Pago_Auto)
+                       VALUES (?, ?, ?, ?, 'Pendiente', ?, 0, ?, 1)")
             ->execute([
                 $plantilla['gasto_id'],
                 $plantilla['quien_paga'],
                 CUENTA_TARJETA,
                 $valor,
-                proximoVencimientoTarjeta(),
+                $vencimiento,
                 (int)$plantilla['Automatico']
             ]);
     }
@@ -978,6 +1127,180 @@ function procesarLogicaMetodoPago($pdo, $valor_pago, $metodo, $cuenta_origen = n
     $resultado['origen'] = 'externo';
     $resultado['id_medio'] = 2;
     return $resultado;
+}
+
+// Registra el pago de una cuenta pendiente. La usan el botón "Pagar" y el pago automático.
+// $fecha_pago es la fecha que queda como fecha de pago y de gasto.
+// Debe llamarse dentro de una transacción. Devuelve el mensaje de resultado.
+function registrarPagoCuenta(PDO $pdo, array $pago, $metodo_pago, string $fecha_pago): string
+{
+    if (($pago['Estado'] ?? '') === 'Pagado') {
+        throw new Exception("Este pago ya estaba marcado como pagado.");
+    }
+    if (empty($pago['gasto_id'])) {
+        throw new Exception("El pago no tiene un gasto asociado.");
+    }
+
+    $id          = $pago['ID'];
+    $es_tarjeta  = esCuentaTarjeta($pago['Cuenta']);
+    $valor_pago  = limpiarMontoPago($pago['Valor']);
+    $tiempo_pago = (int)$pago['Vencimiento'];
+    $automatico  = (int)($pago['Automatico'] ?? 0);
+    $medio_auto  = (int)($pago['Medio_Pago_Auto'] ?? 1);
+
+    // La tarjeta de crédito siempre se paga con dinero propio (débito/efectivo)
+    if ($es_tarjeta) {
+        $metodo_pago = 'debito';
+        $medio_auto = 1;
+    }
+
+    // Origen del dinero. Si es crédito, suma el monto a la factura de la tarjeta del ciclo
+    $configuracionPago = procesarLogicaMetodoPago($pdo, $valor_pago, $metodo_pago, $pago['Cuenta'], $fecha_pago);
+    $origen_dinero = $configuracionPago['origen'];
+    $id_medio_pago = $configuracionPago['id_medio'];
+
+    // Categoría y detalle del gasto asociado
+    $stmt = $pdo->prepare("
+        SELECT g.ID_Categoria_Gastos, g.ID_Detalle, c.Categoria_Padre AS modulo
+        FROM gastos g
+        INNER JOIN categorias_gastos c ON g.ID_Categoria_Gastos = c.ID
+        WHERE g.ID = :gasto_id
+    ");
+    $stmt->execute([':gasto_id' => $pago['gasto_id']]);
+    $info = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$info) {
+        throw new Exception("No se pudo obtener la información del gasto asociado.");
+    }
+
+    $categoria_id = (int)$info['ID_Categoria_Gastos'];
+    $detalle_id   = (int)$info['ID_Detalle'];
+    $modulo       = (int)$info['modulo'];
+
+    if (empty($categoria_id) || empty($detalle_id) || empty($modulo)) {
+        throw new Exception("No se pudo obtener la información del gasto asociado.");
+    }
+
+    // Marcar como 'Pagado' (condicionado al estado: evita doble registro si llegan 2 solicitudes a la vez)
+    $stmt_upd = $pdo->prepare("UPDATE pagos SET Estado = 'Pagado', Fecha_Pago = ? WHERE ID = ? AND Estado = 'Pendiente'");
+    $stmt_upd->execute([$fecha_pago, $id]);
+    if ($stmt_upd->rowCount() !== 1) {
+        throw new Exception("Este pago ya estaba marcado como pagado.");
+    }
+
+    // Registrar el gasto (si la tarjeta no tuvo uso en el ciclo, no hay nada que registrar)
+    if (!($es_tarjeta && $valor_pago <= 0)) {
+        $stmt = $pdo->prepare("
+            INSERT INTO gastos (ID_Detalle, ID_Categoria_Gastos, Valor, Fecha, fuente_dinero, id_medio_pago)
+            VALUES (:detalle_id, :categoria_id, :valor, :fecha, :fuente_dinero, :id_medio_pago)
+        ");
+        $stmt->execute([
+            ':detalle_id'    => $detalle_id,
+            ':categoria_id'  => $categoria_id,
+            ':valor'         => $valor_pago,
+            ':fecha'         => $fecha_pago,
+            ':fuente_dinero' => $origen_dinero,
+            ':id_medio_pago' => $id_medio_pago
+        ]);
+    }
+
+    // Programar el siguiente ciclo si el pago es recurrente
+    // Vencimiento: 0 = indefinido | 1 = pago único | >1 = cantidad de meses
+    $programar_siguiente = false;
+    $mensaje = "Pago actualizado exitosamente";
+
+    if ($tiempo_pago === 0) {
+        $programar_siguiente = true;
+    } elseif ($tiempo_pago > 1) {
+        $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM pagos WHERE Cuenta = ?");
+        $stmt_count->execute([$pago['Cuenta']]);
+        if ((int)$stmt_count->fetchColumn() < $tiempo_pago) {
+            $programar_siguiente = true;
+        } else {
+            $mensaje = "Pago actualizado exitosamente y se terminó el ciclo de pago";
+        }
+    }
+
+    if ($programar_siguiente) {
+        // La tarjeta vence siempre el día 10 y el nuevo ciclo parte en $0
+        // (el uso nuevo se irá sumando); el resto repite su monto.
+        $fecha_siguiente = siguienteVencimiento($pago['Fecha_Vencimiento'], $pago['Cuenta']);
+        $valor_siguiente = $es_tarjeta ? 0 : $pago['Valor'];
+
+        // La factura de ese ciclo puede existir ya (se crea sola con la primera compra con crédito)
+        $ya_existe = false;
+        if ($es_tarjeta) {
+            $stmt_dup = $pdo->prepare("SELECT COUNT(*) FROM pagos WHERE Cuenta = ? AND Estado = 'Pendiente' AND DATE(Fecha_Vencimiento) = ?");
+            $stmt_dup->execute([$pago['Cuenta'], $fecha_siguiente]);
+            $ya_existe = ((int)$stmt_dup->fetchColumn() > 0);
+        }
+
+        if (!$ya_existe) {
+            $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, Vencimiento, Automatico, Medio_Pago_Auto)
+                           VALUES (?, ?, ?, ?, 'Pendiente', ?, ?, ?, ?)")
+                ->execute([
+                    $pago['gasto_id'],
+                    $pago['quien_paga'],
+                    $pago['Cuenta'],
+                    $valor_siguiente,
+                    $fecha_siguiente,
+                    $tiempo_pago,
+                    $automatico,
+                    $medio_auto
+                ]);
+        }
+
+        $mensaje .= " y se programó el pago para el " . date('d/m/Y', strtotime($fecha_siguiente)) . ".";
+    }
+
+    return $mensaje;
+}
+
+// Pagos automáticos: cuando llega (o ya pasó) el vencimiento se registran solos y la fecha de
+// pago queda igual a la fecha de vencimiento. Se ejecuta al entrar al sistema, así que si no
+// entras por varios meses se ponen al día todos los vencimientos pendientes en orden.
+// Devuelve cuántos pagos se registraron. Nunca lanza errores hacia la página.
+function procesarPagosAutomaticos(PDO $pdo, ?string $hoy = null): int
+{
+    $hoy = $hoy ?: date('Y-m-d');
+    $procesados = 0;
+    $fallidos = [];
+
+    try {
+        for ($i = 0; $i < 60; $i++) {
+            $sql = "SELECT * FROM pagos WHERE Estado = 'Pendiente' AND Automatico = 1 AND DATE(Fecha_Vencimiento) <= ?";
+            $params = [$hoy];
+            if ($fallidos) {
+                $sql .= " AND ID NOT IN (" . implode(',', array_fill(0, count($fallidos), '?')) . ")";
+                $params = array_merge($params, $fallidos);
+            }
+            $sql .= " ORDER BY Fecha_Vencimiento ASC, ID ASC LIMIT 1";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $pago = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$pago) break;
+
+            // La fecha de pago es la fecha de vencimiento
+            $fecha_pago = date('Y-m-d', strtotime($pago['Fecha_Vencimiento'])) . ' 12:00:00';
+            $metodo = ((int)($pago['Medio_Pago_Auto'] ?? 1) === 2) ? 'credito' : 'debito';
+
+            try {
+                $pdo->beginTransaction();
+                registrarPagoCuenta($pdo, $pago, $metodo, $fecha_pago);
+                $pdo->commit();
+                $procesados++;
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                error_log("Pago automático ID {$pago['ID']} no registrado: " . $e->getMessage());
+                $fallidos[] = (int)$pago['ID'];
+            }
+        }
+    } catch (Throwable $e) {
+        error_log("procesarPagosAutomaticos: " . $e->getMessage());
+    }
+
+    return $procesados;
 }
 
 function obtenerConfiguracionGasto(array $pago): array

@@ -1,3 +1,7 @@
+<?php
+// Para ocultar el crédito (por ejemplo, en el módulo de Ahorros) define $ocultar_credito = true; antes de incluir este archivo.
+$col_medio = empty($ocultar_credito) ? 'col-4' : 'col-6';
+?>
                     <style>
                         /* Estilo para agrandar el switch */
                         .form-check-input-lg {
@@ -90,6 +94,9 @@
                                 ¿Cómo pagarás este gasto?
                             </label>
 
+                            <!-- El checkbox desmarcado no se envía: este campo siempre viaja con 'sistema' o 'externo' -->
+                            <input type="hidden" name="fuente_origen" class="input-fuente-origen" value="sistema">
+
                             <div class="form-check form-switch d-flex align-items-center">
                                 <input class="form-check-input form-check-input-lg switch-dinero" type="checkbox" role="switch"
                                     name="fuente_dinero[]" value="sistema" checked>
@@ -112,7 +119,7 @@
                             </label>
 
                             <div class="row g-3">
-                                <div class="col-4">
+                                <div class="<?php echo $col_medio; ?>">
                                     <label class="w-100">
                                         <input type="radio" name="medio_pago" value="1" class="radio-medio-pago" checked>
                                         <div class="medio-pago-box">
@@ -122,7 +129,8 @@
                                     </label>
                                 </div>
 
-                                <div class="col-4">
+<?php if (empty($ocultar_credito)): ?>
+                                <div class="<?php echo $col_medio; ?>">
                                     <label class="w-100">
                                         <input type="radio" name="medio_pago" value="2" class="radio-medio-pago">
                                         <div class="medio-pago-box">
@@ -131,8 +139,9 @@
                                         </div>
                                     </label>
                                 </div>
+<?php endif; ?>
 
-                                <div class="col-4">
+                                <div class="<?php echo $col_medio; ?>">
                                     <label class="w-100">
                                         <input type="radio" name="medio_pago" value="3" class="radio-medio-pago">
                                         <div class="medio-pago-box">
@@ -161,6 +170,8 @@
                                 const label = contenedorFuente.querySelector('.label-fuente');
                                 const ayuda = contenedorFuente.querySelector('.texto-ayuda');
                                 const boxAyuda = contenedorFuente.querySelector('.caja-ayuda');
+                                const inputOrigen = contenedorFuente.querySelector('.input-fuente-origen');
+                                inputOrigen.value = switchElement.checked ? 'sistema' : 'externo';
 
                                 if (switchElement.checked) {
                                     label.innerHTML = '<i class="fas fa-university me-2 text-primary"></i> Dinero del Sistema';
@@ -176,6 +187,12 @@
                             // Evento para los Switches de Dinero
                             document.querySelectorAll('.switch-dinero').forEach(function(elemento) {
                                 elemento.addEventListener('change', function() {
+                                    const maestro = this.closest('.contenedor-logica-gastos');
+                                    const radioCredito = maestro.querySelector('.radio-medio-pago[value="2"]');
+                                    // Crédito siempre es Externo: no permitir marcarlo como Sistema
+                                    if (radioCredito && radioCredito.checked && this.checked) {
+                                        this.checked = false;
+                                    }
                                     actualizarInterfazFuente(this);
                                 });
                             });
@@ -197,7 +214,7 @@
                                             color: '#0d6efd'
                                         },
                                         '2': { // Crédito
-                                            texto: '<i class="fas fa-exclamation-triangle me-1"></i> Gasto con crédito: se marca como <strong>Externo</strong> para no afectar tu efectivo actual.',
+                                            texto: '<i class="fas fa-exclamation-triangle me-1"></i> Gasto con crédito: se marca como <strong>Externo</strong> y se suma a la factura de tu tarjeta (cierra el 24, vence el 10).',
                                             color: '#ffc107'
                                         },
                                         '3': { // Efectivo
@@ -212,19 +229,19 @@
                                         boxMedio.style.borderColor = seleccion.color;
                                     }
 
-                                    // AUTOMATIZACIÓN POR CLASES:
-                                    // Si selecciona Crédito (valor 2), apagar el switch de fuente
+                                    // AUTOMATIZACIÓN: Crédito fuerza Externo; al salir de Crédito se
+                                    // restaura lo que el usuario tenía antes (no se pisa su elección).
                                     if (this.value === '2') {
-                                        if (switchFuente.checked) {
-                                            switchFuente.checked = false;
-                                            actualizarInterfazFuente(switchFuente);
+                                        if (maestro.dataset.forzado !== '1') {
+                                            maestro.dataset.previo = switchFuente.checked ? '1' : '0';
+                                            maestro.dataset.forzado = '1';
                                         }
-                                    } else {
-                                        // Si vuelve a Débito o Efectivo, restaurar a Sistema
-                                        if (!switchFuente.checked) {
-                                            switchFuente.checked = true;
-                                            actualizarInterfazFuente(switchFuente);
-                                        }
+                                        switchFuente.checked = false;
+                                        actualizarInterfazFuente(switchFuente);
+                                    } else if (maestro.dataset.forzado === '1') {
+                                        switchFuente.checked = (maestro.dataset.previo !== '0');
+                                        maestro.dataset.forzado = '0';
+                                        actualizarInterfazFuente(switchFuente);
                                     }
                                 });
                             });

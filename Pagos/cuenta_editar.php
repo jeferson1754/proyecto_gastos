@@ -42,8 +42,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $tiempo_pago = (int)($_POST['tiempo_pago'] ?? 0);
         $metodo_pago = $_POST['metodo_pago'] ?? 'debito';
         $automatico = isset($_POST['automatico']) ? 1 : 0;
+        $medio_auto = ((int)($_POST['medio_pago_auto'] ?? 1) === 2) ? 2 : 1; // con qué se cobra si es automático
 
         $es_tarjeta = esCuentaTarjeta($cuenta);
+        if ($es_tarjeta) {
+            $medio_auto = 1; // la tarjeta se paga siempre con dinero propio
+        }
         $pasa_a_pagado = ($estado == 'Pagado' && $estado_antiguo != 'Pagado');
 
         // Validaciones (la tarjeta puede quedar en $0 cuando aún no tiene uso)
@@ -72,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
 
             // Si es crédito, suma el valor a la deuda de la tarjeta
-            $configuracionPago = procesarLogicaMetodoPago($pdo, $valor, $metodo_pago, $cuenta);
+            $configuracionPago = procesarLogicaMetodoPago($pdo, $valor, $metodo_pago, $cuenta, $fecha);
             $origen_dinero = $configuracionPago['origen'];
             $id_medio_pago = $configuracionPago['id_medio'];
 
@@ -118,8 +122,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         // Actualizar el pago
-        $stmt = $pdo->prepare("UPDATE pagos SET gasto_id = ?, quien_paga = ?, cuenta = ?, valor = ?, comprobante = ?, Fecha_Pago = ?, Fecha_Vencimiento = ?, Estado = ?, Vencimiento = ?, Automatico = ? WHERE ID = ?");
-        $stmt->execute([$gasto_id, $quien_paga, $cuenta, $valor, $comprobante_url, $fecha, $fecha_vencimiento, $estado, $tiempo_pago, $automatico, $id]);
+        $stmt = $pdo->prepare("UPDATE pagos SET gasto_id = ?, quien_paga = ?, cuenta = ?, valor = ?, comprobante = ?, Fecha_Pago = ?, Fecha_Vencimiento = ?, Estado = ?, Vencimiento = ?, Automatico = ?, Medio_Pago_Auto = ? WHERE ID = ?");
+        $stmt->execute([$gasto_id, $quien_paga, $cuenta, $valor, $comprobante_url, $fecha, $fecha_vencimiento, $estado, $tiempo_pago, $automatico, $medio_auto, $id]);
 
         $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente"];
 
@@ -143,8 +147,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             // Evitar duplicar la tarjeta si ya existe otro ciclo pendiente
             if ($programar_siguiente && $es_tarjeta) {
-                $stmt_dup = $pdo->prepare("SELECT COUNT(*) FROM pagos WHERE Cuenta = ? AND Estado = 'Pendiente' AND ID != ?");
-                $stmt_dup->execute([$cuenta, $id]);
+                // ¿Ya existe la factura pendiente del siguiente ciclo? (se crea sola con la primera compra con crédito)
+                $stmt_dup = $pdo->prepare("SELECT COUNT(*) FROM pagos WHERE Cuenta = ? AND Estado = 'Pendiente' AND DATE(Fecha_Vencimiento) = ?");
+                $stmt_dup->execute([$cuenta, siguienteVencimiento($fecha_vencimiento, $cuenta)]);
                 if ((int)$stmt_dup->fetchColumn() > 0) {
                     $programar_siguiente = false;
                 }
@@ -155,9 +160,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $fecha_siguiente_mes = siguienteVencimiento($fecha_vencimiento, $cuenta);
                 $valor_siguiente = $es_tarjeta ? 0 : $valor;
 
-                $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento, Automatico) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt_next->execute([$gasto_id, $quien_paga, $cuenta, $valor_siguiente, 'Pendiente', $fecha_siguiente_mes, "0000-00-00 00:00:00", $tiempo_pago, $automatico]);
+                $stmt_next = $pdo->prepare("INSERT INTO pagos (gasto_id, quien_paga, cuenta, valor, estado, fecha_vencimiento, fecha_pago, Vencimiento, Automatico, Medio_Pago_Auto) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt_next->execute([$gasto_id, $quien_paga, $cuenta, $valor_siguiente, 'Pendiente', $fecha_siguiente_mes, "0000-00-00 00:00:00", $tiempo_pago, $automatico, $medio_auto]);
 
                 $mensaje = ["tipo" => "success", "texto" => "Pago actualizado exitosamente y se programó el pago para el " . date('d/m/Y', strtotime($fecha_siguiente_mes)) . "."];
             }
@@ -503,6 +508,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </label>
                     </div>
                     <div class="form-text">Se cobra solo (por ejemplo, cargo a la tarjeta o cuenta). No aparecerá en las alertas del inicio.</div>
+                    <div class="mt-3" id="bloque-medio-auto" style="display:none;">
+                        <label for="medio_pago_auto" class="form-label small fw-bold">Se cobra con</label>
+                        <select class="form-select form-select-sm" id="medio_pago_auto" name="medio_pago_auto">
+                            <option value="1">Débito / cuenta</option>
+                            <option value="2" <?php echo ((int)($resultado['Medio_Pago_Auto'] ?? 1) === 2) ? 'selected' : ''; ?>>Tarjeta de crédito</option>
+                        </select>
+                        <div class="form-text">Con tarjeta de crédito el cobro se suma a la factura de la tarjeta.</div>
+                    </div>
+                    <script>
+                        (function() {
+                            var sw = document.getElementById('automatico');
+                            var bloque = document.getElementById('bloque-medio-auto');
+                            function mostrar() { bloque.style.display = sw.checked ? 'block' : 'none'; }
+                            sw.addEventListener('change', mostrar);
+                            mostrar();
+                        })();
+                    </script>
                 </div>
 
                 <div class="d-flex gap-2 justify-content-end mt-4">

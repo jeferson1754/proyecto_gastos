@@ -42,7 +42,15 @@ try {
     $pdo->beginTransaction();
 
     //Procesar metodo de pago Tarjeta de Credito y sumarlo en pagos pendientes
-    $configuracionPago = procesarLogicaMetodoPago($pdo, $valor, $medio_pago);
+    $configuracionPago = procesarLogicaMetodoPago($pdo, $valor, $medio_pago, null, $fecha);
+
+    // Con crédito el servidor decide: siempre 'externo' y medio 2, aunque el
+    // interruptor de la pantalla haya quedado en "Sistema". Así no se cuenta
+    // como dinero que salió de la cuenta algo que se pagará con la tarjeta.
+    if ($configuracionPago['id_medio'] == 2) {
+        $fuente_dinero = $configuracionPago['origen'];
+        $medio_pago    = $configuracionPago['id_medio'];
+    }
 
     // Obtener o crear categoría
     $stmt = $pdo->prepare("SELECT ID FROM categorias_gastos WHERE Nombre = :nombre AND Categoria_Padre = :categoria_padre ");
@@ -158,6 +166,9 @@ try {
     }
     echo "Error de conexión: " . $e->getMessage();
 } catch (Exception $e) {
-    // En caso de error de validación u otros
+    // En caso de error de validación, de crédito u otros: deshacer lo que se alcanzó a registrar
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     echo "Error: " . $e->getMessage();
 }

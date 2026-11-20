@@ -1,6 +1,11 @@
 <?php
 include('../bd.php');
 
+// Pagos automáticos vencidos: se registran solos antes de listar
+if (isset($pdo)) {
+    procesarPagosAutomaticos($pdo);
+}
+
 if (isset($_GET['pendientes'])) {
     $where = "WHERE p.Estado ='Pendiente'";
     $texto_filtro = "Distribución de Gastos (Pendientes)";
@@ -520,7 +525,7 @@ foreach ($datos_pie as $row) {
                                     <a href="./cuenta_editar.php?id=<?= $pago['ID'] ?>" class="btn btn-warning btn-sm">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <?php if ($pago['Estado'] == 'Pendiente'): ?>
+                                    <?php if ($pago['Estado'] == 'Pendiente' && empty($pago['Automatico'])): ?>
                                         <button type="button"
                                             class="btn btn-sm btn-success btn-pagar-rapido"
                                             data-id="<?= $pago['ID'] ?>"
@@ -650,7 +655,7 @@ foreach ($datos_pie as $row) {
                             <a href="./cuenta_editar.php?id=<?php echo $pago['ID']; ?>" class="btn btn-warning btn-sm">
                                 <i class="fas fa-edit me-1"></i>Editar
                             </a>
-                            <?php if ($pago['Estado'] == 'Pendiente'): ?>
+                            <?php if ($pago['Estado'] == 'Pendiente' && empty($pago['Automatico'])): ?>
                                 <button type="button"
                                     class="btn btn-sm btn-success btn-pagar-rapido ms-2"
                                     data-id="<?= $pago['ID'] ?>"
