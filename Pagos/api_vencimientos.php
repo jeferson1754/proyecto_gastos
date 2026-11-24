@@ -22,7 +22,7 @@ try {
     // Ajusta la consulta según el objeto que devuelva tu bd.php
     $stmt = $pdo->query("SELECT p.*, DATE_FORMAT(p.Fecha_Vencimiento, '%d/%m/%Y') as Fecha_Formateada 
                          FROM pagos p 
-                         WHERE p.Estado = 'Pendiente' 
+                         WHERE p.Estado = 'Pendiente' and p.Automatico != 1
                          ORDER BY p.Fecha_Vencimiento ASC");
     $cuentas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
