@@ -33,7 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $gasto_id = $_POST['gasto_id'] ?? '';
         $quien_paga = $_POST['quien_paga'] ?? '';
         $cuenta = $_POST['cuenta'] ?? '';
-        $fecha = !empty($_POST['fecha']) ? $_POST['fecha'] : $fecha_actual_hora_actual;
         $fecha_vencimiento = $_POST['fecha_vencimiento'] ?? '';
         $estado = $_POST['estado'] ?? '';
         $estado_antiguo = $_POST['estado_antiguo'] ?? '';
@@ -49,6 +48,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $medio_auto = 1; // la tarjeta se paga siempre con dinero propio
         }
         $pasa_a_pagado = ($estado == 'Pagado' && $estado_antiguo != 'Pagado');
+
+        if ($estado === 'Pagado') {
+            // Si pasa a Pagado y el usuario no puso fecha manual, usa la actual. Si ya estaba Pagado, conserva la del input.
+            $fecha = !empty($_POST['fecha']) ? $_POST['fecha'] : $fecha_actual_hora_actual;
+        } else {
+            // Si sigue Pendiente (u otro estado no pagado), mantiene la fecha de pago en cero
+            $fecha = '0000-00-00 00:00:00';
+        }
 
         // Validaciones (la tarjeta puede quedar en $0 cuando aún no tiene uso)
         if (empty($quien_paga) || empty($cuenta) || empty($estado) || empty($fecha_vencimiento) || ($valor <= 0 && !$es_tarjeta)) {
@@ -427,11 +434,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <label for="fecha" class="form-label fw-bold">
                             <i class="fas fa-calendar me-2"></i>Fecha de Pago
                         </label>
+                        <?php
+                        $fecha_pago_val = (!empty($resultado['Fecha_Pago']) && $resultado['Fecha_Pago'] !== '0000-00-00 00:00:00')
+                            ? date('Y-m-d\TH:i', strtotime($resultado['Fecha_Pago']))
+                            : '';
+                        ?>
                         <input type="datetime-local"
                             class="form-control"
                             id="fecha"
                             name="fecha"
-                            value="<?php echo date('Y-m-d\TH:i', strtotime($resultado['Fecha_Pago'])); ?>">
+                            value="<?php echo $fecha_pago_val; ?>">
                         <div class="invalid-feedback">Por favor ingrese una fecha válida</div>
                     </div>
 
@@ -520,7 +532,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         (function() {
                             var sw = document.getElementById('automatico');
                             var bloque = document.getElementById('bloque-medio-auto');
-                            function mostrar() { bloque.style.display = sw.checked ? 'block' : 'none'; }
+
+                            function mostrar() {
+                                bloque.style.display = sw.checked ? 'block' : 'none';
+                            }
                             sw.addEventListener('change', mostrar);
                             mostrar();
                         })();
